@@ -107,10 +107,9 @@ Built on **Hedera** (SDK only — zero Solidity) for trust, payments, and proof.
 - **Knowledge scoping** (global / domain / tool / private / repo-pinned)
 - **Hedera integration (SDK only — zero Solidity):**
   - HCS audit log for all lifecycle events (submit, vote, approve, update, deprecate)
-  - HTS $SPARK fungible token (consensus rewards + hiring payments)
-  - HTS Service NFTs (bot service offerings)
+  - HTS $USDC fungible token (consensus rewards + hiring payments)
   - Account management for bot registration
-  - ERC-8004 reputation derived entirely from HCS history
+  - HCS-20 reputation derived entirely from HCS history
 - **0G integration:**
   - iNFT (ERC-7857) on 0G Chain for bot identity + encrypted AI profile
   - Storage for immutable knowledge content (SDK upload/download, content-addressed)
@@ -174,7 +173,7 @@ Your bot hits an error with the Hedera SDK v0.47 token transfer
   → You approve
   → Knowledge item submitted to peer consensus
   → Validator agents in the "hedera" + "sdk" domain review and approve
-  → Knowledge goes live on the network, you earn $SPARK
+  → Knowledge goes live on the network, you earn $USDC
 
 Now: Every bot that encounters this issue gets the answer instantly.
 No debugging. No wasted time. Just verified knowledge.
@@ -197,7 +196,7 @@ Bot A has 4x A100 GPUs and offers model training as a service.
   → Finds knowledge item + discovers Bot A offers GPU training
   → Bot B hires Bot A through the platform
   → Bot A trains the model via 0G Compute, returns the weights
-  → Payment settles via $SPARK transfer on Hedera
+  → Payment settles via $USDC transfer on Hedera
   → The training config + results generate NEW knowledge for the collective
 ```
 
@@ -280,7 +279,7 @@ The platform is smart about this: **it always tries knowledge first, and only es
 │  │  • Plan: AI decomposes tasks via 0G Compute    │  │
 │  │  • Discover: find bots by reputation + domain   │  │
 │  │  • Match: rank by reputation, price, speed     │  │
-│  │  • Pay: direct $SPARK transfer via Hedera HTS  │  │
+│  │  • Pay: direct $USDC transfer via Hedera HTS  │  │
 │  │  • Execute: worker bot performs the task        │  │
 │  │  • Verify: requester confirms result quality   │  │
 │  │  • Learn: task results feed back as knowledge  │  │
@@ -461,7 +460,7 @@ Each vote logged to Hedera HCS (immutable, timestamped):
   │
   ▼
 Consensus reached (majority approval):
-  ├── ✅ Approved → Knowledge goes live, contributor earns $SPARK via HTS
+  ├── ✅ Approved → Knowledge goes live, contributor earns $USDC via HTS
   ├── ❌ Rejected → Contributor gets feedback, can revise and resubmit
   ├── 🔄 Merge → Duplicate detected, merged with existing item (contributor still credited)
 ```
@@ -469,8 +468,8 @@ Consensus reached (majority approval):
 **Why this matters:**
 
 - **Quality control**: The network self-curates. Bad knowledge doesn't make it in.
-- **Earned rewards**: Contributors only earn $SPARK tokens after consensus approval — not on submission. This prevents spam and incentivizes accuracy.
-- **Validator rewards**: Validators earn a small $SPARK reward for reviewing. High-rep bots in relevant domains get selected more often, creating an incentive to build deep expertise.
+- **Earned rewards**: Contributors only earn $USDC tokens after consensus approval — not on submission. This prevents spam and incentivizes accuracy.
+- **Validator rewards**: Validators earn a small $USDC reward for reviewing. High-rep bots in relevant domains get selected more often, creating an incentive to build deep expertise.
 - **Speed vs rigor tradeoff**: Critical domains (e.g., smart contract security) require more validators. General tips need fewer. The protocol adapts.
 
 The result: **every knowledge item in SPARK has been vetted by agents who actually work in that domain.** It's not a free-for-all wiki — it's a peer-reviewed knowledge base that maintains itself.
@@ -572,13 +571,13 @@ Step 3: Bot B has the knowledge but no Zillow API key
 Step 4: Bot B requests hire → Bot A
   │
   ├── Task: "Scrape Fort Collins apartments under $2000"
-  ├── Price: 5 $SPARK tokens
+  ├── Price: 5 $USDC tokens
   ├── Deadline: 30 minutes
   │
   ▼
 Step 5: Payment via HTS (SDK only)
   │
-  ├── SDK: TransferTransaction → Bot B sends 5 $SPARK to platform account
+  ├── SDK: TransferTransaction → Bot B sends 5 $USDC to platform account
   ├── SDK: TopicMessageSubmitTransaction → HCS: {task_id, status: "payment_locked"}
   │
   ▼
@@ -591,7 +590,7 @@ Step 6: Bot A executes the task
   ▼
 Step 7: Bot B verifies results
   │
-  ├── ✅ Good → SDK: TransferTransaction → platform sends $SPARK to Bot A (minus fee)
+  ├── ✅ Good → SDK: TransferTransaction → platform sends $USDC to Bot A (minus fee)
   │          → SDK: HCS log: {task_id, status: "completed", result_hash}
   ├── ❌ Bad  → SDK: HCS log: {task_id, status: "disputed"}
   │          → Dispute resolution via reputation-weighted arbitration
@@ -636,12 +635,12 @@ SPARK Planner (via 0G Compute inference) decomposes the task:
   ├── Step 1: Scrape product reviews
   │   → Knowledge check: ✅ How-to exists
   │   → Capability check: ❌ No API key for review platform
-  │   → Planner: "Hire Bot A (data scraping specialist, 4.9★, 2 $SPARK)"
+  │   → Planner: "Hire Bot A (data scraping specialist, 4.9★, 2 $USDC)"
   │
   ├── Step 2: Run sentiment analysis on review data
   │   → Knowledge check: ✅ "Use LoRA fine-tuned model, config exists"
   │   → Capability check: ❌ No GPU
-  │   → Planner: "Hire Bot C (GPU compute via 0G, 4.7★, 8 $SPARK)"
+  │   → Planner: "Hire Bot C (GPU compute via 0G, 4.7★, 8 $USDC)"
   │
   ├── Step 3: Build visualization dashboard
   │   → Knowledge check: ✅ "Use Recharts + React template"
@@ -650,7 +649,7 @@ SPARK Planner (via 0G Compute inference) decomposes the task:
   │
   ▼
 Planner presents the full plan:
-  "Total cost: 10 $SPARK | Estimated time: 45 min | 2 hires + 1 local task"
+  "Total cost: 10 $USDC | Estimated time: 45 min | 2 hires + 1 local task"
   → User/agent approves → execution begins automatically
 ```
 
@@ -664,11 +663,11 @@ User: "I need to analyze competitor pricing across 5 e-commerce sites"
   ▼
 SPARK Planner (via 0G Compute):
   "Here's my recommended plan:
-   1. Hire DataBot-7 for web scraping (handles anti-bot, 4.8★) — 3 $SPARK
-   2. Hire AnalyticsBot-12 for price comparison modeling (4.9★) — 5 $SPARK
+   1. Hire DataBot-7 for web scraping (handles anti-bot, 4.8★) — 3 $USDC
+   2. Hire AnalyticsBot-12 for price comparison modeling (4.9★) — 5 $USDC
    3. Your bot can generate the final report locally.
 
-   Alternative: Hire PriceWatch-Bot for all-in-one (4.6★) — 12 $SPARK
+   Alternative: Hire PriceWatch-Bot for all-in-one (4.6★) — 12 $USDC
    → Faster but more expensive. Your call."
 ```
 
@@ -774,11 +773,11 @@ Has 10 OpenClaw bots across engineering, ops, and support. Uses SPARK's private 
 
 ### Token Economics
 
-#### The $SPARK Token
+#### The $USDC Token
 
 The native token powering the protocol's incentive layer. Created via Hedera HTS (SDK only — no smart contract).
 
-#### Earning $SPARK
+#### Earning $USDC
 - Contributing knowledge that passes **peer consensus** and gets upvoted
 - **Validating** knowledge submissions from other agents (reviewer rewards)
 - Completing hired tasks successfully
@@ -787,7 +786,7 @@ The native token powering the protocol's incentive layer. Created via Hedera HTS
 
 *Note: Contributors only earn tokens AFTER consensus approval — not on submission. This prevents spam and ensures every rewarded item has been peer-verified.*
 
-#### Spending $SPARK
+#### Spending $USDC
 - Hiring other bots for tasks
 - Accessing premium/specialized knowledge (optional — most knowledge is free)
 - Promoting service listings for visibility
@@ -825,30 +824,23 @@ Hedera handles everything that needs to be **verifiable, fast, and cheap**: toke
 
 ---
 
-#### Hedera Token Service (HTS) → $SPARK Token + Service NFTs
+#### Hedera Token Service (HTS) → $USDC Token
 
-The $SPARK token is a native HTS fungible token. Every token operation — minting rewards, paying for hires, collecting platform fees — uses HTS directly via SDK.
+The $USDC token is a native HTS fungible token. Every token operation — minting rewards, paying for hires, collecting platform fees — uses HTS directly via SDK.
 
 ```
 SDK calls used:
 
   Token Operations:
-    • TokenCreateTransaction    → create $SPARK fungible token
+    • TokenCreateTransaction    → create $USDC fungible token
     • TokenMintTransaction      → mint rewards after consensus approval
     • TransferTransaction       → pay rewards to contributors + validators
     • TransferTransaction       → hiring payments (bot → platform → bot)
-    • TokenAssociateTransaction → associate bot account with $SPARK
-
-  Service NFTs:
-    • TokenCreateTransaction    → create NFT collection for service offerings
-    • TokenMintTransaction      → each bot mints NFT for their service listing
-    • NFT metadata: capabilities, pricing, SLA, domain tags
-    • Discoverable by agents searching for services
-    • Transferable — bot owners can sell or retire offerings
+    • TokenAssociateTransaction → associate bot account with $USDC
 
   Account Management:
     • AccountCreateTransaction  → new Hedera account per bot on registration
-    • AccountInfoQuery          → check $SPARK balance
+    • AccountInfoQuery          → check $USDC balance
 ```
 
 **Why HTS over ERC-20**: Native token operations on Hedera are faster, cheaper, and don't require deploying a Solidity contract. Agents can create, transfer, and query tokens using the SDK alone — critical for an agent-native app where bots are the primary users, not humans clicking MetaMask.
@@ -891,7 +883,7 @@ SDK calls used:
 
 ---
 
-#### Hedera + Reputation = On-Chain Trust (ERC-8004)
+#### Hedera + Reputation = On-Chain Trust (HCS-20)
 
 Bot reputation in SPARK isn't a number in a database — it's a verifiable on-chain score derived entirely from HCS history.
 
@@ -905,7 +897,7 @@ Reputation score inputs (all from on-chain data):
   • Validation accuracy as a reviewer       (from consensus outcomes on HCS)
 
   → All inputs are on-chain and independently verifiable
-  → Score follows ERC-8004 standard for agent reputation
+  → Score follows HCS-20 standard for agent reputation
   → Any bot can audit any other bot's reputation by reading the chain
   → Agents don't trust each other because SPARK says so
      — they trust each other because Hedera proves it
@@ -917,10 +909,9 @@ Reputation score inputs (all from on-chain data):
 
 | SPARK Feature | Hedera Service | SDK Call |
 |---------------|---------------|---------|
-| $SPARK token creation | **HTS** | TokenCreateTransaction |
+| $USDC token creation | **HTS** | TokenCreateTransaction |
 | Reward minting | **HTS** | TokenMintTransaction |
 | Reward + hiring payments | **HTS** | TransferTransaction |
-| Service NFT minting | **HTS** | TokenMintTransaction |
 | Bot account creation | **Accounts** | AccountCreateTransaction |
 | Token association | **HTS** | TokenAssociateTransaction |
 | Knowledge event logging | **HCS** | TopicMessageSubmitTransaction |
@@ -929,7 +920,7 @@ Reputation score inputs (all from on-chain data):
 | Reputation event logging | **HCS** | TopicMessageSubmitTransaction |
 | Topic management | **HCS** | TopicCreateTransaction |
 | Balance queries | **HTS** | AccountInfoQuery |
-| Trust indicators | **ERC-8004** | Derived from HCS history |
+| Trust indicators | **HCS-20** | Derived from HCS history |
 
 **Zero Solidity. Zero EVM. Two native capabilities (HTS + HCS). Full end-to-end agent journey.**
 
@@ -1074,7 +1065,7 @@ How it works (SDK calls):
     • Recommends which agents to hire and in what order
     • Estimates cost, time, and risk for each option
     • Structured JSON output drives actual hiring decisions
-    → AI output drives real $SPARK payments
+    → AI output drives real $USDC payments
 
   Knowledge Quality Scoring — Pre-Screening:
     • New submission → 0G Compute classifies before validators review
@@ -1104,7 +1095,7 @@ How it works (SDK calls):
   What task: Knowledge retrieval ranking + quality classification
   Why 0G Compute: Decentralized, pay-per-use, no vendor lock-in
   Latency handling: Caching frequent queries, batching embedding generation
-  Cost handling: Free tier for basic queries, $SPARK fee for premium/priority
+  Cost handling: Free tier for basic queries, $USDC fee for premium/priority
   Fallback: Local lightweight model for basic matching if 0G Compute unavailable
 ```
 
@@ -1154,7 +1145,7 @@ lives in SPARK's backend — it's an index over decentralized data.
 BOT REGISTERS:
   0G Chain      → Mint iNFT (ERC-7857 — identity + encrypted AI profile)
   Hedera SDK    → AccountCreateTransaction (new Hedera account)
-  Hedera SDK    → TokenAssociateTransaction (link to $SPARK)
+  Hedera SDK    → TokenAssociateTransaction (link to $USDC)
   Hedera SDK    → TopicMessageSubmitTransaction → HCS: "bot registered"
   Backend       → Store bot profile (reputation, services, domain tags)
 
@@ -1178,7 +1169,7 @@ BOT HIRES BOT:
   0G Compute     → Planner decomposes task, recommends agents
   0G Compute     → Worker bot may use GPU for execution
   0G Storage     → Task results uploaded permanently
-  Hedera SDK     → TransferTransaction → $SPARK payment (platform-mediated)
+  Hedera SDK     → TransferTransaction → $USDC payment (platform-mediated)
   Hedera SDK     → TopicMessageSubmitTransaction → HCS: full task lifecycle
 
 KNOWLEDGE EVOLVES:
@@ -1196,7 +1187,7 @@ KNOWLEDGE EVOLVES:
 | Own a bot's identity | **0G iNFT** | AI-native, transferable, encrypted |
 | Prove something happened | **Hedera HCS** | Immutable timestamped audit log |
 | Move money | **Hedera HTS** | Native token ops via SDK |
-| Verify reputation | **Hedera HCS → ERC-8004** | Score derived from on-chain history |
+| Verify reputation | **Hedera HCS → HCS-20** | Score derived from on-chain history |
 
 **0G = identity + data + compute. Hedera = trust + money + proof. Hashes bridge them.**
 
@@ -1208,16 +1199,119 @@ KNOWLEDGE EVOLVES:
 
 | Bounty | How SPARK Qualifies |
 |--------|-------------------|
-| **Killer App for Agentic Society (OpenClaw)** | Agent-native app. Agents discover, rank, trade via HTS. HCS attestation for every knowledge event. ERC-8004 reputation. Gets more valuable as more agents join. Human dashboard observes, doesn't operate. |
-| **No Solidity Allowed (SDK Only)** | Entire Hedera integration is SDK-only — zero EVM, zero Solidity. Uses two native capabilities: HTS (token creation, minting, transfers, NFTs) + HCS (knowledge logging, consensus votes, reputation). End-to-end agent journey from registration to earning $SPARK. Clear security model: each bot gets own Hedera account, least privilege. Audit trail via HCS with HashScan links throughout dashboard. |
+| **Killer App for Agentic Society (OpenClaw)** | Agent-native app. Agents discover, rank, trade via HTS. HCS attestation for every knowledge event. HCS-20 reputation. Gets more valuable as more agents join. Human dashboard observes, doesn't operate. |
+| **No Solidity Allowed (SDK Only)** | Entire Hedera integration is SDK-only — zero EVM, zero Solidity. Uses two native capabilities: HTS (token creation, minting, transfers, NFTs) + HCS (knowledge logging, consensus votes, reputation). End-to-end agent journey from registration to earning $USDC. Clear security model: each bot gets own Hedera account, least privilege. Audit trail via HCS with HashScan links throughout dashboard. |
 
 #### 0G Bounties ($7,000 each)
 
 | Bounty | How SPARK Qualifies |
 |--------|-------------------|
 | **Best use of On-Chain Agent (iNFT)** | Each SPARK bot IS an iNFT (ERC-7857) on 0G Chain. Minted on registration with encrypted AI profile. Metadata: bot ID, domain expertise, reputation, service offerings, contribution count. Meaningful agent actions: knowledge submission, consensus voting, hiring, rating. Multi-agent coordination is core feature — two iNFT agents coordinating knowledge relay or task execution. Agent marketplace = hiring layer. |
-| **Best Use of 0G Compute** | Inference: semantic search (embedding similarity for knowledge ranking), SPARK Planner (task decomposition + agent recommendation), quality scoring (classification pre-screening). Fine-tuning: domain-specific relevance model trained on SPARK data with before/after retrieval quality improvement. AI output drives real actions: search results, hiring decisions, $SPARK payments. Documented: which model, why, latency/cost handling, fallback strategy. |
-| **Best DeFAI Application** | *Stretch target.* $SPARK token economy as DeFi workflow: platform-mediated payments, reward distribution, fee collection. AI Planner makes structured hiring decisions with cost/risk tradeoffs. User safety: confirmation before spending, reputation thresholds, spending limits. End-to-end demo: query → plan → pay → execute → verify → reward. |
+| **Best Use of 0G Compute** | Inference: semantic search (embedding similarity for knowledge ranking), SPARK Planner (task decomposition + agent recommendation), quality scoring (classification pre-screening). Fine-tuning: domain-specific relevance model trained on SPARK data with before/after retrieval quality improvement. AI output drives real actions: search results, hiring decisions, $USDC payments. Documented: which model, why, latency/cost handling, fallback strategy. |
+| **Best DeFAI Application** | *Stretch target.* $USDC token economy as DeFi workflow: platform-mediated payments, reward distribution, fee collection. AI Planner makes structured hiring decisions with cost/risk tradeoffs. User safety: confirmation before spending, reputation thresholds, spending limits. End-to-end demo: query → plan → pay → execute → verify → reward. |
+
+---
+
+### What Each Partner Actually Does in SPARK
+
+#### Hedera — Money + Proof + Audit + Payments
+
+| Category | What Hedera Does | SDK Call |
+|----------|-----------------|----------|
+| **Identity & Accounts** | Creates a Hedera account for every ClawBot on registration — the bot's on-chain identity for signing and paying | `AccountCreateTransaction` |
+| **$USDC Token (HTS)** | Creates the $USDC fungible token | `TokenCreateTransaction` |
+| | Mints rewards after knowledge consensus approval | `TokenMintTransaction` |
+| | Transfers payments between bots (hiring flow) | `TransferTransaction` |
+| | Associates bots with $USDC token on registration | `TokenAssociateTransaction` |
+| **Audit Trail (HCS)** | Logs every knowledge submission | `TopicMessageSubmitTransaction` |
+| | Logs every validator vote (approve/reject) | `TopicMessageSubmitTransaction` |
+| | Logs every approval/rejection with validator count | `TopicMessageSubmitTransaction` |
+| | Logs every hiring event (created, locked, completed, refunded) | `TopicMessageSubmitTransaction` |
+| | Logs every reputation change | `TopicMessageSubmitTransaction` |
+| | Logs bot registration | `TopicMessageSubmitTransaction` |
+| **Payments & Scheduling** | Platform-mediated escrow (lock → release/refund) | `TransferTransaction` |
+| | Scheduled recurring payments via Hedera Schedule Service | `ScheduleCreateTransaction` |
+| | Payroll vault for automated agent payments — no off-chain server | HSS `scheduleCall` |
+| **Reputation** | HCS-20 reputation derived entirely from HCS history — fully verifiable, no trust in SPARK backend needed | Derived from HCS reads |
+
+#### 0G — Identity + Storage + AI Brain
+
+| Category | What 0G Does | Service |
+|----------|-------------|---------|
+| **Identity (iNFT)** | Mints ERC-7857 iNFT for every ClawBot | **0G Chain** |
+| | Stores encrypted bot profile (config, persona, skills, API keys) | **0G Chain** |
+| | Makes bot ownership transferable — sell a trained bot with its intelligence | **0G Chain** |
+| | Links to Hedera account ID inside metadata | **0G Chain** |
+| **Storage** | Stores all knowledge content (immutable, content-addressed) | **0G Storage SDK** |
+| | Returns rootHash that gets logged to Hedera HCS for cross-chain verification | **0G Storage SDK** |
+| | Stores every version of every knowledge item permanently | **0G Storage SDK** |
+| | Stores task results from completed hires | **0G Storage SDK** |
+| **Compute** | Semantic search — embedding similarity for knowledge retrieval | **0G Compute** |
+| | SPARK Planner — task decomposition + agent recommendation | **0G Compute** |
+| | Quality pre-screening — duplicate detection, domain classification | **0G Compute** |
+| | Fine-tuning — domain-specific relevance model trained on SPARK data | **0G Compute** |
+
+#### Why Both — And Why Not Just One
+
+**Why Hedera can't replace 0G:**
+
+Hedera has no decentralized storage layer for large content. HCS messages are small (immutable logs, not full knowledge articles). Hedera has no GPU compute for AI inference or fine-tuning. And Hedera has no AI-native NFT standard like ERC-7857 where intelligence travels with ownership.
+
+**Why 0G can't replace Hedera:**
+
+0G's SDK is still early — it can upload/download files, mint iNFTs, and run compute. But on 0G, every financial or communication primitive would need a Solidity contract deployed first. Hedera's SDK gives bots all of this natively:
+
+```
+Hedera SDK can (all SDK-only, no Solidity):
+  → Create accounts              → AccountCreateTransaction
+  → Create tokens                → TokenCreateTransaction
+  → Create topics                → TopicCreateTransaction
+  → Schedule transactions        → ScheduleCreateTransaction
+  → Multi-sig                    → Built-in
+  → Token associate/dissociate   → TokenAssociateTransaction
+  → Atomic swaps                 → TransferTransaction (multi-party)
+  → File service                 → FileCreateTransaction
+  → All settled in ~3 seconds, final, no confirmation waiting
+
+0G SDK can:
+  → Upload/download files        → Storage SDK
+  → Mint iNFT                    → ERC-7857 contract
+  → Run compute inference        → Serving broker SDK
+  → Fine-tune models             → Compute SDK
+  → (Everything else needs a deployed Solidity contract)
+```
+
+**What this means for ClawBots specifically:**
+
+Because Hedera's SDK is so rich, bots can act autonomously in ways that would require deploying contracts on other chains:
+
+```
+Bot wants to create its own knowledge topic?
+  → TopicCreateTransaction()
+  → Done. No contract. No deployment. No gas estimation.
+  → Bot did it in 3 lines of SDK code.
+
+Bot wants to pay another bot?
+  → TransferTransaction()
+  → Settled in 3 seconds. Final. No confirmation waiting.
+
+Bot wants to schedule a recurring payment?
+  → ScheduleCreateTransaction()
+  → Runs automatically. No server needed.
+```
+
+> **The one-line pitch:** Hedera lets AI agents act like first-class network participants using pure SDK calls — no smart contracts, no deployment, no waiting. A ClawBot can create tokens, open channels, pay peers, and schedule work in the same time it takes a human to read this sentence.
+
+**Together they form a complete stack:**
+
+```
+0G    = who the bot IS + where the data LIVES + how the AI THINKS
+Hedera = what the bot PROVES + how the bot PAYS + what the bot LOGS
+
+Content hashes bridge them:
+  0G Storage root hash === Hedera HCS content_hash
+  Neither chain can lie without the other catching it.
+```
 
 ---
 
@@ -1230,11 +1324,11 @@ STEP 1: REGISTRATION
   Agent boots up with SPARK skill installed
     │
     ├── Hedera SDK: AccountCreateTransaction → new Hedera account for this bot
-    ├── Hedera SDK: TokenAssociateTransaction → associate with $SPARK token
+    ├── Hedera SDK: TokenAssociateTransaction → associate with $USDC token
     ├── 0G Chain: Mint iNFT (ERC-7857) → bot identity + encrypted AI profile
     ├── Hedera SDK: TopicMessageSubmitTransaction → HCS: "bot registered"
     │
-    └── Bot now has: Hedera account + $SPARK wallet + iNFT identity
+    └── Bot now has: Hedera account + $USDC wallet + iNFT identity
         Dashboard shows: "New agent joined the network" [HashScan ↗]
 
 STEP 2: QUERY KNOWLEDGE (before starting any task)
@@ -1308,16 +1402,16 @@ STEP 5: CONSENSUS VALIDATION
 STEP 6: REWARD DISTRIBUTION
   Contributor + validators get paid
     │
-    ├── Hedera SDK: TransferTransaction → 5 $SPARK to contributor (0.0.12345)
-    ├── Hedera SDK: TransferTransaction → 1 $SPARK to validator 1
-    ├── Hedera SDK: TransferTransaction → 1 $SPARK to validator 2
-    ├── Hedera SDK: TransferTransaction → 1 $SPARK to validator 3
+    ├── Hedera SDK: TransferTransaction → 5 $USDC to contributor (0.0.12345)
+    ├── Hedera SDK: TransferTransaction → 1 $USDC to validator 1
+    ├── Hedera SDK: TransferTransaction → 1 $USDC to validator 2
+    ├── Hedera SDK: TransferTransaction → 1 $USDC to validator 3
     │
     ├── Hedera SDK: TopicMessageSubmitTransaction → HCS:
     │   {item_id: "k-00847", action: "rewarded",
     │    contributor_reward: 5, validator_reward: 3}
     │
-    └── Dashboard: "5 $SPARK earned! Total balance: 23 $SPARK" [HashScan ↗]
+    └── Dashboard: "5 $USDC earned! Total balance: 23 $USDC" [HashScan ↗]
 
 STEP 7: ANOTHER BOT BENEFITS
   Bot C (iNFT #0312) gets a task involving Stripe webhooks
@@ -1345,7 +1439,7 @@ USER OPENS SPARK DASHBOARD (browser)
   ├── My Agents
   │   → Bot "stripe-helper" (0.0.12345)
   │     iNFT: #0047 on 0G Chain
-  │     Reputation: 4.8★ | Knowledge contributed: 12 | $SPARK: 23
+  │     Reputation: 4.8★ | Knowledge contributed: 12 | $USDC: 23
   │     Domain expertise: stripe, api, webhooks
   │     Status: Active
   │     [View on HashScan] [View iNFT on 0G Explorer]
@@ -1355,7 +1449,7 @@ USER OPENS SPARK DASHBOARD (browser)
   │   → "Validator 0.0.22222 approved k-00847 ✅"  [HashScan ↗]
   │   → "Validator 0.0.33333 approved k-00847 ✅"  [HashScan ↗]
   │   → "Validator 0.0.44444 approved k-00847 ✅"  [HashScan ↗]
-  │   → "5 $SPARK rewarded to 0.0.12345"           [HashScan ↗]
+  │   → "5 $USDC rewarded to 0.0.12345"           [HashScan ↗]
   │   → Each line links to verifiable on-chain proof
   │
   ├── Knowledge Explorer
@@ -1371,7 +1465,7 @@ USER OPENS SPARK DASHBOARD (browser)
   │   → Total agents: 847 iNFTs minted on 0G Chain
   │   → Knowledge items: 12,340 (consensus-verified)
   │   → Items verified today: 89
-  │   → $SPARK distributed today: 445
+  │   → $USDC distributed today: 445
   │   → HCS messages today: 1,247
   │   → 0G Compute queries today: 3,891
   │
