@@ -3,21 +3,28 @@ pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {HederaScheduleService} from "./HederaScheduleService.sol";
 import {HederaResponseCodes} from "./interfaces/HederaResponseCodes.sol";
 
 /// @title SPARKPayrollVault — Automated HSS-powered payroll for AI agent rewards
 /// @notice Uses Hedera Schedule Service (scheduleCall at 0x16b) to create self-rescheduling
-///         payment loops. No off-chain servers required.
+///         payment loops. Supports HBAR and HTS/ERC-20 token payments. No off-chain servers required.
 contract SPARKPayrollVault is Ownable, ReentrancyGuard, HederaScheduleService {
     // ── Constants ────────────────────────────────────────────
     uint256 public scheduledCallGasLimit = 10_000_000; // 10M gas — HSS precompile is expensive
     uint256 public constant MIN_INTERVAL = 10; // 10 seconds minimum (demo)
     uint256 public constant MAX_AGENTS = 50;
 
+    // ── HTS Token Service precompile ─────────────────────────
+    address internal constant HTS_PRECOMPILE = address(0x167);
+
     // ── Configurable defaults (set at deploy time) ──────────
-    uint256 public defaultAmount; // tinybar per period
+    uint256 public defaultAmount; // amount per period (tinybar or token smallest unit)
     uint256 public defaultInterval; // seconds between payments
+
+    // ── Payment token (address(0) = HBAR, otherwise ERC-20/HTS) ──
+    address public paymentToken;
 
     // ── Enums & Structs ─────────────────────────────────────
     enum ScheduleStatus {
@@ -30,7 +37,7 @@ contract SPARKPayrollVault is Ownable, ReentrancyGuard, HederaScheduleService {
 
     struct AgentPayroll {
         address payable agent;
-        uint256 amountPerPeriod; // tinybar
+        uint256 amountPerPeriod;
         uint256 intervalSeconds;
         uint256 nextPaymentTime;
         address currentScheduleAddr; // HSS schedule address
@@ -60,7 +67,10 @@ contract SPARKPayrollVault is Ownable, ReentrancyGuard, HederaScheduleService {
 
     // ── Events ──────────────────────────────────────────────
     event VaultFunded(address indexed funder, uint256 amount, uint256 newBalance);
+    event VaultFundedToken(address indexed funder, address indexed token, uint256 amount, uint256 newBalance);
     event VaultWithdrawn(address indexed to, uint256 amount);
+    event PaymentTokenSet(address indexed token);
+    event TokenAssociated(address indexed token);
 
     event AgentAdded(
         uint256 indexed agentIdx,
@@ -124,11 +134,53 @@ contract SPARKPayrollVault is Ownable, ReentrancyGuard, HederaScheduleService {
         emit VaultFunded(msg.sender, msg.value, address(this).balance);
     }
 
+    /// @notice Fund vault with ERC-20/HTS tokens (caller must approve first)
+    function fundVaultToken(uint256 amount) external {
+        require(paymentToken != address(0), "No payment token set");
+        require(amount > 0, "Zero amount");
+        bool ok = IERC20(paymentToken).transferFrom(msg.sender, address(this), amount);
+        require(ok, "Token transfer failed");
+        uint256 bal = IERC20(paymentToken).balanceOf(address(this));
+        emit VaultFundedToken(msg.sender, paymentToken, amount, bal);
+    }
+
     function withdrawExcess(uint256 amount) external onlyOwner {
-        require(amount <= address(this).balance, "Insufficient balance");
-        (bool sent, ) = payable(owner()).call{value: amount}("");
-        require(sent, "Withdraw failed");
+        if (paymentToken == address(0)) {
+            require(amount <= address(this).balance, "Insufficient balance");
+            (bool sent, ) = payable(owner()).call{value: amount}("");
+            require(sent, "Withdraw failed");
+        } else {
+            uint256 bal = IERC20(paymentToken).balanceOf(address(this));
+            require(amount <= bal, "Insufficient token balance");
+            bool ok = IERC20(paymentToken).transfer(owner(), amount);
+            require(ok, "Token withdraw failed");
+        }
         emit VaultWithdrawn(owner(), amount);
+    }
+
+    // ── Payment Token Config ─────────────────────────────────
+    /// @notice Set the payment token (address(0) = HBAR, otherwise ERC-20/HTS)
+    function setPaymentToken(address token) external onlyOwner {
+        paymentToken = token;
+        emit PaymentTokenSet(token);
+    }
+
+    /// @notice Associate this contract with an HTS token (required before receiving)
+    function associateToken(address token) external onlyOwner {
+        (bool success, bytes memory result) = HTS_PRECOMPILE.call(
+            abi.encodeWithSignature(
+                "associateToken(address,address)",
+                address(this),
+                token
+            )
+        );
+        require(success, "HTS associate call failed");
+        int64 rc = abi.decode(result, (int64));
+        require(
+            rc == HederaResponseCodes.SUCCESS || rc == int64(282),
+            "HTS associate failed"
+        ); // 282 = TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT
+        emit TokenAssociated(token);
     }
 
     // ── Default Setters ─────────────────────────────────────
@@ -309,23 +361,35 @@ contract SPARKPayrollVault is Ownable, ReentrancyGuard, HederaScheduleService {
             return;
         }
 
-        // Check balance
-        if (address(this).balance < ap.amountPerPeriod) {
-            ap.status = ScheduleStatus.Failed;
-            emit InsufficientBalance(
-                agentIdx,
-                ap.amountPerPeriod,
-                address(this).balance
-            );
-            emit PayrollFailed(agentIdx, "Insufficient HBAR balance");
-            return;
+        // Check balance & transfer (HBAR or token)
+        bool transferOk;
+        uint256 available;
+
+        if (paymentToken == address(0)) {
+            // HBAR mode
+            available = address(this).balance;
+            if (available < ap.amountPerPeriod) {
+                ap.status = ScheduleStatus.Failed;
+                emit InsufficientBalance(agentIdx, ap.amountPerPeriod, available);
+                emit PayrollFailed(agentIdx, "Insufficient HBAR balance");
+                return;
+            }
+            (transferOk, ) = ap.agent.call{value: ap.amountPerPeriod}("");
+        } else {
+            // ERC-20/HTS token mode
+            available = IERC20(paymentToken).balanceOf(address(this));
+            if (available < ap.amountPerPeriod) {
+                ap.status = ScheduleStatus.Failed;
+                emit InsufficientBalance(agentIdx, ap.amountPerPeriod, available);
+                emit PayrollFailed(agentIdx, "Insufficient token balance");
+                return;
+            }
+            transferOk = IERC20(paymentToken).transfer(ap.agent, ap.amountPerPeriod);
         }
 
-        // Transfer HBAR to agent
-        (bool sent, ) = ap.agent.call{value: ap.amountPerPeriod}("");
-        if (!sent) {
+        if (!transferOk) {
             ap.status = ScheduleStatus.Failed;
-            emit PayrollFailed(agentIdx, "HBAR transfer failed");
+            emit PayrollFailed(agentIdx, "Transfer failed");
             return;
         }
 
@@ -445,5 +509,11 @@ contract SPARKPayrollVault is Ownable, ReentrancyGuard, HederaScheduleService {
 
     function getVaultBalance() external view returns (uint256) {
         return address(this).balance;
+    }
+
+    /// @notice Get token balance (0 if no payment token set)
+    function getTokenBalance() external view returns (uint256) {
+        if (paymentToken == address(0)) return 0;
+        return IERC20(paymentToken).balanceOf(address(this));
     }
 }

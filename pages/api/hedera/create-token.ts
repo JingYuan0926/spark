@@ -16,17 +16,27 @@ export default async function handler(
   }
 
   try {
+    const {
+      name = "Mock USDC",
+      symbol = "USDC",
+      decimals = "6",
+      initialSupply = "1000000",
+    } = req.body || {};
+
+    const dec = Number(decimals);
+    const supply = Number(initialSupply);
+
     const client = getHederaClient();
     const operatorKey = PrivateKey.fromStringDer(
       process.env.HEDERA_OPERATOR_KEY!
     );
 
     const tx = await new TokenCreateTransaction()
-      .setTokenName("SPARK Demo Token")
-      .setTokenSymbol("SPRK")
+      .setTokenName(name)
+      .setTokenSymbol(symbol)
       .setTokenType(TokenType.FungibleCommon)
-      .setDecimals(2)
-      .setInitialSupply(10000)
+      .setDecimals(dec)
+      .setInitialSupply(supply * 10 ** dec)
       .setTreasuryAccountId(client.operatorAccountId!)
       .setSupplyType(TokenSupplyType.Infinite)
       .setAdminKey(operatorKey.publicKey)
@@ -40,10 +50,10 @@ export default async function handler(
     return res.status(200).json({
       success: true,
       tokenId: receipt.tokenId?.toString(),
-      name: "SPARK Demo Token",
-      symbol: "SPRK",
-      initialSupply: 10000,
-      decimals: 2,
+      name,
+      symbol,
+      initialSupply: supply,
+      decimals: dec,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";

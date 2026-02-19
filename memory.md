@@ -32,11 +32,18 @@
 - Mirror node API: `https://testnet.mirrornode.hedera.com/api/v1/`
 
 ## Key Deployed Contracts
-- SPARKPayrollVault: `0xd5F260948ea2aBE5a809fcf7a4Ad1b51c17Ec044` (Hedera Testnet)
+- SPARKPayrollVault (v1, HBAR-only): `0xd5F260948ea2aBE5a809fcf7a4Ad1b51c17Ec044` (Hedera Testnet)
+- SPARKPayrollVault (v2, with token support): `0x8175249eFD177AaD077c7BC5F4b8015330517a27`
 - HSS system contract: `0x16b`
+- HTS precompile: `0x167`
+
+## HTS Tokens (Hedera Testnet)
+- Mock USDC: Token ID `0.0.7984944` | Name: USDC | Symbol: USDC | Decimals: 6 | Initial Supply: 1,000,000
+  - EVM address: `0x000000000000000000000000000000000079d730`
+  - Treasury: operator account (holds all initial supply)
 
 ## Project Structure
 - Next.js app in root, Hardhat 3 in `contracts/`
-- API routes: `pages/api/schedule/` (fund, add-agent, update-agent, start-payroll, cancel-payroll, retry-payroll, status, set-defaults)
+- API routes: `pages/api/schedule/` (fund, fund-token, add-agent, update-agent, remove-agent, start-payroll, cancel-payroll, retry-payroll, status, set-defaults, set-token)
 - Frontend: `pages/schedule.tsx`
 - ABI: `lib/payroll-vault-abi.ts`

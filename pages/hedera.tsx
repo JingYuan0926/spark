@@ -23,6 +23,12 @@ export default function HederaPage() {
   const [transferAmount, setTransferAmount] = useState("100");
   const [balanceAccountId, setBalanceAccountId] = useState("");
 
+  // Create token form
+  const [ctName, setCtName] = useState("Mock USDC");
+  const [ctSymbol, setCtSymbol] = useState("USDC");
+  const [ctDecimals, setCtDecimals] = useState("6");
+  const [ctSupply, setCtSupply] = useState("1000000");
+
   // HCS-20 state
   const [hcs20TopicId, setHcs20TopicId] = useState("");
   const [hcs20TopicResult, setHcs20TopicResult] = useState<ApiResult | null>(null);
@@ -101,7 +107,12 @@ export default function HederaPage() {
   async function handleCreateToken() {
     setLoading("token");
     try {
-      const result = await callApi("create-token");
+      const result = await callApi("create-token", {
+        name: ctName,
+        symbol: ctSymbol,
+        decimals: ctDecimals,
+        initialSupply: ctSupply,
+      });
       setTokenResult(result);
       if (result.success && result.tokenId) {
         setTransferTokenId(result.tokenId as string);
@@ -410,7 +421,46 @@ export default function HederaPage() {
       {/* HTS: Create Fungible Token */}
       <section style={{ margin: "24px 0" }}>
         <h2>3. Create Fungible Token (HTS)</h2>
-        <button onClick={handleCreateToken} disabled={loading === "token"}>
+        <p style={{ color: "#888", fontSize: 13 }}>
+          Create an HTS token (e.g. mock USDC). The token is minted to your operator account.
+        </p>
+        <div>
+          <label>
+            Name:{" "}
+            <input
+              value={ctName}
+              onChange={(e) => setCtName(e.target.value)}
+              style={{ width: 200, fontFamily: "monospace" }}
+            />
+          </label>
+          <label style={{ marginLeft: 12 }}>
+            Symbol:{" "}
+            <input
+              value={ctSymbol}
+              onChange={(e) => setCtSymbol(e.target.value)}
+              style={{ width: 100, fontFamily: "monospace" }}
+            />
+          </label>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <label>
+            Decimals:{" "}
+            <input
+              value={ctDecimals}
+              onChange={(e) => setCtDecimals(e.target.value)}
+              style={{ width: 60, fontFamily: "monospace" }}
+            />
+          </label>
+          <label style={{ marginLeft: 12 }}>
+            Initial Supply:{" "}
+            <input
+              value={ctSupply}
+              onChange={(e) => setCtSupply(e.target.value)}
+              style={{ width: 150, fontFamily: "monospace" }}
+            />
+          </label>
+        </div>
+        <button onClick={handleCreateToken} disabled={loading === "token"} style={{ marginTop: 8 }}>
           {loading === "token" ? "Creating..." : "Create Fungible Token"}
         </button>
         {tokenResult && <ResultBlock data={tokenResult} />}

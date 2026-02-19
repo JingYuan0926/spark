@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { HASHSCAN_BASE, ScheduleStatus, PAYROLL_VAULT_ADDRESS } from "@/lib/payroll-vault-abi";
+import { ethers } from "ethers";
+import { HASHSCAN_BASE, HEDERA_RPC_URL, ScheduleStatus, PAYROLL_VAULT_ADDRESS, PAYROLL_VAULT_ABI } from "@/lib/payroll-vault-abi";
 
 interface ApiResult {
   success: boolean;
@@ -36,6 +37,8 @@ interface VaultInfo {
   defaultInterval: number;
   agentCount: number;
   historyCount: number;
+  paymentToken: string;
+  tokenBalance: string;
 }
 
 const STATUS_COLORS: Record<number, { bg: string; border: string; text: string }> = {
@@ -79,6 +82,25 @@ export default function SchedulePage() {
   // Fund form
   const [fundAmount, setFundAmount] = useState("10");
 
+  // Token config
+  const [tokenAddr, setTokenAddr] = useState("");
+  const [fundTokenAmount, setFundTokenAmount] = useState("1000");
+
+  // Private key deposit state
+  const [userPrivateKey, setUserPrivateKey] = useState("");
+  const [userWalletAddr, setUserWalletAddr] = useState("");
+  const [userFundAmount, setUserFundAmount] = useState("100");
+
+  const isTokenMode = vault?.paymentToken && vault.paymentToken !== "0x0000000000000000000000000000000000000000";
+
+  function formatAmount(val: string): string {
+    if (isTokenMode) {
+      // HTS tokens typically have low decimals (0-8); show raw for now
+      return Number(val).toLocaleString() + " USDC";
+    }
+    return formatTinybar(val);
+  }
+
   const fetchStatus = useCallback(async () => {
     if (!vaultAddress) return;
     try {
@@ -119,6 +141,102 @@ export default function SchedulePage() {
       const data = await res.json();
       setResult(data);
       if (data.success) fetchStatus();
+    } catch (err) {
+      setResult({ success: false, error: String(err) });
+    }
+    setLoading(null);
+  }
+
+  async function handleSetToken() {
+    if (!vaultAddress) return;
+    setLoading("set-token");
+    setResult(null);
+    try {
+      const res = await fetch("/api/schedule/set-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vaultAddress, tokenAddress: tokenAddr || "" }),
+      });
+      const data = await res.json();
+      setResult(data);
+      if (data.success) fetchStatus();
+    } catch (err) {
+      setResult({ success: false, error: String(err) });
+    }
+    setLoading(null);
+  }
+
+  async function handleFundToken() {
+    if (!vaultAddress || !fundTokenAmount) return;
+    setLoading("fund-token");
+    setResult(null);
+    try {
+      const res = await fetch("/api/schedule/fund-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vaultAddress, amount: fundTokenAmount }),
+      });
+      const data = await res.json();
+      setResult(data);
+      if (data.success) fetchStatus();
+    } catch (err) {
+      setResult({ success: false, error: String(err) });
+    }
+    setLoading(null);
+  }
+
+  function handleLoadWallet() {
+    if (!userPrivateKey.trim()) {
+      setResult({ success: false, error: "Enter a private key" });
+      return;
+    }
+    try {
+      const provider = new ethers.JsonRpcProvider(HEDERA_RPC_URL);
+      const wallet = new ethers.Wallet(userPrivateKey.trim(), provider);
+      setUserWalletAddr(wallet.address);
+      setResult({ success: true, message: `Wallet loaded: ${wallet.address}` });
+    } catch (err) {
+      setResult({ success: false, error: `Invalid key: ${err}` });
+    }
+  }
+
+  async function handleUserFundUSDC() {
+    if (!userPrivateKey || !userWalletAddr || !vaultAddress || !userFundAmount || !vault?.paymentToken) return;
+    setLoading("user-fund");
+    setResult(null);
+    try {
+      const provider = new ethers.JsonRpcProvider(HEDERA_RPC_URL);
+      const wallet = new ethers.Wallet(userPrivateKey.trim(), provider);
+
+      const tokenContract = new ethers.Contract(
+        vault.paymentToken,
+        [
+          "function approve(address spender, uint256 amount) returns (bool)",
+          "function decimals() view returns (uint8)",
+        ],
+        wallet
+      );
+
+      const decimals = await tokenContract.decimals();
+      const rawAmount = ethers.parseUnits(userFundAmount, decimals);
+
+      // Step 1: Approve vault to spend user's USDC
+      setResult({ success: true, message: "Step 1/2: Approving USDC..." });
+      const approveTx = await tokenContract.approve(vaultAddress, rawAmount);
+      await approveTx.wait();
+
+      // Step 2: Call fundVaultToken on the vault
+      setResult({ success: true, message: "Step 2/2: Depositing USDC into vault..." });
+      const vaultContract = new ethers.Contract(vaultAddress, PAYROLL_VAULT_ABI, wallet);
+      const fundTx = await vaultContract.fundVaultToken(rawAmount);
+      await fundTx.wait();
+
+      setResult({
+        success: true,
+        message: `Deposited ${userFundAmount} USDC from ${userWalletAddr.slice(0, 8)}...`,
+        txHash: fundTx.hash,
+      });
+      fetchStatus();
     } catch (err) {
       setResult({ success: false, error: String(err) });
     }
@@ -297,13 +415,30 @@ export default function SchedulePage() {
               </a>
             </div>
             <div>
-              <strong>Balance:</strong> {formatTinybar(vault.balance)}
+              <strong>HBAR Balance:</strong> {formatTinybar(vault.balance)}
+            </div>
+            {isTokenMode && (
+              <div>
+                <strong>Token Balance:</strong> {Number(vault.tokenBalance).toLocaleString()} USDC
+              </div>
+            )}
+            <div>
+              <strong>Payment Mode:</strong>{" "}
+              <span style={{
+                background: isTokenMode ? "#dbeafe" : "#f0fdf4",
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontSize: 10,
+                fontWeight: "bold",
+              }}>
+                {isTokenMode ? `USDC (${shortAddr(vault.paymentToken)})` : "HBAR"}
+              </span>
             </div>
             <div>
               <strong>Owner:</strong> {shortAddr(vault.owner)}
             </div>
             <div>
-              <strong>Default:</strong> {formatTinybar(vault.defaultAmount)} every{" "}
+              <strong>Default:</strong> {formatAmount(vault.defaultAmount)} every{" "}
               {vault.defaultInterval}s
             </div>
             <div>
@@ -318,15 +453,47 @@ export default function SchedulePage() {
         <>
           <hr style={{ margin: "24px 0" }} />
 
-          {/* 1. Fund Vault */}
+          {/* 1. Payment Token Config */}
           <section style={{ margin: "24px 0" }}>
-            <h2>1. Fund Vault</h2>
+            <h2>1. Payment Token</h2>
             <p style={{ color: "#888", fontSize: 13 }}>
-              Send HBAR to the vault to fund agent payroll disbursements.
+              Set an HTS/ERC-20 token for payments (e.g. mock USDC). Leave empty to use HBAR.
             </p>
             <div>
               <label>
-                Amount (HBAR):{" "}
+                Token Address:{" "}
+                <input
+                  value={tokenAddr}
+                  onChange={(e) => setTokenAddr(e.target.value)}
+                  placeholder="0x... (HTS token EVM address, empty = HBAR)"
+                  style={{ width: 380, fontFamily: "monospace", fontSize: 11 }}
+                />
+              </label>
+              <button
+                onClick={handleSetToken}
+                disabled={loading === "set-token"}
+                style={{ marginLeft: 8 }}
+              >
+                {loading === "set-token" ? "Setting..." : "Set Token"}
+              </button>
+            </div>
+          </section>
+
+          <hr style={{ margin: "24px 0" }} />
+
+          {/* 2. Fund Vault */}
+          <section style={{ margin: "24px 0" }}>
+            <h2>2. Fund Vault</h2>
+            <p style={{ color: "#888", fontSize: 13 }}>
+              {isTokenMode
+                ? "Deposit USDC tokens into the vault. Also fund HBAR for gas."
+                : "Send HBAR to the vault to fund agent payroll disbursements."}
+            </p>
+
+            {/* HBAR funding (always needed for gas) */}
+            <div>
+              <label>
+                HBAR {isTokenMode ? "(for gas)" : "(for payments)"}:{" "}
                 <input
                   value={fundAmount}
                   onChange={(e) => setFundAmount(e.target.value)}
@@ -338,19 +505,97 @@ export default function SchedulePage() {
                 disabled={loading === "fund"}
                 style={{ marginLeft: 8 }}
               >
-                {loading === "fund" ? "Funding..." : "Fund Vault"}
+                {loading === "fund" ? "Funding..." : "Fund HBAR"}
               </button>
             </div>
+
+            {/* Token funding via server EOA (admin) */}
+            {isTokenMode && (
+              <div style={{ marginTop: 8 }}>
+                <label>
+                  USDC via Server (admin):{" "}
+                  <input
+                    value={fundTokenAmount}
+                    onChange={(e) => setFundTokenAmount(e.target.value)}
+                    style={{ width: 120, fontFamily: "monospace" }}
+                  />
+                </label>
+                <button
+                  onClick={handleFundToken}
+                  disabled={loading === "fund-token"}
+                  style={{ marginLeft: 8 }}
+                >
+                  {loading === "fund-token" ? "Funding..." : "Fund USDC (Server)"}
+                </button>
+              </div>
+            )}
+
+            {/* User private key deposit */}
+            {isTokenMode && (
+              <div style={{
+                marginTop: 16,
+                padding: 12,
+                background: "#eff6ff",
+                border: "1px solid #93c5fd",
+                borderRadius: 6,
+              }}>
+                <strong>Deposit USDC via Private Key</strong>
+                <p style={{ color: "#888", fontSize: 12, margin: "4px 0" }}>
+                  Enter your Hedera private key to approve &amp; deposit USDC directly.
+                  Your key stays in-browser and is never sent to any server.
+                </p>
+                <p style={{ color: "#b45309", fontSize: 11, margin: "4px 0" }}>
+                  Note: Your account needs a small HBAR balance for gas fees (~0.05 HBAR per tx).
+                </p>
+                <div>
+                  <label>
+                    Private Key:{" "}
+                    <input
+                      type="password"
+                      value={userPrivateKey}
+                      onChange={(e) => setUserPrivateKey(e.target.value)}
+                      placeholder="0x... or hex key"
+                      style={{ width: 380, fontFamily: "monospace", fontSize: 11 }}
+                    />
+                  </label>
+                  <button onClick={handleLoadWallet} style={{ marginLeft: 8 }}>
+                    Load Wallet
+                  </button>
+                </div>
+                {userWalletAddr && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: "#166534", marginBottom: 6 }}>
+                      Wallet: {shortAddr(userWalletAddr)}
+                    </div>
+                    <label>
+                      Amount (USDC):{" "}
+                      <input
+                        value={userFundAmount}
+                        onChange={(e) => setUserFundAmount(e.target.value)}
+                        style={{ width: 120, fontFamily: "monospace" }}
+                      />
+                    </label>
+                    <button
+                      onClick={handleUserFundUSDC}
+                      disabled={loading === "user-fund"}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {loading === "user-fund" ? "Depositing..." : "Deposit USDC"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           <hr style={{ margin: "24px 0" }} />
 
-          {/* 2. Agent Registry */}
+          {/* 3. Agent Registry */}
           <section style={{ margin: "24px 0" }}>
-            <h2>2. Agent Registry</h2>
+            <h2>3. Agent Registry</h2>
             <p style={{ color: "#888", fontSize: 13 }}>
-              Register AI agent beneficiaries. Each agent gets scheduled HBAR
-              payments at their configured interval.
+              Register AI agent beneficiaries. Each agent gets scheduled{" "}
+              {isTokenMode ? "USDC" : "HBAR"} payments at their configured interval.
             </p>
 
             {agents.length > 0 && (
@@ -424,7 +669,7 @@ export default function SchedulePage() {
                             border: "1px solid #e2e8f0",
                           }}
                         >
-                          {formatTinybar(a.amountPerPeriod)}
+                          {formatAmount(a.amountPerPeriod)}
                         </td>
                         <td
                           style={{
@@ -460,7 +705,7 @@ export default function SchedulePage() {
                             border: "1px solid #e2e8f0",
                           }}
                         >
-                          {a.paymentCount} ({formatTinybar(a.totalPaid)})
+                          {a.paymentCount} ({formatAmount(a.totalPaid)})
                         </td>
                         <td
                           style={{
@@ -584,7 +829,7 @@ export default function SchedulePage() {
               </div>
               <div style={{ marginTop: 4 }}>
                 <label>
-                  Amount (HBAR, 0=default):{" "}
+                  Amount ({isTokenMode ? "USDC" : "HBAR"}, 0=default):{" "}
                   <input
                     value={newAmount}
                     onChange={(e) => setNewAmount(e.target.value)}
@@ -614,9 +859,9 @@ export default function SchedulePage() {
 
           <hr style={{ margin: "24px 0" }} />
 
-          {/* 3. Schedule History */}
+          {/* 4. Schedule History */}
           <section style={{ margin: "24px 0" }}>
-            <h2>3. Schedule History</h2>
+            <h2>4. Schedule History</h2>
             <p style={{ color: "#888", fontSize: 13 }}>
               Full lifecycle of all scheduled transactions. Each row links to
               Hashscan for verification.
@@ -746,9 +991,9 @@ export default function SchedulePage() {
 
           <hr style={{ margin: "24px 0" }} />
 
-          {/* 4. How It Works */}
+          {/* 5. How It Works */}
           <section style={{ margin: "24px 0" }}>
-            <h2>4. How It Works</h2>
+            <h2>5. How It Works</h2>
             <pre
               style={{
                 background: "#f8fafc",
@@ -777,7 +1022,7 @@ export default function SchedulePage() {
     │
   HSS auto-executes vault.executePayroll(agentIdx)
     │
-    ├── Pay agent HBAR         → status: EXECUTED
+    ├── Pay agent HBAR/USDC    → status: EXECUTED
     ├── Update payment count
     └── Call scheduleCall() again → creates S2 (PENDING)
          │

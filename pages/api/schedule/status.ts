@@ -25,7 +25,7 @@ export default async function handler(
     const provider = new ethers.JsonRpcProvider(HEDERA_RPC_URL);
     const vault = new ethers.Contract(vaultAddr, PAYROLL_VAULT_ABI, provider);
 
-    const [balance, agentCount, historyCount, owner, defaultAmount, defaultInterval] =
+    const [balance, agentCount, historyCount, owner, defaultAmount, defaultInterval, paymentToken, tokenBalance] =
       await Promise.all([
         vault.getVaultBalance(),
         vault.getAgentCount(),
@@ -33,6 +33,8 @@ export default async function handler(
         vault.owner(),
         vault.defaultAmount(),
         vault.defaultInterval(),
+        vault.paymentToken(),
+        vault.getTokenBalance(),
       ]);
 
     // Fetch all agents
@@ -89,6 +91,8 @@ export default async function handler(
         defaultInterval: Number(defaultInterval),
         agentCount: count,
         historyCount: hCount,
+        paymentToken: paymentToken,
+        tokenBalance: tokenBalance.toString(),
       },
       agents,
       history,

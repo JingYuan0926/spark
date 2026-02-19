@@ -14,16 +14,11 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { agentIdx, amountPerPeriod, intervalSeconds, vaultAddress } = req.body;
+  const { tokenAddress, vaultAddress } = req.body;
   const vaultAddr = vaultAddress || PAYROLL_VAULT_ADDRESS;
 
   if (!vaultAddr) {
     return res.status(400).json({ success: false, error: "No vault address" });
-  }
-  if (agentIdx === undefined || agentIdx === null) {
-    return res
-      .status(400)
-      .json({ success: false, error: "agentIdx is required" });
   }
 
   const privateKey = process.env.HEDERA_PRIVATE_KEY;
@@ -38,33 +33,36 @@ export default async function handler(
     const wallet = new ethers.Wallet(privateKey, provider);
     const vault = new ethers.Contract(vaultAddr, PAYROLL_VAULT_ABI, wallet);
 
-    // Check if vault is in token mode
-    const paymentToken = await vault.paymentToken();
-    const isTokenMode = paymentToken !== ethers.ZeroAddress;
+    const results: string[] = [];
 
-    let newAmount = 0n;
-    if (amountPerPeriod) {
-      if (isTokenMode) {
-        const token = new ethers.Contract(
-          paymentToken,
-          ["function decimals() view returns (uint8)"],
-          provider
-        );
-        const decimals = await token.decimals();
-        newAmount = ethers.parseUnits(String(amountPerPeriod), decimals);
-      } else {
-        newAmount = ethers.parseUnits(String(amountPerPeriod), 8);
+    // If tokenAddress provided, associate + set; if empty string, clear back to HBAR
+    const token = tokenAddress || ethers.ZeroAddress;
+
+    if (token !== ethers.ZeroAddress) {
+      // Associate the vault with the HTS token first
+      try {
+        const assocTx = await vault.associateToken(token);
+        await assocTx.wait();
+        results.push(`Vault associated with token ${token}`);
+      } catch (e) {
+        // Might already be associated
+        results.push(`Association skipped (may already be associated)`);
       }
     }
-    const newInterval = intervalSeconds ? BigInt(intervalSeconds) : 0n;
 
-    const tx = await vault.updateAgent(BigInt(agentIdx), newAmount, newInterval);
-    const receipt = await tx.wait();
+    // Set payment token
+    const tx = await vault.setPaymentToken(token);
+    await tx.wait();
+    results.push(
+      token === ethers.ZeroAddress
+        ? "Payment mode: HBAR"
+        : `Payment token set to ${token}`
+    );
 
     return res.status(200).json({
       success: true,
-      txHash: receipt.hash,
-      message: `Agent #${agentIdx} updated`,
+      message: results.join("; "),
+      paymentToken: token,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";

@@ -39,11 +39,26 @@ export default async function handler(
     const wallet = new ethers.Wallet(privateKey, provider);
     const vault = new ethers.Contract(vaultAddr, PAYROLL_VAULT_ABI, wallet);
 
-    // 0 means use contract defaults; input is HBAR, convert to tinybar (8 decimals)
-    // Hedera EVM uses tinybar internally for address.balance and msg.value
-    const amount = amountPerPeriod
-      ? ethers.parseUnits(String(amountPerPeriod), 8)
-      : 0n;
+    // Check if vault is in token mode
+    const paymentToken = await vault.paymentToken();
+    const isTokenMode = paymentToken !== ethers.ZeroAddress;
+
+    let amount = 0n;
+    if (amountPerPeriod) {
+      if (isTokenMode) {
+        // Token mode: get token decimals and convert
+        const token = new ethers.Contract(
+          paymentToken,
+          ["function decimals() view returns (uint8)"],
+          provider
+        );
+        const decimals = await token.decimals();
+        amount = ethers.parseUnits(String(amountPerPeriod), decimals);
+      } else {
+        // HBAR mode: convert to tinybar (8 decimals)
+        amount = ethers.parseUnits(String(amountPerPeriod), 8);
+      }
+    }
     const interval = intervalSeconds ? BigInt(intervalSeconds) : 0n;
 
     const tx = await vault.addAgent(agent, name, amount, interval);

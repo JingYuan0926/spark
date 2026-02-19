@@ -63,6 +63,30 @@ abstract contract HederaScheduleService {
         return abi.decode(result, (bool));
     }
 
+    /// @notice Schedule a future contract call with a specified payer
+    function _scheduleCallWithPayer(
+        address to,
+        address payer,
+        uint256 expirySecond,
+        uint256 gasLimit,
+        uint64 value,
+        bytes memory callData
+    ) internal returns (int64 responseCode, address scheduleAddress) {
+        (bool success, bytes memory result) = HSS.call(
+            abi.encodeWithSelector(
+                IHRC1215.scheduleCallWithPayer.selector,
+                to,
+                payer,
+                expirySecond,
+                gasLimit,
+                value,
+                callData
+            )
+        );
+        require(success, "HSS: scheduleCallWithPayer failed");
+        (responseCode, scheduleAddress) = abi.decode(result, (int64, address));
+    }
+
     /// @notice Authorize the calling contract as signer for a schedule
     function _authorizeSchedule(
         address schedule
