@@ -18,6 +18,20 @@ const GLOBE_COLORS = [
   [120, 15, 40], [166, 28, 60], [200, 70, 95],
 ];
 
+/* ── Grouped mode: 3 shades per category sector ────────── */
+const CATEGORY_SHADES = [
+  [[120, 15, 40], [166, 28, 60], [200, 70, 95]],
+  [[75, 50, 35], [105, 74, 56], [145, 110, 90]],
+  [[200, 135, 30], [244, 172, 69], [250, 200, 120]],
+  [[160, 210, 148], [208, 241, 191], [225, 248, 215]],
+  [[55, 95, 60], [75, 127, 82], [110, 160, 115]],
+];
+
+/* ── Grey shades for the moon ──────────────────────────── */
+const GREY_SHADES = [
+  [90, 90, 95], [110, 110, 115], [130, 130, 135], [75, 75, 80], [150, 150, 155],
+];
+
 /* ── Mock knowledge ────────────────────────────────────── */
 interface Knowledge {
   id: number;
@@ -88,15 +102,12 @@ interface LightRay {
   age: number;
 }
 
-/* ── Helpers ───────────────────────────────────────────── */
+/* ── Block generators ─────────────────────────────────── */
 function generateBlocks(): Block[] {
   const blocks: Block[] = [];
-  const latSteps = 50;
-  const lngSteps = 100;
-
-  for (let i = 0; i < latSteps; i++) {
-    const lat = (i / (latSteps - 1)) * Math.PI - Math.PI / 2;
-    const ringCount = Math.round(Math.cos(lat) * lngSteps);
+  for (let i = 0; i < 50; i++) {
+    const lat = (i / 49) * Math.PI - Math.PI / 2;
+    const ringCount = Math.round(Math.cos(lat) * 100);
     for (let j = 0; j < ringCount; j++) {
       const lng = (j / ringCount) * Math.PI * 2;
       const shade = GLOBE_COLORS[Math.floor(Math.random() * GLOBE_COLORS.length)];
@@ -110,6 +121,80 @@ function generateBlocks(): Block[] {
     }
   }
   return blocks;
+}
+
+function generateGroupedBlocks(): Block[] {
+  const blocks: Block[] = [];
+  for (let i = 0; i < 50; i++) {
+    const lat = (i / 49) * Math.PI - Math.PI / 2;
+    const ringCount = Math.round(Math.cos(lat) * 100);
+    for (let j = 0; j < ringCount; j++) {
+      const lng = (j / ringCount) * Math.PI * 2;
+      const sector = Math.min(4, Math.floor((lng / (Math.PI * 2)) * 5));
+      const shades = CATEGORY_SHADES[sector];
+      const shade = shades[Math.floor(Math.random() * shades.length)];
+      const rand = Math.random();
+      let opacity = 1;
+      if (rand < 0.15) opacity = 0.3;
+      else if (rand < 0.35) opacity = 0.5;
+      else if (rand < 0.6) opacity = 0.7;
+      else if (rand < 0.85) opacity = 0.85;
+      blocks.push({ lat, lng, color: shade, opacity });
+    }
+  }
+  return blocks;
+}
+
+function generateMoonBlocks(): Block[] {
+  const blocks: Block[] = [];
+  for (let i = 0; i < 30; i++) {
+    const lat = (i / 29) * Math.PI - Math.PI / 2;
+    const ringCount = Math.round(Math.cos(lat) * 60);
+    for (let j = 0; j < ringCount; j++) {
+      const lng = (j / ringCount) * Math.PI * 2;
+      const shade = GREY_SHADES[Math.floor(Math.random() * GREY_SHADES.length)];
+      const rand = Math.random();
+      let opacity = 1;
+      if (rand < 0.15) opacity = 0.3;
+      else if (rand < 0.35) opacity = 0.5;
+      else if (rand < 0.6) opacity = 0.7;
+      else if (rand < 0.85) opacity = 0.85;
+      blocks.push({ lat, lng, color: shade, opacity });
+    }
+  }
+  return blocks;
+}
+
+/* ── Draw a sphere of blocks (shared helper) ───────────── */
+function drawSphere(
+  ctx: CanvasRenderingContext2D,
+  blocks: Block[],
+  rot: number,
+  cx: number,
+  cy: number,
+  radius: number,
+  blockSize: number,
+) {
+  const sorted = blocks
+    .map((b) => {
+      const cosLat = Math.cos(b.lat);
+      return { ...b, x: cosLat * Math.sin(b.lng + rot), y: Math.sin(b.lat), z: cosLat * Math.cos(b.lng + rot) };
+    })
+    .filter((b) => b.z > -0.2)
+    .sort((a, b) => a.z - b.z);
+
+  for (const b of sorted) {
+    const sx = cx + b.x * radius;
+    const sy = cy - b.y * radius;
+    const depth = (b.z + 1) / 2;
+    const scale = 0.5 + depth * 0.5;
+    const size = blockSize * scale;
+    const alpha = b.opacity * (0.3 + depth * 0.7);
+    ctx.fillStyle = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${alpha})`;
+    ctx.beginPath();
+    ctx.roundRect(sx - size / 2, sy - size / 2, size, size, 1.5);
+    ctx.fill();
+  }
 }
 
 /* ── Preview Globe (small, card view) ──────────────────── */
@@ -137,28 +222,7 @@ function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
     let animId: number;
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
-      const rot = angleRef.current;
-      const sorted = blocksRef.current
-        .map((b) => {
-          const cosLat = Math.cos(b.lat);
-          return { ...b, x: cosLat * Math.sin(b.lng + rot), y: Math.sin(b.lat), z: cosLat * Math.cos(b.lng + rot) };
-        })
-        .filter((b) => b.z > -0.2)
-        .sort((a, b) => a.z - b.z);
-
-      for (const b of sorted) {
-        const sx = cx + b.x * radius;
-        const sy = cy - b.y * radius;
-        const depth = (b.z + 1) / 2;
-        const scale = 0.5 + depth * 0.5;
-        const size = blockSize * scale;
-        const alpha = b.opacity * (0.3 + depth * 0.7);
-        ctx.fillStyle = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${alpha})`;
-        ctx.beginPath();
-        ctx.roundRect(sx - size / 2, sy - size / 2, size, size, 1.5);
-        ctx.fill();
-      }
-
+      drawSphere(ctx, blocksRef.current, angleRef.current, cx, cy, radius, blockSize);
       angleRef.current += 0.004;
       animId = requestAnimationFrame(draw);
     };
@@ -169,27 +233,33 @@ function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
   return <canvas ref={canvasRef} style={{ width, height }} />;
 }
 
-/* ── Modal Globe (interactive — rays, glow, hover) ─────── */
+/* ── Modal Globe (interactive — rays, glow, moon) ──────── */
 function ModalGlobe({
   width,
   height,
+  isGrouped,
   onHoverKnowledge,
   onClickKnowledge,
 }: {
   width: number;
   height: number;
+  isGrouped: boolean;
   onHoverKnowledge: (k: Knowledge | null) => void;
   onClickKnowledge: (k: Knowledge | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const blocksRef = useRef<Block[]>(generateBlocks());
+  const randomBlocksRef = useRef<Block[]>(generateBlocks());
+  const groupedBlocksRef = useRef<Block[]>(generateGroupedBlocks());
+  const moonBlocksRef = useRef<Block[]>(generateMoonBlocks());
+  const isGroupedRef = useRef(isGrouped);
+  isGroupedRef.current = isGrouped;
+
   const angleRef = useRef(0);
   const mouseRef = useRef({ x: -1, y: -1 });
   const isHoveringGlobeRef = useRef(false);
   const raysRef = useRef<LightRay[]>([]);
   const lastRayTimeRef = useRef(0);
   const lastHoveredKeyRef = useRef("");
-  const nearestScreenRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (width <= 0 || height <= 0) return;
@@ -203,12 +273,19 @@ function ModalGlobe({
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
 
-    const radius = Math.min(width, height) * 0.46;
-    const cx = width / 2;
-    const cy = height / 2;
+    // Main globe
+    const radius = Math.min(width, height) * 0.38;
+    const cx = width * 0.45;
+    const cy = height * 0.55;
     const blockSize = Math.max(2, radius * 0.035);
     const GLOW_RADIUS = 35;
-    const GLOW_RADIUS_SQ = GLOW_RADIUS * GLOW_RADIUS;
+    const GLOW_SQ = GLOW_RADIUS * GLOW_RADIUS;
+
+    // Moon
+    const moonRadius = radius * 0.28;
+    const moonCx = cx + radius * 0.85;
+    const moonCy = cy - radius * 0.8;
+    const moonBlockSize = Math.max(1.5, moonRadius * 0.04);
 
     let animId: number;
 
@@ -217,14 +294,20 @@ function ModalGlobe({
       const rot = angleRef.current;
       const mouse = mouseRef.current;
 
-      // Is mouse inside globe circle?
+      // Globe hover detection
       const gdx = mouse.x - cx;
       const gdy = mouse.y - cy;
-      isHoveringGlobeRef.current = gdx * gdx + gdy * gdy < radius * radius;
-      const isOverGlobe = isHoveringGlobeRef.current;
+      const isOverGlobe = gdx * gdx + gdy * gdy < radius * radius;
+
+      // Moon hover detection
+      const mdx = mouse.x - moonCx;
+      const mdy = mouse.y - moonCy;
+      const isOverMoon = mdx * mdx + mdy * mdy < moonRadius * moonRadius;
+
+      isHoveringGlobeRef.current = isOverGlobe || isOverMoon;
 
       // ── Spawn light rays ──
-      if (timestamp - lastRayTimeRef.current > 1200) {
+      if (timestamp - lastRayTimeRef.current > 400) {
         lastRayTimeRef.current = timestamp;
         const catKeys = Object.keys(CATEGORIES);
         const cat = catKeys[Math.floor(Math.random() * catKeys.length)];
@@ -237,11 +320,14 @@ function ModalGlobe({
         });
       }
       raysRef.current = raysRef.current
-        .map((r) => ({ ...r, progress: Math.min(1, r.progress + 0.025), age: r.age + 1 }))
-        .filter((r) => r.age < 90);
+        .map((r) => ({ ...r, progress: Math.min(1, r.progress + 0.04), age: r.age + 1 }))
+        .filter((r) => r.age < 80);
+
+      // ── Choose block set ──
+      const activeBlocks = isGroupedRef.current ? groupedBlocksRef.current : randomBlocksRef.current;
 
       // ── Project & sort blocks ──
-      const sorted = blocksRef.current
+      const sorted = activeBlocks
         .map((b) => {
           const cosLat = Math.cos(b.lat);
           return { ...b, x: cosLat * Math.sin(b.lng + rot), y: Math.sin(b.lat), z: cosLat * Math.cos(b.lng + rot) };
@@ -252,8 +338,6 @@ function ModalGlobe({
       // ── Draw blocks with glow ──
       let nearestDistSq = 20 * 20;
       let nearestKey = "";
-      let nearestSX = 0;
-      let nearestSY = 0;
 
       for (const b of sorted) {
         const sx = cx + b.x * radius;
@@ -263,22 +347,20 @@ function ModalGlobe({
         const size = blockSize * scale;
         const alpha = b.opacity * (0.3 + depth * 0.7);
 
-        // Distance from mouse
         const dx = mouse.x - sx;
         const dy = mouse.y - sy;
         const distSq = dx * dx + dy * dy;
-        const isGlowing = isOverGlobe && distSq < GLOW_RADIUS_SQ;
+        const isGlowing = isOverGlobe && distSq < GLOW_SQ;
 
         if (isGlowing) {
           const intensity = 1 - Math.sqrt(distSq) / GLOW_RADIUS;
           ctx.save();
           ctx.shadowColor = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${0.9 * intensity})`;
           ctx.shadowBlur = 14 * intensity;
-          const boostedAlpha = Math.min(1, alpha + 0.4 * intensity);
-          ctx.fillStyle = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${boostedAlpha})`;
-          const glowSize = size * (1 + 0.4 * intensity);
+          ctx.fillStyle = `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${Math.min(1, alpha + 0.4 * intensity)})`;
+          const gs = size * (1 + 0.4 * intensity);
           ctx.beginPath();
-          ctx.roundRect(sx - glowSize / 2, sy - glowSize / 2, glowSize, glowSize, 1.5);
+          ctx.roundRect(sx - gs / 2, sy - gs / 2, gs, gs, 1.5);
           ctx.fill();
           ctx.restore();
         } else {
@@ -288,24 +370,18 @@ function ModalGlobe({
           ctx.fill();
         }
 
-        // Track nearest block to mouse
         if (isOverGlobe && distSq < nearestDistSq) {
           nearestDistSq = distSq;
           nearestKey = `${b.lat.toFixed(2)},${b.lng.toFixed(2)}`;
-          nearestSX = sx;
-          nearestSY = sy;
         }
       }
 
       // ── Report hover knowledge ──
       if (nearestKey && nearestKey !== lastHoveredKeyRef.current) {
         lastHoveredKeyRef.current = nearestKey;
-        nearestScreenRef.current = { x: nearestSX, y: nearestSY };
-        const randomK = MOCK_KNOWLEDGE[Math.floor(Math.random() * MOCK_KNOWLEDGE.length)];
-        onHoverKnowledge(randomK);
+        onHoverKnowledge(MOCK_KNOWLEDGE[Math.floor(Math.random() * MOCK_KNOWLEDGE.length)]);
       } else if (!nearestKey && lastHoveredKeyRef.current) {
         lastHoveredKeyRef.current = "";
-        nearestScreenRef.current = null;
         onHoverKnowledge(null);
       }
 
@@ -315,45 +391,80 @@ function ModalGlobe({
         const tx = cosLat * Math.sin(ray.targetLng + rot);
         const ty = Math.sin(ray.targetLat);
         const tz = cosLat * Math.cos(ray.targetLng + rot);
-
         if (tz > 0) {
-          const targetSX = cx + tx * radius;
-          const targetSY = cy - ty * radius;
+          const tSX = cx + tx * radius;
+          const tSY = cy - ty * radius;
           const dirX = tx;
           const dirY = -ty;
           const len = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
-          const startSX = targetSX + (dirX / len) * radius * 0.9;
-          const startSY = targetSY + (dirY / len) * radius * 0.9;
-
-          const curX = startSX + (targetSX - startSX) * ray.progress;
-          const curY = startSY + (targetSY - startSY) * ray.progress;
-          const trailP = Math.max(0, ray.progress - 0.4);
-          const trailX = startSX + (targetSX - startSX) * trailP;
-          const trailY = startSY + (targetSY - startSY) * trailP;
-
-          const rayAlpha = ray.progress < 1 ? 0.7 : Math.max(0, 0.7 - (ray.age - 40) * 0.015);
+          const sSX = tSX + (dirX / len) * radius * 1.1;
+          const sSY = tSY + (dirY / len) * radius * 1.1;
+          const curX = sSX + (tSX - sSX) * ray.progress;
+          const curY = sSY + (tSY - sSY) * ray.progress;
+          const trailP = Math.max(0, ray.progress - 0.5);
+          const trailX = sSX + (tSX - sSX) * trailP;
+          const trailY = sSY + (tSY - sSY) * trailP;
+          const rayAlpha = ray.progress < 1 ? 0.9 : Math.max(0, 0.9 - (ray.age - 25) * 0.02);
           if (rayAlpha > 0) {
+            ctx.save();
+            ctx.shadowColor = `rgba(${ray.color[0]},${ray.color[1]},${ray.color[2]},${rayAlpha * 0.6})`;
+            ctx.shadowBlur = 6;
             ctx.strokeStyle = `rgba(${ray.color[0]},${ray.color[1]},${ray.color[2]},${rayAlpha})`;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
             ctx.moveTo(trailX, trailY);
             ctx.lineTo(curX, curY);
             ctx.stroke();
+            ctx.restore();
           }
-
           if (ray.progress >= 1) {
-            const flashAlpha = Math.max(0, 0.6 - (ray.age - 40) * 0.015);
-            if (flashAlpha > 0) {
-              ctx.fillStyle = `rgba(${ray.color[0]},${ray.color[1]},${ray.color[2]},${flashAlpha})`;
+            const fa = Math.max(0, 0.8 - (ray.age - 25) * 0.02);
+            if (fa > 0) {
+              ctx.save();
+              ctx.shadowColor = `rgba(${ray.color[0]},${ray.color[1]},${ray.color[2]},${fa * 0.5})`;
+              ctx.shadowBlur = 10;
+              ctx.fillStyle = `rgba(${ray.color[0]},${ray.color[1]},${ray.color[2]},${fa})`;
               ctx.beginPath();
-              ctx.arc(targetSX, targetSY, 5, 0, Math.PI * 2);
+              ctx.arc(tSX, tSY, 8, 0, Math.PI * 2);
               ctx.fill();
+              ctx.restore();
             }
           }
         }
       }
 
-      // Rotate only when NOT hovering
+      // ── Draw moon ──
+      drawSphere(ctx, moonBlocksRef.current, rot * 1.2, moonCx, moonCy, moonRadius, moonBlockSize);
+
+      // Moon hover overlay
+      if (isOverMoon) {
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.beginPath();
+        ctx.arc(moonCx, moonCy, moonRadius + 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lock arch
+        ctx.strokeStyle = "rgba(255,255,255,0.85)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(moonCx, moonCy - 14, 6, Math.PI, 0);
+        ctx.stroke();
+
+        // Lock body
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.beginPath();
+        ctx.roundRect(moonCx - 8, moonCy - 12, 16, 12, 2);
+        ctx.fill();
+
+        // Text
+        ctx.font = "bold 9px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.fillText("Subscription", moonCx, moonCy + 12);
+        ctx.fillText("Required", moonCx, moonCy + 22);
+      }
+
+      // ── Rotate ──
       if (!isHoveringGlobeRef.current) {
         angleRef.current += 0.004;
       }
@@ -380,18 +491,13 @@ function ModalGlobe({
     onHoverKnowledge(null);
   }, [onHoverKnowledge]);
 
-  const handleClick = useCallback(
-    () => {
-      // If hovering a block, pin the current random knowledge as selected
-      if (lastHoveredKeyRef.current) {
-        const randomK = MOCK_KNOWLEDGE[Math.floor(Math.random() * MOCK_KNOWLEDGE.length)];
-        onClickKnowledge(randomK);
-      } else {
-        onClickKnowledge(null);
-      }
-    },
-    [onClickKnowledge],
-  );
+  const handleClick = useCallback(() => {
+    if (lastHoveredKeyRef.current) {
+      onClickKnowledge(MOCK_KNOWLEDGE[Math.floor(Math.random() * MOCK_KNOWLEDGE.length)]);
+    } else {
+      onClickKnowledge(null);
+    }
+  }, [onClickKnowledge]);
 
   return (
     <canvas
@@ -465,6 +571,7 @@ function KnowledgeDetail({ knowledge, isPreview }: { knowledge: Knowledge; isPre
 function KnowledgeModal({ onClose }: { onClose: () => void }) {
   const [hoveredKnowledge, setHoveredKnowledge] = useState<Knowledge | null>(null);
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
+  const [isGrouped, setIsGrouped] = useState(false);
   const globeContainerRef = useRef<HTMLDivElement>(null);
   const [globeSize, setGlobeSize] = useState<{ w: number; h: number } | null>(null);
 
@@ -510,6 +617,7 @@ function KnowledgeModal({ onClose }: { onClose: () => void }) {
             <ModalGlobe
               width={globeSize.w - 32}
               height={globeSize.h - 32}
+              isGrouped={isGrouped}
               onHoverKnowledge={setHoveredKnowledge}
               onClickKnowledge={setSelectedKnowledge}
             />
@@ -518,10 +626,20 @@ function KnowledgeModal({ onClose }: { onClose: () => void }) {
 
         {/* Right — Content (70%) */}
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
-          <div>
+          <div className="flex items-center gap-3">
             <h3 className="text-lg font-bold text-white">Knowledge Layer</h3>
-            <p className="mt-1 text-xs text-white/50">
-              Hover over the globe to preview · Click to pin details
+            <button
+              onClick={() => setIsGrouped(!isGrouped)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                isGrouped
+                  ? "bg-[#4B7F52]/80 text-white"
+                  : "bg-white/10 text-white/50 hover:bg-white/20"
+              }`}
+            >
+              {isGrouped ? "Grouped" : "Mixed"}
+            </button>
+            <p className="text-xs text-white/40">
+              Hover to preview · Click to pin
             </p>
           </div>
 
@@ -619,7 +737,6 @@ export function KnowledgeLayer() {
         className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#4F6D7A]/50 p-4 transition hover:bg-[#4F6D7A]/60"
         onClick={() => setShowModal(true)}
       >
-        {/* Expand icon — top right */}
         <button
           className="absolute top-3 right-3 z-10 text-[#2d3f47]/40 transition hover:text-[#2d3f47]"
           onClick={(e) => {
