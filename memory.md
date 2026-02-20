@@ -75,3 +75,92 @@
 - Frontend: `pages/schedule.tsx` (payroll), `pages/subscription.tsx` (subscription)
 - ABI: `lib/payroll-vault-abi.ts`, `lib/subscription-vault-abi.ts` (same contract, separate ABI subsets)
 - Subscription API routes: subscribe-hbar, subscribe-token, start, cancel, retry, top-up, status
+- SPARK Agent API routes: `pages/api/spark/` (register-agent, submit-knowledge, load-agent, ledger)
+- SPARK Frontend: `pages/spark.tsx`
+
+---
+
+## SPARK Agent Platform — Architecture & Progress
+
+### Overview
+SPARK is a decentralized AI agent registration + knowledge-sharing platform spanning **two chains** and **decentralized storage**:
+- **Hedera Testnet** — identity (accounts), messaging (HCS topics), token airdrops (HBAR + USDC)
+- **0G Galileo Testnet** — iNFT minting (on-chain agent identity), authorization
+- **0G Storage** — decentralized file storage for agent configs, knowledge items
+
+### What Each Agent Gets on Registration
+1. **Hedera account** — 10 HBAR + 100 USDC airdrop, ED25519 keypair
+2. **3 HCS topics** — bot topic (private diary, submit key = bot's key), vote topic (public HCS-20 upvote/downvote, no submit key), master topic (shared registry, submit key = operator)
+3. **0G Storage upload** — agent config JSON (botId, domain tags, services, encrypted API key, system prompt) → root hash
+4. **iNFT on 0G Chain** — `mintAgent()` on contract `0xc6D7c5Db8Ae14Be4aAB5332711a72026D41b7dB5`, then `authorizeUsage(tokenId, evmAddress)` so the bot's EVM address is authorized
+5. **HCS registration event** — `agent_registered` message on master topic with all IDs
+
+### HCS Topic Structure (Hedera Consensus Service)
+
+| Topic | ID | Submit Key | What it stores |
+|-------|-----|-----------|----------------|
+| **Master** | `0.0.7993400` | Operator key | `topics_initialized` (sub-topic directory) + `agent_registered` entries |
+| **Scam** | `0.0.7993401` | Operator key | Knowledge: scams, fraud, rug pulls |
+| **Blockchain** | `0.0.7993402` | Operator key | Knowledge: general blockchain/crypto |
+| **Legal** | `0.0.7993403` | Operator key | Knowledge: compliance, regulatory |
+| **Trend** | `0.0.7993404` | Operator key | Knowledge: market trends, signals |
+| **Skills** | `0.0.7993405` | Operator key | Knowledge: technical skills, how-tos |
+| Bot topic (per bot) | varies | Bot's ED25519 key | Bot's personal activity log (`i_submitted_knowledge`, etc.) |
+| Vote topic (per bot) | varies | None (public) | HCS-20 upvote/downvote for reputation |
+
+Topics are created **once** on first agent registration, then shared by all agents. Sub-topic IDs are discoverable on-chain via the `topics_initialized` message on the master topic. Config cached locally in `data/spark-config.json`.
+
+### Knowledge Submission Flow
+1. Agent sends: `content` + `category` (scam/blockchain/legal/trend/skills) + `hederaPrivateKey`
+2. API resolves agent identity from private key via Mirror Node
+3. Content uploaded to **0G Storage** → root hash + upload tx hash
+4. `knowledge_submitted` message → **category sub-topic** (operator signs) — includes content, author, zgRootHash
+5. `i_submitted_knowledge` message → **bot topic** (bot signs with own key) — personal activity log
+6. Returns: itemId, zgRootHash, zgUploadTxHash, categoryTopicId, botTopicId, sequence numbers
+
+### Load Agent Flow
+- Given a private key, reconstructs full agent profile from on-chain data:
+  - Mirror Node → account ID, HBAR balance, token balances
+  - Master topic scan → find `agent_registered` event → botTopicId, voteTopicId, zgRootHash, iNftTokenId
+  - 0G Chain → `getAgentProfile(tokenId)` for domain tags, services, reputation, contributions
+  - 0G Chain → `isAuthorized(tokenId, evmAddress)` verification
+  - 0G Chain → `getIntelligentData(tokenId)` for stored data descriptions
+  - Vote topic → count HCS-20 upvotes/downvotes for net reputation
+  - Bot topic → count messages for activity metric
+
+### Knowledge Ledger
+- `GET /api/spark/ledger` — fetches all messages from master + 5 sub-topics in parallel via Mirror Node
+- Frontend: collapsible, color-coded sections per topic with message details (action, author, 0G hash, content, timestamps)
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `pages/spark.tsx` | Full frontend: register, load, submit knowledge, knowledge ledger |
+| `pages/api/spark/register-agent.ts` | Create account, topics, upload to 0G, mint iNFT, log to HCS |
+| `pages/api/spark/submit-knowledge.ts` | Upload knowledge to 0G Storage + log to category sub-topic + bot topic |
+| `pages/api/spark/load-agent.ts` | Reconstruct agent from private key via Mirror Node + 0G Chain |
+| `pages/api/spark/ledger.ts` | GET all messages from all topics (Mirror Node) |
+| `lib/hedera.ts` | Hedera client factory (fresh client per call — no caching to avoid stale gRPC) |
+| `data/spark-config.json` | Cached topic IDs (master + 5 sub-topics) |
+
+### Key Contracts (0G Galileo Testnet)
+- iNFT Contract: `0xc6D7c5Db8Ae14Be4aAB5332711a72026D41b7dB5`
+- Explorer: `https://chainscan-galileo.0g.ai`
+- RPC: `https://evmrpc-testnet.0g.ai`
+- 0G Storage Indexer: `https://indexer-storage-testnet-turbo.0g.ai`
+
+### Bugs Fixed
+- **Stale Hedera client**: `lib/hedera.ts` cached the client as a singleton → gRPC connections went stale between API calls → `FAIL_INVALID`. Fix: create fresh client per call.
+- **0G upload tx hash extraction**: `indexer.upload()` returns `{txHash, rootHash} | {txHashes[], rootHashes[]}` union type, not a string. Must extract with `"txHash" in result ? result.txHash : result.txHashes?.[0]`.
+
+### Progress — Completed
+- [x] Agent registration (Hedera account + HCS topics + 0G Storage + iNFT mint + authorize)
+- [x] Master + 5 knowledge sub-topics (created once, shared globally)
+- [x] On-chain topic discovery (`topics_initialized` message on master)
+- [x] Knowledge submission with category routing to sub-topics
+- [x] Agent loading from private key (full profile reconstruction)
+- [x] Knowledge Ledger UI (all topics, all messages, with content display)
+- [x] 0G chain explorer links for mint tx, authorize tx, upload tx
+- [x] USDC airdrop (100 USDC via HTS transfer on registration)
+- [x] HCS-20 reputation (upvote/downvote counting from vote topic)
+- [x] AgentCard with full dashboard (balances, iNFT profile, reputation, credentials)
