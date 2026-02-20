@@ -1,0 +1,395 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import {
+  PrivateKey,
+  TopicMessageSubmitTransaction,
+} from "@hashgraph/sdk";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+
+import { getHederaClient, getOperatorKey } from "@/lib/hedera";
+
+// ── Mirror Node ──────────────────────────────────────────────────
+const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
+
+// ── Config ───────────────────────────────────────────────────────
+const CONFIG_PATH = join(process.cwd(), "data", "spark-config.json");
+const KNOWLEDGE_CATEGORIES = ["scam", "blockchain", "legal", "trend", "skills"] as const;
+type KnowledgeCategory = (typeof KNOWLEDGE_CATEGORIES)[number];
+
+const CONSENSUS_THRESHOLD = 2;
+
+interface SparkConfig {
+  masterTopicId?: string;
+  subTopics?: Record<KnowledgeCategory, string>;
+}
+
+function readConfig(): SparkConfig {
+  if (existsSync(CONFIG_PATH)) {
+    return JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+  }
+  return {};
+}
+
+interface TopicMessage {
+  [key: string]: unknown;
+}
+
+async function fetchMessages(topicId: string): Promise<TopicMessage[]> {
+  const res = await fetch(
+    `${MIRROR_URL}/api/v1/topics/${topicId}/messages?limit=100`
+  );
+  const data = await res.json();
+  const msgs: TopicMessage[] = [];
+  for (const msg of data.messages || []) {
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(msg.message, "base64").toString("utf-8")
+      );
+      msgs.push({
+        ...decoded,
+        _seqNo: msg.sequence_number,
+        _consensusAt: msg.consensus_timestamp,
+      });
+    } catch {
+      // skip non-JSON
+    }
+  }
+  return msgs;
+}
+
+// Resolve voter's accountId from private key
+async function resolveVoterAccount(
+  voterKey: PrivateKey
+): Promise<string> {
+  const publicKeyDer = voterKey.publicKey.toString();
+  const mirrorRes = await fetch(
+    `${MIRROR_URL}/api/v1/accounts?account.publickey=${publicKeyDer}&limit=1`
+  );
+  const mirrorData = await mirrorRes.json();
+  if (!mirrorData.accounts || mirrorData.accounts.length === 0) {
+    throw new Error("No Hedera account found for voter's private key");
+  }
+  return mirrorData.accounts[0].account;
+}
+
+// Resolve target agent's voteTopicId + botTopicId from master topic
+async function resolveAgentTopics(
+  masterTopicId: string,
+  targetAccountId: string
+): Promise<{ voteTopicId: string; botTopicId: string }> {
+  const topicRes = await fetch(
+    `${MIRROR_URL}/api/v1/topics/${masterTopicId}/messages?limit=100`
+  );
+  const topicData = await topicRes.json();
+
+  for (const msg of topicData.messages || []) {
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(msg.message, "base64").toString("utf-8")
+      );
+      if (
+        decoded.action === "agent_registered" &&
+        decoded.hederaAccountId === targetAccountId
+      ) {
+        return {
+          voteTopicId: decoded.voteTopicId,
+          botTopicId: decoded.botTopicId,
+        };
+      }
+    } catch {
+      // skip
+    }
+  }
+
+  throw new Error(`Agent ${targetAccountId} not found in master topic`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HANDLER
+// ══════════════════════════════════════════════════════════════════
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "POST only" });
+  }
+
+  const { itemId, vote, hederaPrivateKey } = req.body;
+
+  if (!itemId || !vote || !hederaPrivateKey) {
+    return res.status(400).json({
+      success: false,
+      error: "Required: itemId, vote (approve|reject), hederaPrivateKey",
+    });
+  }
+
+  if (vote !== "approve" && vote !== "reject") {
+    return res.status(400).json({
+      success: false,
+      error: "vote must be 'approve' or 'reject'",
+    });
+  }
+
+  try {
+    const config = readConfig();
+    if (!config.masterTopicId || !config.subTopics) {
+      return res.status(400).json({
+        success: false,
+        error: "No topics found. Register an agent first.",
+      });
+    }
+
+    const client = getHederaClient();
+    const operatorKey = getOperatorKey();
+
+    // Step 1: Resolve voter identity
+    const voterKey = PrivateKey.fromStringED25519(hederaPrivateKey);
+    const voterAccountId = await resolveVoterAccount(voterKey);
+
+    // Step 2: Scan ALL category sub-topics for the knowledge item
+    const categoryEntries = KNOWLEDGE_CATEGORIES.map((cat) => ({
+      category: cat,
+      topicId: config.subTopics![cat],
+    }));
+
+    const allMessages = await Promise.all(
+      categoryEntries.map((e) => fetchMessages(e.topicId))
+    );
+
+    // Find the knowledge_submitted message with matching itemId
+    let knowledgeItem: TopicMessage | null = null;
+    let categoryTopicId = "";
+    let categoryName = "";
+    let categoryMessages: TopicMessage[] = [];
+
+    for (let i = 0; i < categoryEntries.length; i++) {
+      const msgs = allMessages[i];
+      for (const msg of msgs) {
+        if (msg.action === "knowledge_submitted" && msg.itemId === itemId) {
+          knowledgeItem = msg;
+          categoryTopicId = categoryEntries[i].topicId;
+          categoryName = categoryEntries[i].category;
+          categoryMessages = msgs;
+          break;
+        }
+      }
+      if (knowledgeItem) break;
+    }
+
+    if (!knowledgeItem) {
+      return res.status(404).json({
+        success: false,
+        error: `Knowledge item ${itemId} not found in any category sub-topic`,
+      });
+    }
+
+    const author = knowledgeItem.author as string;
+
+    // Step 3: Self-vote block
+    if (voterAccountId === author) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot vote on your own knowledge submission",
+      });
+    }
+
+    // Step 4: Check existing votes for this itemId
+    const existingVotes = categoryMessages.filter(
+      (m) => m.action === "knowledge_vote" && m.itemId === itemId
+    );
+
+    // Double-vote block
+    const alreadyVoted = existingVotes.some(
+      (v) => v.voter === voterAccountId
+    );
+    if (alreadyVoted) {
+      return res.status(400).json({
+        success: false,
+        error: "You have already voted on this knowledge item",
+      });
+    }
+
+    // Already finalized check
+    const isFinalized = categoryMessages.some(
+      (m) =>
+        (m.action === "knowledge_approved" || m.action === "knowledge_rejected") &&
+        m.itemId === itemId
+    );
+    if (isFinalized) {
+      return res.status(400).json({
+        success: false,
+        error: "This knowledge item has already been finalized (approved or rejected)",
+      });
+    }
+
+    // Count current votes
+    let approvals = existingVotes.filter((v) => v.vote === "approve").length;
+    let rejections = existingVotes.filter((v) => v.vote === "reject").length;
+
+    // Step 5: Log knowledge_vote to category sub-topic (operator signs)
+    const voteMsg = JSON.stringify({
+      action: "knowledge_vote",
+      itemId,
+      voter: voterAccountId,
+      vote,
+      timestamp: new Date().toISOString(),
+    });
+
+    const voteTx = await new TopicMessageSubmitTransaction()
+      .setTopicId(categoryTopicId)
+      .setMessage(voteMsg)
+      .freezeWith(client)
+      .sign(operatorKey);
+
+    const voteResponse = await voteTx.execute(client);
+    const voteReceipt = await voteResponse.getReceipt(client);
+    const voteSeqNo = voteReceipt.topicSequenceNumber?.toString() ?? "0";
+
+    // Step 6: Log i_voted_on_knowledge to voter's bot topic
+    const { botTopicId: voterBotTopicId } = await resolveAgentTopics(
+      config.masterTopicId,
+      voterAccountId
+    );
+
+    const botMsg = JSON.stringify({
+      action: "i_voted_on_knowledge",
+      itemId,
+      vote,
+      category: categoryName,
+      timestamp: new Date().toISOString(),
+    });
+
+    const botTx = await new TopicMessageSubmitTransaction()
+      .setTopicId(voterBotTopicId)
+      .setMessage(botMsg)
+      .freezeWith(client)
+      .sign(voterKey);
+
+    await (await botTx.execute(client)).getReceipt(client);
+
+    // Update counts with this vote
+    if (vote === "approve") approvals++;
+    else rejections++;
+
+    // Step 7: Check consensus
+    let status: "pending" | "approved" | "rejected" = "pending";
+    let reputationEffect: string | null = null;
+
+    if (approvals >= CONSENSUS_THRESHOLD) {
+      status = "approved";
+
+      // Log knowledge_approved
+      const approvedMsg = JSON.stringify({
+        action: "knowledge_approved",
+        itemId,
+        author,
+        approvedBy: [
+          ...existingVotes.filter((v) => v.vote === "approve").map((v) => v.voter),
+          voterAccountId,
+        ],
+        timestamp: new Date().toISOString(),
+      });
+
+      const approvedTx = await new TopicMessageSubmitTransaction()
+        .setTopicId(categoryTopicId)
+        .setMessage(approvedMsg)
+        .freezeWith(client)
+        .sign(operatorKey);
+
+      await (await approvedTx.execute(client)).getReceipt(client);
+
+      // Mint HCS-20 upvote on author's vote topic
+      const { voteTopicId: authorVoteTopicId } = await resolveAgentTopics(
+        config.masterTopicId,
+        author
+      );
+
+      const upvoteMsg = JSON.stringify({
+        p: "hcs-20",
+        op: "mint",
+        tick: "upvote",
+        amt: "1",
+        voter: "consensus",
+        reason: `knowledge_approved:${itemId}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const upvoteTx = await new TopicMessageSubmitTransaction()
+        .setTopicId(authorVoteTopicId)
+        .setMessage(upvoteMsg)
+        .execute(client);
+
+      await upvoteTx.getReceipt(client);
+      reputationEffect = "upvote on author's vote topic";
+
+    } else if (rejections >= CONSENSUS_THRESHOLD) {
+      status = "rejected";
+
+      // Log knowledge_rejected
+      const rejectedMsg = JSON.stringify({
+        action: "knowledge_rejected",
+        itemId,
+        author,
+        rejectedBy: [
+          ...existingVotes.filter((v) => v.vote === "reject").map((v) => v.voter),
+          voterAccountId,
+        ],
+        timestamp: new Date().toISOString(),
+      });
+
+      const rejectedTx = await new TopicMessageSubmitTransaction()
+        .setTopicId(categoryTopicId)
+        .setMessage(rejectedMsg)
+        .freezeWith(client)
+        .sign(operatorKey);
+
+      await (await rejectedTx.execute(client)).getReceipt(client);
+
+      // Mint HCS-20 downvote on author's vote topic
+      const { voteTopicId: authorVoteTopicId } = await resolveAgentTopics(
+        config.masterTopicId,
+        author
+      );
+
+      const downvoteMsg = JSON.stringify({
+        p: "hcs-20",
+        op: "mint",
+        tick: "downvote",
+        amt: "1",
+        voter: "consensus",
+        reason: `knowledge_rejected:${itemId}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const downvoteTx = await new TopicMessageSubmitTransaction()
+        .setTopicId(authorVoteTopicId)
+        .setMessage(downvoteMsg)
+        .execute(client);
+
+      await downvoteTx.getReceipt(client);
+      reputationEffect = "downvote on author's vote topic";
+    }
+
+    return res.status(200).json({
+      success: true,
+      itemId,
+      vote,
+      voter: voterAccountId,
+      author,
+      category: categoryName,
+      categoryTopicId,
+      voteSeqNo,
+      approvals,
+      rejections,
+      status,
+      reputationEffect,
+    });
+  } catch (err: unknown) {
+    return res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}

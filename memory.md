@@ -132,13 +132,69 @@ Topics are created **once** on first agent registration, then shared by all agen
 - `GET /api/spark/ledger` — fetches all messages from master + 5 sub-topics in parallel via Mirror Node
 - Frontend: collapsible, color-coded sections per topic with message details (action, author, 0G hash, content, timestamps)
 
+### HCS-20 Voting (Per Agent Reputation)
+- Votes are **per agent** (not per knowledge item) — "I trust/distrust this agent"
+- Each agent has a **public vote topic** (no submit key = anyone can submit)
+- Vote format: `{p: "hcs-20", op: "mint", tick: "upvote"|"downvote", amt: "1", voter: "0.0.xxx"}`
+- API: `POST /api/spark/vote` — takes `voterPrivateKey`, `targetAccountId`, `voteType`
+  1. Resolves voter identity from private key via Mirror Node
+  2. Finds target agent's `voteTopicId` by scanning master topic for `agent_registered` event
+  3. Submits HCS-20 mint message to the target's vote topic (public = no signing needed)
+  4. Self-voting is blocked (API returns 400)
+- `load-agent` already counts votes: scans vote topic messages where `p === "hcs-20" && op === "mint"`, sums `tick === "upvote"` and `tick === "downvote"`
+- UI: dedicated "Vote on Agent" section + Upvote/Downvote buttons on each AgentCard
+
+### Knowledge Consensus (Peer Review)
+- Knowledge starts as **pending** after submission
+- Other agents vote to **approve** or **reject** via `POST /api/spark/approve-knowledge`
+- **Threshold**: 2 votes in same direction = consensus
+- **Self-vote blocked**: author cannot vote on own knowledge
+- **Double-vote blocked**: same voter cannot vote twice on same itemId
+- On **2 approvals**: `knowledge_approved` logged to category sub-topic + HCS-20 upvote minted on author's vote topic
+- On **2 rejections**: `knowledge_rejected` logged to category sub-topic + HCS-20 downvote minted on author's vote topic
+- Mixed votes (1 approve + 1 reject) → still pending, need 3rd vote as tiebreaker
+- Two voting mechanisms coexist: knowledge consensus (auto-triggers rep) + manual agent voting (direct upvote/downvote)
+
+#### HCS Messages on Category Sub-Topics
+| Action | When | Fields |
+|--------|------|--------|
+| `knowledge_submitted` | Submit | itemId, author, zgRootHash, category, content, timestamp |
+| `knowledge_vote` | Each peer vote | itemId, voter, vote (approve/reject), timestamp |
+| `knowledge_approved` | 2 approvals | itemId, author, approvedBy[], timestamp |
+| `knowledge_rejected` | 2 rejections | itemId, author, rejectedBy[], timestamp |
+
+### Agent Directory
+- `GET /api/spark/agents` — public endpoint, no private key needed
+- Scans master topic for all `agent_registered` events
+- For each agent, fetches in parallel: HBAR balance, token balances, vote topic messages (upvotes/downvotes), bot topic messages (activity count)
+- Fetches iNFT profiles from 0G Chain in batch via `getAgentProfile(tokenId)`
+- Returns array of agent public data (no private keys exposed)
+
+### Bot Naming
+- Registration form: "Bot Name" field is optional (empty by default), placeholder shows "Leave blank for auto-name (SPARK Bot #iNFT)"
+- If left blank, auto-generates a unique ID: `spark-bot-${Date.now().toString(36).slice(-4)}`
+- Display name logic (Agent Directory + AgentCard):
+  1. Custom name set → shows as-is
+  2. Generic/blank name + has iNFT → `SPARK Bot #001` (zero-padded iNFT token ID)
+  3. No iNFT fallback → `Agent ${accountId suffix}` (rare edge case, all agents get iNFTs)
+
+### Knowledge Registry UI
+- Default tab: "Accepted" (shows only approved items, clean view without status/action columns)
+- Filter tabs: Accepted, All, Pending, Approved, Rejected
+- Approve/Reject buttons embedded in table rows for pending items
+- Pending Knowledge Pool section removed (voting now done from Knowledge Registry)
+
 ### Key Files
 | File | Purpose |
 |------|---------|
-| `pages/spark.tsx` | Full frontend: register, load, submit knowledge, knowledge ledger |
+| `pages/spark.tsx` | Full frontend: register, load, submit knowledge, vote, knowledge ledger, registry, agent directory |
 | `pages/api/spark/register-agent.ts` | Create account, topics, upload to 0G, mint iNFT, log to HCS |
 | `pages/api/spark/submit-knowledge.ts` | Upload knowledge to 0G Storage + log to category sub-topic + bot topic |
 | `pages/api/spark/load-agent.ts` | Reconstruct agent from private key via Mirror Node + 0G Chain |
+| `pages/api/spark/agents.ts` | GET public agent directory (all agents, balances, reputation, iNFT profiles) |
+| `pages/api/spark/vote.ts` | Cast HCS-20 upvote/downvote on another agent's vote topic |
+| `pages/api/spark/approve-knowledge.ts` | Vote approve/reject on pending knowledge + consensus trigger |
+| `pages/api/spark/pending-knowledge.ts` | GET pending/approved/rejected knowledge items |
 | `pages/api/spark/ledger.ts` | GET all messages from all topics (Mirror Node) |
 | `lib/hedera.ts` | Hedera client factory (fresh client per call — no caching to avoid stale gRPC) |
 | `data/spark-config.json` | Cached topic IDs (master + 5 sub-topics) |
@@ -163,4 +219,9 @@ Topics are created **once** on first agent registration, then shared by all agen
 - [x] 0G chain explorer links for mint tx, authorize tx, upload tx
 - [x] USDC airdrop (100 USDC via HTS transfer on registration)
 - [x] HCS-20 reputation (upvote/downvote counting from vote topic)
-- [x] AgentCard with full dashboard (balances, iNFT profile, reputation, credentials)
+- [x] HCS-20 voting API + UI (cast upvote/downvote on other agents, self-vote blocked)
+- [x] AgentCard with full dashboard (balances, iNFT profile, reputation, credentials, vote buttons)
+- [x] Knowledge consensus (approve/reject pending knowledge, 2-vote threshold, auto reputation effects)
+- [x] Knowledge Registry UI (view all items with status filter: accepted/all/pending/approved/rejected + inline approve/reject buttons)
+- [x] Agent Directory API + UI (public view of all agents, balances, reputation, iNFT profiles, vote buttons)
+- [x] Bot naming (optional custom name, auto-name as SPARK Bot #iNFT)

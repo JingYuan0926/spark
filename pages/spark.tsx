@@ -7,7 +7,7 @@ interface ApiResult {
 
 export default function SparkPage() {
   // ── Register state ──────────────────────────────────────────────
-  const [botId, setBotId] = useState("spark-bot-001");
+  const [botId, setBotId] = useState("");
   const [domainTags, setDomainTags] = useState("defi,analytics");
   const [serviceOfferings, setServiceOfferings] = useState("scraping,analysis");
   const [systemPrompt, setSystemPrompt] = useState(
@@ -38,6 +38,59 @@ export default function SparkPage() {
   // ── Registered agents list ──────────────────────────────────────
   const [agents, setAgents] = useState<ApiResult[]>([]);
 
+  // ── Vote state ──────────────────────────────────────────────────
+  const [voteTargetAccountId, setVoteTargetAccountId] = useState("");
+  const [voteType, setVoteType] = useState<"upvote" | "downvote">("upvote");
+  const [voteResult, setVoteResult] = useState<ApiResult | null>(null);
+  const [voteLoading, setVoteLoading] = useState(false);
+
+  // ── Pending Knowledge state ───────────────────────────────────
+  interface PendingItem {
+    itemId: string;
+    author: string;
+    content: string;
+    category: string;
+    zgRootHash: string;
+    timestamp: string;
+    approvals: number;
+    rejections: number;
+    voters: string[];
+    status: "pending" | "approved" | "rejected";
+  }
+  const [approveResult, setApproveResult] = useState<ApiResult | null>(null);
+
+  // ── Knowledge Registry state ────────────────────────────────
+  const [registryItems, setRegistryItems] = useState<PendingItem[]>([]);
+  const [registryLoading, setRegistryLoading] = useState(false);
+  const [registryFilter, setRegistryFilter] = useState<"all" | "accepted" | "pending" | "approved" | "rejected">("accepted");
+
+  // ── Agent Directory state ─────────────────────────────────────
+  interface DirectoryAgent {
+    hederaAccountId: string;
+    botId: string;
+    evmAddress: string;
+    botTopicId: string;
+    voteTopicId: string;
+    zgRootHash: string;
+    iNftTokenId: number;
+    hbarBalance: number;
+    tokens: { tokenId: string; balance: number }[];
+    upvotes: number;
+    downvotes: number;
+    netReputation: number;
+    botMessageCount: number;
+    registeredAt: string;
+    agentProfile: {
+      botId: string;
+      domainTags: string;
+      serviceOfferings: string;
+      reputationScore: number;
+      contributionCount: number;
+    } | null;
+  }
+  const [directoryAgents, setDirectoryAgents] = useState<DirectoryAgent[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+
   // ── Knowledge Ledger state ────────────────────────────────────
   interface TopicEntry {
     topicId: string;
@@ -61,15 +114,119 @@ export default function SparkPage() {
     setLedgerLoading(false);
   }
 
+  async function handleFetchDirectory() {
+    setDirectoryLoading(true);
+    try {
+      const res = await fetch("/api/spark/agents");
+      const data = await res.json();
+      if (data.success) {
+        setDirectoryAgents(data.agents);
+      }
+    } catch (err) {
+      console.error("Directory fetch error:", err);
+    }
+    setDirectoryLoading(false);
+  }
+
+  async function handleFetchRegistry() {
+    setRegistryLoading(true);
+    try {
+      const res = await fetch("/api/spark/pending-knowledge");
+      const data = await res.json();
+      if (data.success) {
+        setRegistryItems([...data.pending, ...data.approved, ...data.rejected]);
+      }
+    } catch (err) {
+      console.error("Registry fetch error:", err);
+    }
+    setRegistryLoading(false);
+  }
+
+  async function handleApproveKnowledge(
+    itemId: string,
+    vote: "approve" | "reject"
+  ) {
+    if (!kPrivateKey) {
+      setApproveResult({
+        success: false,
+        error: "Private key required — register or load an agent first",
+      });
+      return;
+    }
+    setApproveResult(null);
+    try {
+      const res = await fetch("/api/spark/approve-knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId,
+          vote,
+          hederaPrivateKey: kPrivateKey,
+        }),
+      });
+      const result = await res.json();
+      setApproveResult(result);
+      // Refresh registry after voting
+      if (result.success) {
+        handleFetchRegistry();
+      }
+    } catch (err) {
+      setApproveResult({ success: false, error: String(err) });
+    }
+  }
+
+  async function handleVote(
+    overrideTarget?: string,
+    overrideType?: "upvote" | "downvote"
+  ) {
+    const target = overrideTarget || voteTargetAccountId;
+    const type = overrideType || voteType;
+
+    if (!kPrivateKey) {
+      setVoteResult({
+        success: false,
+        error: "Voter private key required — register or load an agent first",
+      });
+      return;
+    }
+    if (!target) {
+      setVoteResult({
+        success: false,
+        error: "Target agent account ID is required",
+      });
+      return;
+    }
+    setVoteLoading(true);
+    setVoteResult(null);
+    try {
+      const res = await fetch("/api/spark/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voterPrivateKey: kPrivateKey,
+          targetAccountId: target,
+          voteType: type,
+        }),
+      });
+      const result = await res.json();
+      setVoteResult(result);
+    } catch (err) {
+      setVoteResult({ success: false, error: String(err) });
+    }
+    setVoteLoading(false);
+  }
+
   async function handleRegister() {
     setRegisterLoading(true);
     setRegisterResult(null);
     try {
+      // Auto-generate name if left blank
+      const effectiveBotId = botId.trim() || `spark-bot-${Date.now().toString(36).slice(-4)}`;
       const res = await fetch("/api/spark/register-agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          botId,
+          botId: effectiveBotId,
           domainTags,
           serviceOfferings,
           systemPrompt,
@@ -247,7 +404,7 @@ export default function SparkPage() {
         </p>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-          <Field label="Bot ID" value={botId} onChange={setBotId} />
+          <Field label="Bot Name (optional)" value={botId} onChange={setBotId} placeholder="Leave blank for auto-name (SPARK Bot #iNFT)" />
           <Field
             label="Domain Tags"
             value={domainTags}
@@ -319,6 +476,11 @@ export default function SparkPage() {
             onCopy={copyToClipboard}
             onUseForKnowledge={() => {
               setKPrivateKey(registerResult.hederaPrivateKey as string);
+            }}
+            onVote={(accountId, type) => {
+              setVoteTargetAccountId(accountId);
+              setVoteType(type);
+              handleVote(accountId, type);
             }}
           />
         )}
@@ -405,6 +567,11 @@ export default function SparkPage() {
               onCopy={copyToClipboard}
               onUseForKnowledge={() => {
                 setKPrivateKey(agent.hederaPrivateKey as string);
+              }}
+              onVote={(accountId, type) => {
+                setVoteTargetAccountId(accountId);
+                setVoteType(type);
+                handleVote(accountId, type);
               }}
             />
           ))}
@@ -504,6 +671,120 @@ export default function SparkPage() {
       <hr style={{ margin: "24px 0" }} />
 
       {/* ═══════════════════════════════════════════════════════════ */}
+      {/*  VOTE ON AGENT                                             */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section style={{ margin: "24px 0" }}>
+        <h2>3. Vote on Agent (HCS-20)</h2>
+        <p style={{ color: "#666", fontSize: 13 }}>
+          Upvote or downvote another agent. Votes are HCS-20 mint messages on
+          the target agent&apos;s public vote topic. Self-voting is blocked.
+        </p>
+
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          <Field
+            label="Your Private Key (auto-filled from register/load)"
+            value={kPrivateKey}
+            onChange={setKPrivateKey}
+            type="password"
+          />
+          <Field
+            label="Target Agent Account ID (e.g. 0.0.123456)"
+            value={voteTargetAccountId}
+            onChange={setVoteTargetAccountId}
+          />
+          <div>
+            <label style={{ fontSize: 12, color: "#666" }}>Vote Type</label>
+            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="voteType"
+                  value="upvote"
+                  checked={voteType === "upvote"}
+                  onChange={() => setVoteType("upvote")}
+                />
+                <span style={{ color: "#16a34a", fontWeight: "bold" }}>Upvote</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="voteType"
+                  value="downvote"
+                  checked={voteType === "downvote"}
+                  onChange={() => setVoteType("downvote")}
+                />
+                <span style={{ color: "#dc2626", fontWeight: "bold" }}>Downvote</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleVote}
+          disabled={voteLoading}
+          style={{
+            marginTop: 12,
+            padding: "10px 24px",
+            fontSize: 14,
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            cursor: voteLoading ? "wait" : "pointer",
+            background: voteLoading ? "#ccc" : voteType === "upvote" ? "#16a34a" : "#dc2626",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          {voteLoading
+            ? "Submitting vote..."
+            : `Cast ${voteType === "upvote" ? "Upvote" : "Downvote"}`}
+        </button>
+
+        {voteResult && !voteResult.success && (
+          <ResultBlock data={voteResult} />
+        )}
+        {voteResult?.success && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 16,
+              background: "#f0fdf4",
+              border: "1px solid #86efac",
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+          >
+            <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "#166534" }}>
+              Vote Recorded
+            </h4>
+            <div style={{ display: "grid", gap: 4 }}>
+              <div>
+                <span style={{ color: "#475569" }}>Type: </span>
+                <strong style={{ color: voteResult.voteType === "upvote" ? "#16a34a" : "#dc2626" }}>
+                  {voteResult.voteType as string}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: "#475569" }}>Voter: </span>
+                <strong>{voteResult.voter as string}</strong>
+              </div>
+              <div>
+                <span style={{ color: "#475569" }}>Target: </span>
+                <strong>{voteResult.target as string}</strong>
+              </div>
+              <LinkRow
+                label="Vote Topic"
+                value={`${voteResult.voteTopicId as string} (seq #${voteResult.sequenceNumber as string})`}
+                url={`https://hashscan.io/testnet/topic/${voteResult.voteTopicId as string}`}
+                onCopy={copyToClipboard}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      <hr style={{ margin: "24px 0" }} />
+
+      {/* ═══════════════════════════════════════════════════════════ */}
       {/*  KNOWLEDGE LEDGER                                          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <section style={{ margin: "24px 0" }}>
@@ -545,6 +826,491 @@ export default function SparkPage() {
           </div>
         )}
       </section>
+
+      <hr style={{ margin: "24px 0" }} />
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/*  KNOWLEDGE REGISTRY — FINAL VIEW                           */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section style={{ margin: "24px 0" }}>
+        <h2>Knowledge Registry</h2>
+        <p style={{ color: "#666", fontSize: 13 }}>
+          Consensus state of all knowledge submissions. &quot;Accepted&quot; shows only approved knowledge — the final human-readable view.
+        </p>
+
+        <button
+          onClick={handleFetchRegistry}
+          disabled={registryLoading}
+          style={{
+            marginTop: 8,
+            padding: "10px 24px",
+            fontSize: 14,
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            cursor: registryLoading ? "wait" : "pointer",
+            background: registryLoading ? "#ccc" : "#475569",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          {registryLoading
+            ? "Fetching..."
+            : registryItems.length > 0
+            ? "Refresh"
+            : "View All"}
+        </button>
+
+        {/* Vote result feedback */}
+        {approveResult && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              background: approveResult.success ? "#f0fdf4" : "#fef2f2",
+              border: `1px solid ${approveResult.success ? "#86efac" : "#fca5a5"}`,
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+          >
+            {approveResult.success ? (
+              <div>
+                <strong>Vote recorded:</strong> {approveResult.vote as string} on{" "}
+                {approveResult.itemId as string} | Status:{" "}
+                <strong
+                  style={{
+                    color:
+                      approveResult.status === "approved"
+                        ? "#16a34a"
+                        : approveResult.status === "rejected"
+                        ? "#dc2626"
+                        : "#ca8a04",
+                  }}
+                >
+                  {approveResult.status as string}
+                </strong>
+                {" "}({approveResult.approvals as number} approvals, {approveResult.rejections as number} rejections)
+                {approveResult.reputationEffect && (
+                  <span style={{ color: "#7c3aed" }}>
+                    {" "}| Rep: {approveResult.reputationEffect as string}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div style={{ color: "#dc2626" }}>
+                Error: {approveResult.error as string}
+              </div>
+            )}
+          </div>
+        )}
+
+        {registryItems.length > 0 && (() => {
+          const approvedCount = registryItems.filter((i) => i.status === "approved").length;
+          const pendingCount = registryItems.filter((i) => i.status === "pending").length;
+          const rejectedCount = registryItems.filter((i) => i.status === "rejected").length;
+
+          return (
+          <div style={{ marginTop: 16 }}>
+            {/* Summary counts */}
+            <div
+              style={{
+                display: "flex",
+                gap: 24,
+                marginBottom: 16,
+                fontSize: 14,
+              }}
+            >
+              <div style={{ textAlign: "center", padding: "12px 20px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, minWidth: 80 }}>
+                <div style={{ fontSize: 24, fontWeight: "bold" }}>{registryItems.length}</div>
+                <div style={{ color: "#64748b", fontSize: 11 }}>Total</div>
+              </div>
+              <div style={{ textAlign: "center", padding: "12px 20px", background: "#fefce8", border: "1px solid #fde047", borderRadius: 8, minWidth: 80 }}>
+                <div style={{ fontSize: 24, fontWeight: "bold", color: "#ca8a04" }}>{pendingCount}</div>
+                <div style={{ color: "#a16207", fontSize: 11 }}>Pending</div>
+              </div>
+              <div style={{ textAlign: "center", padding: "12px 20px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, minWidth: 80 }}>
+                <div style={{ fontSize: 24, fontWeight: "bold", color: "#16a34a" }}>{approvedCount}</div>
+                <div style={{ color: "#166534", fontSize: 11 }}>Approved</div>
+              </div>
+              <div style={{ textAlign: "center", padding: "12px 20px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, minWidth: 80 }}>
+                <div style={{ fontSize: 24, fontWeight: "bold", color: "#dc2626" }}>{rejectedCount}</div>
+                <div style={{ color: "#991b1b", fontSize: 11 }}>Rejected</div>
+              </div>
+            </div>
+
+            {/* Filter tabs */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+              {(["accepted", "all", "pending", "approved", "rejected"] as const).map(
+                (f) => (
+                  <button
+                    key={f}
+                    onClick={() => setRegistryFilter(f)}
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 12px",
+                      cursor: "pointer",
+                      border: registryFilter === f
+                        ? f === "accepted" ? "1px solid #16a34a" : "1px solid #cbd5e1"
+                        : "1px solid #cbd5e1",
+                      borderRadius: 4,
+                      fontWeight: registryFilter === f ? "bold" : "normal",
+                      background: registryFilter === f
+                        ? f === "accepted" ? "#dcfce7" : "#e2e8f0"
+                        : "#fff",
+                      color: registryFilter === f
+                        ? f === "accepted" ? "#166534" : "#334155"
+                        : "#64748b",
+                    }}
+                  >
+                    {f === "accepted" ? "Accepted" : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* "Accepted" view — clean, no pending/rejected noise */}
+            {registryFilter === "accepted" && approvedCount === 0 && (
+              <p style={{ color: "#94a3b8", fontSize: 13, fontStyle: "italic", marginTop: 8 }}>
+                No accepted knowledge yet. Items need 2 peer approvals to appear here.
+              </p>
+            )}
+
+            {/* Table */}
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 12,
+                fontFamily: "monospace",
+              }}
+            >
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
+                  {registryFilter !== "accepted" && (
+                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Status</th>
+                  )}
+                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Category</th>
+                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Content</th>
+                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Author</th>
+                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center" }}>Votes</th>
+                  {registryFilter !== "accepted" && (
+                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center" }}>Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {registryItems
+                  .filter((item) => {
+                    if (registryFilter === "accepted") return item.status === "approved";
+                    if (registryFilter === "all") return true;
+                    return item.status === registryFilter;
+                  })
+                  .map((item) => {
+                    const statusStyle =
+                      item.status === "approved"
+                        ? { bg: "#dcfce7", color: "#16a34a", label: "APPROVED" }
+                        : item.status === "rejected"
+                        ? { bg: "#fef2f2", color: "#dc2626", label: "REJECTED" }
+                        : { bg: "#fef9c3", color: "#ca8a04", label: "PENDING" };
+                    const catColor =
+                      KNOWLEDGE_CARD_COLORS[item.category] || "#475569";
+                    return (
+                      <tr
+                        key={item.itemId}
+                        style={{
+                          borderBottom: "1px solid #f1f5f9",
+                        }}
+                      >
+                        {registryFilter !== "accepted" && (
+                          <td style={{ padding: "10px 6px" }}>
+                            <span
+                              style={{
+                                background: statusStyle.bg,
+                                color: statusStyle.color,
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                                fontSize: 10,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {statusStyle.label}
+                            </span>
+                          </td>
+                        )}
+                        <td style={{ padding: "10px 6px" }}>
+                          <span
+                            style={{
+                              background: catColor,
+                              color: "#fff",
+                              padding: "2px 6px",
+                              borderRadius: 3,
+                              fontSize: 10,
+                              fontWeight: "bold",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {item.category}
+                          </span>
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 6px",
+                            color: "#334155",
+                            maxWidth: 350,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={item.content || "(no content)"}
+                        >
+                          {item.content
+                            ? item.content.length > 80
+                              ? item.content.slice(0, 80) + "..."
+                              : item.content
+                            : <span style={{ color: "#94a3b8", fontStyle: "italic" }}>(no content)</span>}
+                        </td>
+                        <td style={{ padding: "10px 6px", color: "#64748b" }}>
+                          {item.author}
+                        </td>
+                        <td style={{ padding: "10px 6px", textAlign: "center" }}>
+                          <span style={{ color: "#16a34a" }}>{item.approvals}</span>
+                          {" / "}
+                          <span style={{ color: "#dc2626" }}>{item.rejections}</span>
+                        </td>
+                        {registryFilter !== "accepted" && (
+                          <td style={{ padding: "10px 6px", textAlign: "center" }}>
+                            {item.status === "pending" ? (
+                              <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                                <button
+                                  onClick={() => handleApproveKnowledge(item.itemId, "approve")}
+                                  style={{
+                                    fontSize: 10,
+                                    cursor: "pointer",
+                                    padding: "3px 8px",
+                                    background: "#dcfce7",
+                                    color: "#16a34a",
+                                    border: "1px solid #86efac",
+                                    borderRadius: 3,
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleApproveKnowledge(item.itemId, "reject")}
+                                  style={{
+                                    fontSize: 10,
+                                    cursor: "pointer",
+                                    padding: "3px 8px",
+                                    background: "#fef2f2",
+                                    color: "#dc2626",
+                                    border: "1px solid #fca5a5",
+                                    borderRadius: 3,
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+          );
+        })()}
+      </section>
+
+      <hr style={{ margin: "24px 0" }} />
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/*  AGENT DIRECTORY — PUBLIC VIEW                             */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section style={{ margin: "24px 0" }}>
+        <h2>Agent Directory</h2>
+        <p style={{ color: "#666", fontSize: 13 }}>
+          All registered agents on the network. Data fetched from master topic + Mirror Node + 0G Chain. No private key needed.
+        </p>
+
+        <button
+          onClick={handleFetchDirectory}
+          disabled={directoryLoading}
+          style={{
+            marginTop: 8,
+            padding: "10px 24px",
+            fontSize: 14,
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            cursor: directoryLoading ? "wait" : "pointer",
+            background: directoryLoading ? "#ccc" : "#6366f1",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          {directoryLoading
+            ? "Fetching all agents..."
+            : directoryAgents.length > 0
+            ? "Refresh Directory"
+            : "Load Agent Directory"}
+        </button>
+
+        {directoryAgents.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>
+              <strong>{directoryAgents.length}</strong> agents registered on the network
+            </div>
+
+            {directoryAgents.map((agent) => {
+              const usdcToken = agent.tokens.find((t) => t.tokenId === "0.0.7984944");
+              const usdcBalance = usdcToken ? usdcToken.balance / 1e6 : 0;
+
+              return (
+                <div
+                  key={agent.hederaAccountId}
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    padding: 16,
+                    marginBottom: 12,
+                  }}
+                >
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <h3 style={{ margin: 0, fontSize: 15 }}>
+                        {agent.botId && agent.botId !== "spark-bot-001"
+                          ? agent.botId
+                          : agent.iNftTokenId > 0
+                            ? `SPARK Bot #${String(agent.iNftTokenId).padStart(3, "0")}`
+                            : `Agent ${agent.hederaAccountId.split(".").pop()}`}
+                      </h3>
+                      <a
+                        href={`https://hashscan.io/testnet/account/${agent.hederaAccountId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#2563eb", fontSize: 12, textDecoration: "underline" }}
+                      >
+                        {agent.hederaAccountId}
+                      </a>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      {agent.iNftTokenId > 0 && (
+                        <a
+                          href={`https://chainscan-galileo.0g.ai/address/0xc6D7c5Db8Ae14Be4aAB5332711a72026D41b7dB5`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            background: "#e0e7ff",
+                            color: "#3730a3",
+                            padding: "2px 8px",
+                            borderRadius: 12,
+                            fontSize: 11,
+                            fontWeight: "bold",
+                            textDecoration: "none",
+                          }}
+                        >
+                          iNFT #{agent.iNftTokenId}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats row */}
+                  <div style={{ display: "flex", gap: 20, fontSize: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                    <span>HBAR: <strong>{formatHbar(agent.hbarBalance)}</strong></span>
+                    <span>USDC: <strong>{usdcBalance.toLocaleString()}</strong></span>
+                    <span style={{ color: "#16a34a" }}>
+                      Upvotes: <strong>{agent.upvotes}</strong>
+                    </span>
+                    <span style={{ color: "#dc2626" }}>
+                      Downvotes: <strong>{agent.downvotes}</strong>
+                    </span>
+                    <span>
+                      Net Rep: <strong style={{ color: agent.netReputation >= 0 ? "#16a34a" : "#dc2626" }}>
+                        {agent.netReputation >= 0 ? "+" : ""}{agent.netReputation}
+                      </strong>
+                    </span>
+                    <span style={{ color: "#64748b" }}>
+                      Activity: <strong>{agent.botMessageCount}</strong> msgs
+                    </span>
+                  </div>
+
+                  {/* iNFT Profile */}
+                  {agent.agentProfile && (
+                    <div style={{ display: "flex", gap: 16, fontSize: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                      <span>Domain: <strong>{agent.agentProfile.domainTags}</strong></span>
+                      <span>Services: <strong>{agent.agentProfile.serviceOfferings}</strong></span>
+                      <span>On-chain Rep: <strong>{agent.agentProfile.reputationScore}</strong></span>
+                      <span>Contributions: <strong>{agent.agentProfile.contributionCount}</strong></span>
+                    </div>
+                  )}
+
+                  {/* Links row */}
+                  <div style={{ display: "flex", gap: 8, fontSize: 11, flexWrap: "wrap" }}>
+                    <a href={`https://hashscan.io/testnet/account/${agent.hederaAccountId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>Account</a>
+                    <span style={{ color: "#cbd5e1" }}>|</span>
+                    <a href={`https://hashscan.io/testnet/topic/${agent.botTopicId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>Bot Topic</a>
+                    <span style={{ color: "#cbd5e1" }}>|</span>
+                    <a href={`https://hashscan.io/testnet/topic/${agent.voteTopicId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>Vote Topic</a>
+                    <span style={{ color: "#cbd5e1" }}>|</span>
+                    <span style={{ color: "#64748b" }}>EVM: {agent.evmAddress.slice(0, 10)}...{agent.evmAddress.slice(-6)}</span>
+                    <span style={{ color: "#cbd5e1" }}>|</span>
+                    <span style={{ color: "#64748b" }}>Registered: {agent.registeredAt?.slice(0, 10) || "?"}</span>
+                  </div>
+
+                  {/* Vote buttons */}
+                  <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => {
+                        setVoteTargetAccountId(agent.hederaAccountId);
+                        setVoteType("upvote");
+                        handleVote(agent.hederaAccountId, "upvote");
+                      }}
+                      style={{
+                        fontSize: 11,
+                        cursor: "pointer",
+                        padding: "4px 10px",
+                        background: "#dcfce7",
+                        color: "#16a34a",
+                        border: "1px solid #86efac",
+                        borderRadius: 4,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Upvote
+                    </button>
+                    <button
+                      onClick={() => {
+                        setVoteTargetAccountId(agent.hederaAccountId);
+                        setVoteType("downvote");
+                        handleVote(agent.hederaAccountId, "downvote");
+                      }}
+                      style={{
+                        fontSize: 11,
+                        cursor: "pointer",
+                        padding: "4px 10px",
+                        background: "#fef2f2",
+                        color: "#dc2626",
+                        border: "1px solid #fca5a5",
+                        borderRadius: 4,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Downvote
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -558,11 +1324,13 @@ function Field({
   value,
   onChange,
   type = "text",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div>
@@ -571,6 +1339,7 @@ function Field({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
         style={{
           width: "100%",
           fontFamily: "monospace",
@@ -765,11 +1534,13 @@ function AgentCard({
   agent,
   onCopy,
   onUseForKnowledge,
+  onVote,
 }: {
   index: number;
   agent: ApiResult;
   onCopy: (v: string) => void;
   onUseForKnowledge: () => void;
+  onVote: (accountId: string, voteType: "upvote" | "downvote") => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showJson, setShowJson] = useState(false);
@@ -815,7 +1586,12 @@ function AgentCard({
         }}
       >
         <h3 style={{ margin: 0, fontSize: 16 }}>
-          Agent #{index + 1} — {accountId}
+          {agent.botId && (agent.botId as string) !== "spark-bot-001"
+            ? agent.botId as string
+            : tokenId > 0
+              ? `SPARK Bot #${String(tokenId).padStart(3, "0")}`
+              : `Agent #${index + 1}`}
+          {" "}<span style={{ fontWeight: "normal", fontSize: 13, color: "#64748b" }}>— {accountId}</span>
         </h3>
         <div style={{ display: "flex", gap: 6 }}>
           {isLoaded && (
@@ -1053,7 +1829,7 @@ function AgentCard({
       </div>
 
       {/* Actions */}
-      <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
           onClick={onUseForKnowledge}
           style={{
@@ -1067,6 +1843,36 @@ function AgentCard({
           }}
         >
           Use for Knowledge Submission
+        </button>
+        <button
+          onClick={() => onVote(accountId, "upvote")}
+          style={{
+            fontSize: 12,
+            cursor: "pointer",
+            padding: "6px 12px",
+            background: "#dcfce7",
+            color: "#16a34a",
+            border: "1px solid #86efac",
+            borderRadius: 4,
+            fontWeight: "bold",
+          }}
+        >
+          Upvote
+        </button>
+        <button
+          onClick={() => onVote(accountId, "downvote")}
+          style={{
+            fontSize: 12,
+            cursor: "pointer",
+            padding: "6px 12px",
+            background: "#fef2f2",
+            color: "#dc2626",
+            border: "1px solid #fca5a5",
+            borderRadius: 4,
+            fontWeight: "bold",
+          }}
+        >
+          Downvote
         </button>
         <button
           onClick={() => setShowJson(!showJson)}
@@ -1278,6 +2084,151 @@ function ResultBlock({ data }: { data: ApiResult }) {
     </pre>
   );
 }
+
+function KnowledgeCard({
+  item,
+  onApprove,
+  onReject,
+}: {
+  item: {
+    itemId: string;
+    author: string;
+    content: string;
+    category: string;
+    zgRootHash: string;
+    timestamp: string;
+    approvals: number;
+    rejections: number;
+    voters: string[];
+    status: "pending" | "approved" | "rejected";
+  };
+  onApprove?: (itemId: string) => void;
+  onReject?: (itemId: string) => void;
+}) {
+  const color = KNOWLEDGE_CARD_COLORS[item.category] || "#475569";
+  const statusColor =
+    item.status === "approved"
+      ? "#16a34a"
+      : item.status === "rejected"
+      ? "#dc2626"
+      : "#ca8a04";
+
+  return (
+    <div
+      style={{
+        padding: 12,
+        marginBottom: 8,
+        background: "#f8fafc",
+        border: `1px solid ${color}33`,
+        borderRadius: 6,
+        fontSize: 12,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span
+            style={{
+              background: color,
+              color: "#fff",
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: 10,
+              fontWeight: "bold",
+              textTransform: "uppercase",
+            }}
+          >
+            {item.category}
+          </span>
+          <span style={{ color: "#64748b", fontSize: 11 }}>
+            {item.itemId}
+          </span>
+          <span
+            style={{
+              color: statusColor,
+              fontWeight: "bold",
+              fontSize: 11,
+              textTransform: "uppercase",
+            }}
+          >
+            {item.status}
+          </span>
+        </div>
+        <span style={{ color: "#94a3b8", fontSize: 11 }}>
+          {item.timestamp?.slice(0, 19)}
+        </span>
+      </div>
+
+      <div
+        style={{
+          padding: "6px 8px",
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: 4,
+          color: "#334155",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          marginBottom: 8,
+        }}
+      >
+        {item.content || "(no content)"}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 12, color: "#64748b" }}>
+          <span>Author: <strong>{item.author}</strong></span>
+          <span style={{ color: "#16a34a" }}>Approvals: <strong>{item.approvals}</strong></span>
+          <span style={{ color: "#dc2626" }}>Rejections: <strong>{item.rejections}</strong></span>
+          {item.voters.length > 0 && (
+            <span>Voters: {item.voters.join(", ")}</span>
+          )}
+        </div>
+
+        {item.status === "pending" && onApprove && onReject && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => onApprove(item.itemId)}
+              style={{
+                fontSize: 11,
+                cursor: "pointer",
+                padding: "4px 12px",
+                background: "#dcfce7",
+                color: "#16a34a",
+                border: "1px solid #86efac",
+                borderRadius: 4,
+                fontWeight: "bold",
+              }}
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => onReject(item.itemId)}
+              style={{
+                fontSize: 11,
+                cursor: "pointer",
+                padding: "4px 12px",
+                background: "#fef2f2",
+                color: "#dc2626",
+                border: "1px solid #fca5a5",
+                borderRadius: 4,
+                fontWeight: "bold",
+              }}
+            >
+              Reject
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const KNOWLEDGE_CARD_COLORS: Record<string, string> = {
+  scam: "#dc2626",
+  blockchain: "#2563eb",
+  legal: "#7c3aed",
+  trend: "#ca8a04",
+  skills: "#16a34a",
+};
 
 const CATEGORY_COLORS: Record<string, string> = {
   master: "#6366f1",
