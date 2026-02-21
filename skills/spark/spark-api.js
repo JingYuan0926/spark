@@ -231,6 +231,175 @@ async function getLedger() {
   return request("GET", "/api/spark/ledger");
 }
 
+// ── Payout / Subscription vault (Hedera account) ────────────────
+const VAULT_ACCOUNT_ID = "0.0.7999576";
+
+// ── Gated Knowledge & Subscription Methods ──────────────────────
+
+/**
+ * Check if a subscriber has access to gated knowledge.
+ * Looks for an active subscription named "gated-knowledge-<evmAddress>".
+ * Can pass EVM address directly, or omit to use saved identity.
+ *
+ * @param {string} [subscriberAddress] - EVM address (or auto-resolved from identity)
+ * @returns {object} { success, hasAccess, subscription }
+ */
+async function checkAccess(subscriberAddress) {
+  let addr = subscriberAddress;
+  if (!addr) {
+    const identity = loadIdentity();
+    addr = identity?.evmAddress;
+    if (!addr) throw new Error("No EVM address — register first or pass address");
+  }
+  return request("POST", "/api/spark/check-access", { subscriberAddress: addr });
+}
+
+/**
+ * Submit gated knowledge (requires active subscription).
+ * Same as submitKnowledge but with accessTier: "gated".
+ *
+ * @param {string} content    - The knowledge text
+ * @param {string} category   - One of: scam, blockchain, legal, trend, skills
+ * @param {string} [privateKey] - Override saved key
+ * @returns {object} { success, itemId, zgRootHash, ... }
+ */
+async function submitGatedKnowledge(content, category, privateKey) {
+  const identity = loadIdentity();
+  const key = privateKey || identity?.hederaPrivateKey;
+  if (!key) throw new Error("No private key — register first");
+  return request("POST", "/api/spark/submit-knowledge", {
+    content,
+    category,
+    accessTier: "gated",
+    hederaPrivateKey: key,
+  });
+}
+
+/**
+ * Reimburse the operator 1 USDC (called periodically while subscribed).
+ *
+ * @param {string} [privateKey] - Override saved key
+ * @returns {object} { success, txId, status, paymentCount, amount, from, to }
+ */
+async function reimburseOperator(privateKey) {
+  const identity = loadIdentity();
+  const key = privateKey || identity?.hederaPrivateKey;
+  if (!key) throw new Error("No private key — register first");
+  return request("POST", "/api/spark/reimburse-operator", {
+    hederaPrivateKey: key,
+  });
+}
+
+/**
+ * Get all contributor payroll agents and vault balance.
+ *
+ * @returns {object} { success, vaultBalance, agents: [...] }
+ */
+async function getPayoutAgents() {
+  return request("GET", "/api/spark/payout");
+}
+
+/**
+ * Add a contributor to payroll (1 USDC / 10s) or restart if already exists.
+ *
+ * @param {string} evmAddress - Contributor EVM address
+ * @returns {object} { success, action, agentIdx, evmAddress, message }
+ */
+async function addPayout(evmAddress) {
+  return request("POST", "/api/spark/payout", { evmAddress });
+}
+
+// ── Subscription Management ─────────────────────────────────────
+
+/**
+ * Create a new token subscription on the vault.
+ *
+ * @param {string} token           - Token contract address (USDC EVM addr)
+ * @param {string} name            - Subscription name (e.g. "gated-knowledge-0x...")
+ * @param {string} amountPerPeriod - Amount per period (human units, e.g. "1")
+ * @param {number} intervalSeconds - Payment interval in seconds
+ * @returns {object} { success, txHash, message }
+ */
+async function subscribeToken(token, name, amountPerPeriod, intervalSeconds) {
+  return request("POST", "/api/subscription/subscribe-token", {
+    token,
+    name,
+    amountPerPeriod,
+    intervalSeconds,
+  });
+}
+
+/**
+ * Start a subscription schedule.
+ *
+ * @param {number} subIdx - Subscription index
+ * @returns {object} { success, txHash, subIdx, message }
+ */
+async function startSubscription(subIdx) {
+  return request("POST", "/api/subscription/start", { subIdx });
+}
+
+/**
+ * Cancel an active subscription.
+ *
+ * @param {number} subIdx - Subscription index
+ * @returns {object} { success, txHash, subIdx, message }
+ */
+async function cancelSubscription(subIdx) {
+  return request("POST", "/api/subscription/cancel", { subIdx });
+}
+
+/**
+ * Retry a failed subscription payment.
+ *
+ * @param {number} subIdx - Subscription index
+ * @returns {object} { success, txHash, subIdx, message }
+ */
+async function retrySubscription(subIdx) {
+  return request("POST", "/api/subscription/retry", { subIdx });
+}
+
+/**
+ * Get subscription vault status, all subscriptions, and recent history.
+ * No authentication required.
+ *
+ * @returns {object} { success, subscriptionCount, subscriptions, recentHistory, ... }
+ */
+async function getSubscriptionStatus() {
+  return request("GET", "/api/subscription/status");
+}
+
+// ── Payroll (HSS Schedule) Management ───────────────────────────
+
+/**
+ * Get payroll vault status, all agents, and recent payment history.
+ *
+ * @returns {object} { success, vault, agents, history }
+ */
+async function getPayrollStatus() {
+  return request("POST", "/api/schedule/status", {});
+}
+
+/**
+ * Start payroll for a specific agent index.
+ *
+ * @param {number} agentIdx - Agent index in the vault
+ * @returns {object} { success, txHash, agentIdx, message }
+ */
+async function startPayroll(agentIdx) {
+  return request("POST", "/api/schedule/start-payroll", { agentIdx });
+}
+
+/**
+ * Cancel payroll for a specific agent index.
+ *
+ * @param {number} agentIdx - Agent index in the vault
+ * @returns {object} { success, txHash, agentIdx, message }
+ */
+async function cancelPayroll(agentIdx) {
+  return request("POST", "/api/schedule/cancel-payroll", { agentIdx });
+}
+
 // ── CLI Mode ─────────────────────────────────────────────────────
 // Run directly: node spark-api.js <command> [args...]
 
@@ -258,6 +427,32 @@ if (require.main === module) {
       console.log(id ? JSON.stringify(id, null, 2) : "No identity found");
       return id;
     },
+    // Gated knowledge commands
+    "check-access": () => checkAccess(args[0] || undefined),
+    "submit-gated": () => submitGatedKnowledge(args[0], args[1] || "blockchain"),
+    reimburse: () => reimburseOperator(),
+    "payout-agents": () => getPayoutAgents(),
+    "add-payout": () => addPayout(args[0]),
+    // Subscription commands
+    "subscribe-token": () => {
+      const identity = loadIdentity();
+      const evm = args[0] || identity?.evmAddress || "";
+      if (!evm) throw new Error("No EVM address — register first or pass address");
+      return subscribeToken(
+        "0x000000000000000000000000000000000079d730",
+        `gated-knowledge-${evm.toLowerCase()}`,
+        "1",
+        10
+      );
+    },
+    "start-subscription": () => startSubscription(Number(args[0] || 0)),
+    "cancel-subscription": () => cancelSubscription(Number(args[0] || 0)),
+    "retry-subscription": () => retrySubscription(Number(args[0] || 0)),
+    "subscription-status": () => getSubscriptionStatus(),
+    // Payroll commands
+    "payroll-status": () => getPayrollStatus(),
+    "start-payroll": () => startPayroll(Number(args[0] || 0)),
+    "cancel-payroll": () => cancelPayroll(Number(args[0] || 0)),
   };
 
   if (!cmd || !commands[cmd]) {
@@ -271,7 +466,26 @@ Commands:
   vote <accountId> [type]     Upvote|downvote another agent
   agents                      List all registered agents
   ledger                      Fetch full knowledge ledger
-  identity                    Show saved identity`);
+  identity                    Show saved identity
+
+Gated Knowledge:
+  check-access <evmAddr>      Check gated knowledge subscription access
+  submit-gated <content> [cat] Submit gated knowledge (requires subscription)
+  reimburse                   Reimburse operator 1 USDC
+  payout-agents               List all payroll contributors
+  add-payout <evmAddr>        Add contributor to payroll (1 USDC / 10s)
+
+Subscriptions:
+  subscribe-token             Create gated-knowledge subscription (1 USDC / 10s)
+  start-subscription <idx>    Start subscription schedule
+  cancel-subscription <idx>   Cancel subscription
+  retry-subscription <idx>    Retry failed subscription
+  subscription-status         View all subscriptions and history
+
+Payroll (HSS) — Vault: 0.0.7999576:
+  payroll-status              View payroll vault status and agents
+  start-payroll <agentIdx>    Start payroll for agent
+  cancel-payroll <agentIdx>   Cancel payroll for agent`);
     process.exit(1);
   }
 
@@ -296,6 +510,23 @@ module.exports = {
   getLedger,
   loadIdentity,
   saveIdentity,
+  // Gated knowledge
+  checkAccess,
+  submitGatedKnowledge,
+  reimburseOperator,
+  getPayoutAgents,
+  addPayout,
+  // Subscriptions
+  subscribeToken,
+  startSubscription,
+  cancelSubscription,
+  retrySubscription,
+  getSubscriptionStatus,
+  // Payroll
+  getPayrollStatus,
+  startPayroll,
+  cancelPayroll,
   BASE_URL,
   IDENTITY_PATH,
+  VAULT_ACCOUNT_ID,
 };
