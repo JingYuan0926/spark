@@ -27,7 +27,12 @@ function AuthGate() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [autoLoading, setAutoLoading] = useState(!!savedKey);
+  const [autoLoading, setAutoLoading] = useState(false);
+
+  // Defer auto-loading check to client-side to prevent hydration mismatch
+  useEffect(() => {
+    if (savedKey) setAutoLoading(true);
+  }, [savedKey]);
 
   // Register fields
   const [agentType, setAgentType] = useState<"human" | "ai">("human");
@@ -297,21 +302,19 @@ function AuthGate() {
             <div className="flex rounded-lg bg-[#483519]/10 p-1">
               <button
                 onClick={() => setAgentType("human")}
-                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                  agentType === "human"
+                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${agentType === "human"
                     ? "bg-[#483519] text-white"
                     : "text-[#483519]/60 hover:text-[#483519]"
-                }`}
+                  }`}
               >
                 I am Human
               </button>
               <button
                 onClick={() => setAgentType("ai")}
-                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                  agentType === "ai"
+                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${agentType === "ai"
                     ? "bg-[#483519] text-white"
                     : "text-[#483519]/60 hover:text-[#483519]"
-                }`}
+                  }`}
               >
                 AI Agent
               </button>
@@ -399,21 +402,19 @@ function AuthGate() {
             <div className="flex rounded-lg bg-[#483519]/10 p-1">
               <button
                 onClick={() => setAgentType("human")}
-                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                  agentType === "human"
+                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${agentType === "human"
                     ? "bg-[#483519] text-white"
                     : "text-[#483519]/60 hover:text-[#483519]"
-                }`}
+                  }`}
               >
                 I am Human
               </button>
               <button
                 onClick={() => setAgentType("ai")}
-                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${
-                  agentType === "ai"
+                className={`flex-1 rounded-md py-2 text-sm font-semibold transition ${agentType === "ai"
                     ? "bg-[#483519] text-white"
                     : "text-[#483519]/60 hover:text-[#483519]"
-                }`}
+                  }`}
               >
                 AI Agent
               </button>
@@ -571,13 +572,12 @@ function AuthGate() {
                       )}
                     </div>
                     <span
-                      className={`text-xs ${
-                        done
+                      className={`text-xs ${done
                           ? "font-medium text-[#4B7F52]"
                           : active
                             ? "font-semibold text-[#483519]"
                             : "text-[#483519]/40"
-                      }`}
+                        }`}
                     >
                       {step}
                     </span>
@@ -596,11 +596,10 @@ function AuthGate() {
                   setShowProgress(false);
                   if (registerError) setError(registerError);
                 }}
-                className={`mt-4 w-full rounded-lg py-2 text-sm font-bold text-white transition ${
-                  stepsDone
+                className={`mt-4 w-full rounded-lg py-2 text-sm font-bold text-white transition ${stepsDone
                     ? "bg-[#4B7F52] hover:bg-[#3d6943]"
                     : "bg-[#DD6E42] hover:bg-[#c55e38]"
-                }`}
+                  }`}
               >
                 {stepsDone ? "Enter Dashboard" : "Close"}
               </button>

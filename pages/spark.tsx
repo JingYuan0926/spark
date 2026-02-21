@@ -933,7 +933,7 @@ export default function SparkPage() {
             </div>
 
             {/* View Data Result */}
-            {viewDataContent && (
+            {viewDataContent ? (
               <div style={{ marginTop: 8, background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 6, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <span style={{ fontSize: 12, fontWeight: "bold", color: "#1e40af" }}>Downloaded Content</span>
@@ -943,7 +943,7 @@ export default function SparkPage() {
                   {typeof viewDataContent === "string" ? viewDataContent : JSON.stringify(viewDataContent as object, null, 2)}
                 </pre>
               </div>
-            )}
+            ) : null}
             {viewDataError && (
               <div style={{ marginTop: 8, padding: 8, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, fontSize: 12, color: "#dc2626" }}>
                 View error: {viewDataError}

@@ -620,6 +620,13 @@ function KnowledgeModal({
   const [voteLoading, setVoteLoading] = useState(false);
   const [voteResult, setVoteResult] = useState<{ success: boolean; error?: string; status?: string } | null>(null);
 
+  // Submit knowledge state
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [submitContent, setSubmitContent] = useState("");
+  const [submitCategory, setSubmitCategory] = useState("blockchain");
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ success: boolean; error?: string } | null>(null);
+
   async function handleVote(itemId: string, vote: "approve" | "reject") {
     if (!privateKey) {
       setVoteResult({ success: false, error: "No agent loaded — load an agent first" });
@@ -647,6 +654,40 @@ function KnowledgeModal({
     }
     setVoteLoading(false);
   }
+  async function handleSubmitKnowledge() {
+    if (!privateKey) {
+      setSubmitResult({ success: false, error: "No agent loaded — load an agent first" });
+      return;
+    }
+    if (!submitContent.trim()) {
+      setSubmitResult({ success: false, error: "Content cannot be empty" });
+      return;
+    }
+    setSubmitLoading(true);
+    setSubmitResult(null);
+    try {
+      const res = await fetch("/api/spark/submit-knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: submitContent.trim(),
+          category: submitCategory,
+          hederaPrivateKey: privateKey,
+        }),
+      });
+      const result = await res.json();
+      setSubmitResult({ success: result.success, error: result.error });
+      if (result.success) {
+        setSubmitContent("");
+        setShowSubmitForm(false);
+        if (onRefresh) setTimeout(onRefresh, 1000);
+      }
+    } catch (err) {
+      setSubmitResult({ success: false, error: err instanceof Error ? err.message : String(err) });
+    }
+    setSubmitLoading(false);
+  }
+
   const [globeSize, setGlobeSize] = useState<{ w: number; h: number } | null>(null);
 
   // Subscription state
@@ -657,6 +698,27 @@ function KnowledgeModal({
     subscription?: { name: string; status: number; active: boolean; paymentCount: number; totalPaid: string; nextPaymentTime: number };
   } | null>(null);
   const [subError, setSubError] = useState<string | null>(null);
+  const [subscriptions, setSubscriptions] = useState<{
+    idx: number; name: string; amountPerPeriod: string; intervalSeconds: number;
+    status: string | number; paymentCount: number; totalPaid: string; nextPaymentTime: number; active: boolean;
+  }[]>([]);
+  const [subActionLoading, setSubActionLoading] = useState<string | null>(null);
+
+  async function fetchSubscriptions() {
+    if (!agent?.evmAddress) return;
+    try {
+      const res = await fetch("/api/subscription/status");
+      const data = await res.json();
+      if (data.success) {
+        const myName = `gated-knowledge-${agent.evmAddress.toLowerCase()}`;
+        setSubscriptions(
+          (data.subscriptions || []).filter(
+            (s: { name: string }) => s.name.toLowerCase() === myName
+          )
+        );
+      }
+    } catch { /* ignore */ }
+  }
 
   async function checkSubscription() {
     if (!agent?.evmAddress) return;
@@ -678,6 +740,34 @@ function KnowledgeModal({
       setSubError(err instanceof Error ? err.message : String(err));
     }
     setSubLoading(false);
+    await fetchSubscriptions();
+  }
+
+  function hssStatusNum(s: string | number): number {
+    if (typeof s === "number") return s;
+    const labels = ["None", "Pending", "Executed", "Failed", "Cancelled"];
+    const idx = labels.findIndex((l) => l === s);
+    return idx >= 0 ? idx : 0;
+  }
+
+  async function handleSubAction(action: "start" | "cancel" | "retry", subIdx: number) {
+    setSubActionLoading(`${action}-${subIdx}`);
+    try {
+      const res = await fetch(`/api/subscription/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subIdx }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        await checkSubscription();
+      } else {
+        setSubError(result.error || `Failed to ${action}`);
+      }
+    } catch (err) {
+      setSubError(err instanceof Error ? err.message : String(err));
+    }
+    setSubActionLoading(null);
   }
 
   async function handleSubscribe() {
@@ -689,24 +779,27 @@ function KnowledgeModal({
       const statusRes = await fetch("/api/subscription/status");
       const statusData = await statusRes.json();
       let reuseIdx = -1;
+      let reuseAction: "start" | "retry" = "start";
       if (statusData.success) {
         const allSubs = statusData.subscriptions as { idx: number; name: string; status: string | number; active: boolean }[];
         const myName = `gated-knowledge-${agent.evmAddress.toLowerCase()}`;
         for (const sub of allSubs) {
           if (sub.name.toLowerCase() !== myName) continue;
-          const sn = typeof sub.status === "number" ? sub.status : 0;
-          if (sn === 0 && sub.active) { reuseIdx = sub.idx; break; }
+          const sn = hssStatusNum(sub.status);
+          // Reuse: None (0) + active → start, Failed (3) + active → retry
+          if (sn === 0 && sub.active) { reuseIdx = sub.idx; reuseAction = "start"; break; }
+          if (sn === 3 && sub.active) { reuseIdx = sub.idx; reuseAction = "retry"; break; }
         }
       }
 
       if (reuseIdx >= 0) {
-        const startRes = await fetch("/api/subscription/start", {
+        const actionRes = await fetch(`/api/subscription/${reuseAction}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ subIdx: reuseIdx }),
         });
-        const startResult = await startRes.json();
-        if (!startResult.success) throw new Error(startResult.error);
+        const actionResult = await actionRes.json();
+        if (!actionResult.success) throw new Error(actionResult.error);
       } else {
         // Create new
         const createRes = await fetch("/api/subscription/subscribe-token", {
@@ -802,7 +895,7 @@ function KnowledgeModal({
         {/* Subscription Panel Overlay */}
         {showSubPanel && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl bg-[#2d3f47] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-[#2d3f47] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">Gated Knowledge Subscription</h3>
                 <button onClick={() => setShowSubPanel(false)} className="text-white/40 transition hover:text-white">
@@ -859,6 +952,95 @@ function KnowledgeModal({
                   {subLoading ? "Processing..." : "Subscribe (1 USDC / 10s)"}
                 </button>
               </div>
+
+              {/* Subscriptions Table */}
+              {subscriptions.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-bold text-white/70">My Subscriptions</h4>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-[11px] text-white/70">
+                      <thead>
+                        <tr className="border-b border-white/10 text-left text-[10px] uppercase tracking-wider text-white/40">
+                          <th className="px-3 py-2">#</th>
+                          <th className="px-3 py-2">Name</th>
+                          <th className="px-3 py-2">Amount</th>
+                          <th className="px-3 py-2">Interval</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2 text-center">Payments</th>
+                          <th className="px-3 py-2">Total Paid</th>
+                          <th className="px-3 py-2">Next Payment</th>
+                          <th className="px-3 py-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subscriptions.map((sub) => {
+                          const sn = hssStatusNum(sub.status);
+                          const statusLabel = ["None", "Pending", "Executed", "Failed", "Cancelled"][sn] || String(sub.status);
+                          const statusColor = sn === 2 ? "bg-[#4B7F52]/20 text-[#4B7F52]" : sn === 1 ? "bg-yellow-400/20 text-yellow-400" : sn === 3 ? "bg-red-500/20 text-red-400" : "bg-white/10 text-white/40";
+                          return (
+                            <tr key={sub.idx} className={`border-b border-white/5 ${sub.active ? "" : "opacity-40"}`}>
+                              <td className="px-3 py-2">{sub.idx}</td>
+                              <td className="px-3 py-2 font-semibold text-white/80">{sub.name}</td>
+                              <td className="px-3 py-2">{(Number(sub.amountPerPeriod) / 1e6).toFixed(2)} USDC</td>
+                              <td className="px-3 py-2">{sub.intervalSeconds}s</td>
+                              <td className="px-3 py-2">
+                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${statusColor}`}>{statusLabel}</span>
+                              </td>
+                              <td className="px-3 py-2 text-center">{sub.paymentCount}</td>
+                              <td className="px-3 py-2">{(Number(sub.totalPaid) / 1e6).toFixed(2)} USDC</td>
+                              <td className="px-3 py-2 text-[10px]">{sub.nextPaymentTime ? new Date(sub.nextPaymentTime * 1000).toLocaleString() : "\u2014"}</td>
+                              <td className="px-3 py-2">
+                                {/* None (0) + active → Start */}
+                                {sub.active && sn === 0 && (
+                                  <button
+                                    onClick={() => handleSubAction("start", sub.idx)}
+                                    disabled={subActionLoading === `start-${sub.idx}`}
+                                    className="rounded-md bg-[#4B7F52]/20 px-2 py-0.5 text-[10px] font-bold text-[#4B7F52] transition hover:bg-[#4B7F52]/40 disabled:opacity-40"
+                                  >
+                                    {subActionLoading === `start-${sub.idx}` ? "..." : "Start"}
+                                  </button>
+                                )}
+                                {/* Failed (3) + active → Retry */}
+                                {sub.active && sn === 3 && (
+                                  <button
+                                    onClick={() => handleSubAction("retry", sub.idx)}
+                                    disabled={subActionLoading === `retry-${sub.idx}`}
+                                    className="rounded-md bg-yellow-400/20 px-2 py-0.5 text-[10px] font-bold text-yellow-400 transition hover:bg-yellow-400/40 disabled:opacity-40"
+                                  >
+                                    {subActionLoading === `retry-${sub.idx}` ? "..." : "Retry"}
+                                  </button>
+                                )}
+                                {/* Pending (1) + active → Cancel */}
+                                {sub.active && sn === 1 && (
+                                  <button
+                                    onClick={() => handleSubAction("cancel", sub.idx)}
+                                    disabled={subActionLoading === `cancel-${sub.idx}`}
+                                    className="rounded-md bg-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400 transition hover:bg-red-500/40 disabled:opacity-40"
+                                  >
+                                    {subActionLoading === `cancel-${sub.idx}` ? "..." : "Cancel"}
+                                  </button>
+                                )}
+                                {/* Cancelled (4) + inactive → New Sub */}
+                                {!sub.active && sn === 4 && (
+                                  <button
+                                    onClick={handleSubscribe}
+                                    disabled={subLoading}
+                                    className="rounded-md bg-[#DD6E42]/20 px-2 py-0.5 text-[10px] font-bold text-[#DD6E42] transition hover:bg-[#DD6E42]/40 disabled:opacity-40"
+                                  >
+                                    {subLoading ? "..." : "New Sub"}
+                                  </button>
+                                )}
+                                {/* Executed (2) or inactive non-cancelled → dash */}
+                                {(sn === 2 || (!sub.active && sn !== 4)) && <span className="text-[10px] text-white/20">{"\u2014"}</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -921,8 +1103,8 @@ function KnowledgeModal({
 
           {/* Filter tabs + entries */}
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pb-6">
-            {/* Filter tabs */}
-            <div className="flex gap-1.5">
+            {/* Filter tabs + Submit button */}
+            <div className="flex items-center gap-1.5">
               {(["all", "pending", "approved", "rejected"] as const).map((f) => (
                 <button
                   key={f}
@@ -936,7 +1118,62 @@ function KnowledgeModal({
                   {f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
               ))}
+              <button
+                onClick={() => { setShowSubmitForm(!showSubmitForm); setSubmitResult(null); }}
+                className={`ml-auto rounded-full px-3 py-1 text-[11px] font-medium transition ${
+                  showSubmitForm
+                    ? "bg-[#DD6E42] text-white"
+                    : "bg-[#DD6E42]/20 text-[#DD6E42] hover:bg-[#DD6E42]/40"
+                }`}
+              >
+                + Submit Knowledge
+              </button>
             </div>
+
+            {/* Submit Knowledge Form */}
+            {showSubmitForm && (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center gap-3">
+                  <select
+                    value={submitCategory}
+                    onChange={(e) => setSubmitCategory(e.target.value)}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 outline-none"
+                  >
+                    {Object.entries(CATEGORIES).map(([key, { label }]) => (
+                      <option key={key} value={key} className="bg-[#2d3f47] text-white">{label}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-white/30">Category</span>
+                </div>
+                <textarea
+                  value={submitContent}
+                  onChange={(e) => setSubmitContent(e.target.value)}
+                  placeholder="Enter knowledge content..."
+                  rows={3}
+                  className="mt-3 w-full resize-none rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/80 placeholder-white/20 outline-none focus:border-white/20"
+                />
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    onClick={handleSubmitKnowledge}
+                    disabled={submitLoading || !submitContent.trim()}
+                    className="rounded-lg bg-[#DD6E42] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#c55e38] disabled:opacity-40"
+                  >
+                    {submitLoading ? "Submitting..." : "Submit"}
+                  </button>
+                  <button
+                    onClick={() => { setShowSubmitForm(false); setSubmitResult(null); }}
+                    className="text-xs text-white/30 transition hover:text-white/60"
+                  >
+                    Cancel
+                  </button>
+                  {submitResult && (
+                    <span className={`text-xs ${submitResult.success ? "text-[#4B7F52]" : "text-red-400"}`}>
+                      {submitResult.success ? "Submitted successfully!" : submitResult.error}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Pinned detail */}
             {selectedKnowledge && (

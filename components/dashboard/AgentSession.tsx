@@ -188,7 +188,7 @@ export function AgentSession() {
   const { agent } = useAgent();
   const evmAddress = agent?.evmAddress || "";
   // Try to get privateKey if the context exposes it; fallback to empty string
-  const privateKey = (agent as Record<string, unknown>)?.hederaPrivateKey as string || "";
+  const privateKey = (agent as unknown as Record<string, unknown>)?.hederaPrivateKey as string || "";
 
   // Canvas refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -332,29 +332,40 @@ export function AgentSession() {
       const statusRes = await fetch("/api/subscription/status");
       const statusData = await statusRes.json();
       let reuseIdx = -1;
+      let reuseAction: "start" | "retry" = "start";
+      let hasAnySub = false;
       if (statusData.success) {
         const myName = `gated-knowledge-${evmAddress.toLowerCase()}`;
         for (const sub of statusData.subscriptions || []) {
           if (sub.name.toLowerCase() !== myName) continue;
+          hasAnySub = true;
           const sn = hssStatusNum(sub.status);
-          if (sn === 0 && sub.active) { reuseIdx = sub.idx; break; }
+          // None (0) + active → start
+          if (sn === 0 && sub.active) { reuseIdx = sub.idx; reuseAction = "start"; break; }
+          // Failed (3) + active → retry
+          if (sn === 3 && sub.active) { reuseIdx = sub.idx; reuseAction = "retry"; break; }
         }
       }
 
       if (reuseIdx >= 0) {
-        const startRes = await fetch("/api/subscription/start", {
+        const actionRes = await fetch(`/api/subscription/${reuseAction}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ subIdx: reuseIdx }),
         });
-        const startResult = await startRes.json();
-        if (startResult.success) {
+        const actionResult = await actionRes.json();
+        if (actionResult.success) {
           setHasAccess(true);
           return true;
         }
+        // If retry/start failed, don't create a new sub — just bail
+        return false;
       }
 
-      // Create new
+      // If there are already subs (all cancelled/inactive), don't create more
+      if (hasAnySub) return false;
+
+      // Only create new if there are NO existing subs for this agent
       const res = await fetch("/api/subscription/subscribe-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -659,8 +670,8 @@ export function AgentSession() {
               >
                 <div
                   className={`max-w-[85%] rounded-xl px-3 py-1.5 text-xs leading-relaxed ${msg.role === "user"
-                      ? "bg-[#483519] text-white"
-                      : "bg-[#483519]/10 text-[#483519]"
+                    ? "bg-[#483519] text-white"
+                    : "bg-[#483519]/10 text-[#483519]"
                     }`}
                   style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                 >

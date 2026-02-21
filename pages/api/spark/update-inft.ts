@@ -82,7 +82,7 @@ export default async function handler(
       const zgFile = await ZgFile.fromFilePath(tmpPath);
       const [tree, treeErr] = await zgFile.merkleTree();
       if (treeErr || !tree) throw new Error(`Merkle tree: ${treeErr}`);
-      const rootHash = tree.rootHash();
+      const rootHash = tree.rootHash() || "";
 
       const [zgResult, uploadErr] = await indexer.upload(zgFile, ZG_RPC, zgSigner);
       if (uploadErr) throw new Error(`0G upload: ${uploadErr}`);

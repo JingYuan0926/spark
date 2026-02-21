@@ -295,7 +295,7 @@ export default async function handler(
     const zgFile = await ZgFile.fromFilePath(tmpPath);
     const [tree, treeErr] = await zgFile.merkleTree();
     if (treeErr || !tree) throw new Error(`Merkle tree: ${treeErr}`);
-    const zgRootHash = tree.rootHash();
+    const zgRootHash = tree.rootHash() || "";
 
     const [zgUploadResult, uploadErr] = await indexer.upload(zgFile, ZG_RPC, zgSigner);
     if (uploadErr) throw new Error(`0G upload: ${uploadErr}`);
@@ -405,7 +405,7 @@ export default async function handler(
           unlinkSync(fileTmpPath);
           continue;
         }
-        const fileRootHash = fileTree.rootHash();
+        const fileRootHash = fileTree.rootHash() || "";
 
         const [, fileUploadErr] = await indexer.upload(fileZg, ZG_RPC, zgSigner);
         await fileZg.close();
