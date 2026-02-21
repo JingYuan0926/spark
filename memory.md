@@ -184,19 +184,46 @@ Topics are created **once** on first agent registration, then shared by all agen
 - Approve/Reject buttons embedded in table rows for pending items
 - Pending Knowledge Pool section removed (voting now done from Knowledge Registry)
 
+### iNFT Lifecycle (ERC-7857 on 0G Galileo)
+The iNFT is a **living agent identity** that updates throughout the agent's lifetime:
+
+| When | What happens on iNFT |
+|------|---------------------|
+| **Registration** | `mintAgent()` with initial config entry + `authorizeUsage()` + optional file uploads (`updateData`) |
+| **File upload** (manual) | Upload to 0G Storage → `updateData(tokenId, [...existing, newEntry])` — types: memory, skills, heartbeat, personality |
+| **Knowledge approved** | `recordContribution(tokenId)` + `updateData` (append `0g://knowledge/{hash}`) + `updateReputation(tokenId, score)` |
+| **Knowledge rejected** | `updateReputation(tokenId, score)` only |
+| **Profile update** | `updateProfile(tokenId, domainTags, serviceOfferings)` |
+
+**Key pattern**: `updateData()` **replaces ALL** intelligent data — must always read existing via `intelligentDatasOf(tokenId)` then append.
+
+**URI convention for intelligent data**: `0g://{type}/{rootHash}` — types: `storage`, `knowledge`, `memory`, `skills`, `heartbeat`, `personality`
+
+### Agent Heartbeat
+Two layers of heartbeat:
+1. **HCS heartbeat** (lightweight, frequent) — posts `{ action: "heartbeat", status, timestamp }` to agent's personal **bot topic** on Hedera. Signed with agent's key. Cheap and fast.
+2. **iNFT heartbeat file** (heavy, occasional) — uploads heartbeat snapshot to 0G Storage and appends to iNFT intelligent data via `updateData()`. Permanent on-chain record.
+
+The HCS heartbeat is for liveness signals; the iNFT heartbeat file is for persistent state snapshots that survive even if the server is shut down.
+
 ### Key Files
 | File | Purpose |
 |------|---------|
-| `pages/spark.tsx` | Full frontend: register, load, submit knowledge, vote, knowledge ledger, registry, agent directory |
-| `pages/api/spark/register-agent.ts` | Create account, topics, upload to 0G, mint iNFT, log to HCS |
+| `pages/spark.tsx` | Full frontend: register, load, submit knowledge, vote, knowledge ledger, registry, agent directory, iNFT Data Manager |
+| `pages/api/spark/register-agent.ts` | Create account, topics, upload to 0G, mint iNFT, log to HCS, optional file uploads |
 | `pages/api/spark/submit-knowledge.ts` | Upload knowledge to 0G Storage + log to category sub-topic + bot topic |
 | `pages/api/spark/load-agent.ts` | Reconstruct agent from private key via Mirror Node + 0G Chain |
 | `pages/api/spark/agents.ts` | GET public agent directory (all agents, balances, reputation, iNFT profiles) |
 | `pages/api/spark/vote.ts` | Cast HCS-20 upvote/downvote on another agent's vote topic |
-| `pages/api/spark/approve-knowledge.ts` | Vote approve/reject on pending knowledge + consensus trigger |
+| `pages/api/spark/approve-knowledge.ts` | Vote approve/reject on pending knowledge + consensus trigger + iNFT sync |
 | `pages/api/spark/pending-knowledge.ts` | GET pending/approved/rejected knowledge items |
 | `pages/api/spark/ledger.ts` | GET all messages from all topics (Mirror Node) |
+| `pages/api/spark/update-inft.ts` | Upload files to 0G Storage + updateData on iNFT |
+| `pages/api/spark/update-profile.ts` | Update domainTags + serviceOfferings on iNFT |
+| `pages/api/spark/heartbeat.ts` | Post heartbeat message to personal HCS bot topic |
+| `pages/api/spark/view-inft-data.ts` | Download file from 0G Storage by rootHash or list all intelligent data |
 | `lib/hedera.ts` | Hedera client factory (fresh client per call — no caching to avoid stale gRPC) |
+| `lib/sparkinft-abi.ts` | iNFT contract ABI + address |
 | `data/spark-config.json` | Cached topic IDs (master + 5 sub-topics) |
 
 ### Key Contracts (0G Galileo Testnet)
@@ -225,3 +252,10 @@ Topics are created **once** on first agent registration, then shared by all agen
 - [x] Knowledge Registry UI (view all items with status filter: accepted/all/pending/approved/rejected + inline approve/reject buttons)
 - [x] Agent Directory API + UI (public view of all agents, balances, reputation, iNFT profiles, vote buttons)
 - [x] Bot naming (optional custom name, auto-name as SPARK Bot #iNFT)
+- [x] iNFT Data Manager (upload memory/skills/heartbeat/personality files to 0G Storage + iNFT intelligent data)
+- [x] File uploads at registration (optional files attached during agent creation → appended to iNFT)
+- [x] iNFT auto-sync on knowledge consensus (recordContribution + updateReputation + updateData on approval; updateReputation on rejection)
+- [x] Update Profile (domainTags + serviceOfferings on-chain via updateProfile)
+- [x] Agent Heartbeat (post status to personal HCS bot topic, signed with agent's key)
+- [x] View/Download intelligent data (download files from 0G Storage via rootHash)
+- [x] Knowledge Portfolio (show approved 0g://knowledge/* entries in AgentCard with dedicated section)

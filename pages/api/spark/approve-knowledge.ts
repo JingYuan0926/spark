@@ -3,10 +3,12 @@ import {
   PrivateKey,
   TopicMessageSubmitTransaction,
 } from "@hashgraph/sdk";
+import { ethers, keccak256, toUtf8Bytes } from "ethers";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
 import { getHederaClient, getOperatorKey } from "@/lib/hedera";
+import { SPARKINFT_ABI, SPARKINFT_ADDRESS } from "@/lib/sparkinft-abi";
 
 // ── Mirror Node ──────────────────────────────────────────────────
 const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
@@ -72,11 +74,11 @@ async function resolveVoterAccount(
   return mirrorData.accounts[0].account;
 }
 
-// Resolve target agent's voteTopicId + botTopicId from master topic
+// Resolve target agent's voteTopicId + botTopicId + iNftTokenId from master topic
 async function resolveAgentTopics(
   masterTopicId: string,
   targetAccountId: string
-): Promise<{ voteTopicId: string; botTopicId: string }> {
+): Promise<{ voteTopicId: string; botTopicId: string; iNftTokenId: number }> {
   const topicRes = await fetch(
     `${MIRROR_URL}/api/v1/topics/${masterTopicId}/messages?limit=100`
   );
@@ -94,6 +96,7 @@ async function resolveAgentTopics(
         return {
           voteTopicId: decoded.voteTopicId,
           botTopicId: decoded.botTopicId,
+          iNftTokenId: decoded.iNftTokenId || 0,
         };
       }
     } catch {
@@ -102,6 +105,75 @@ async function resolveAgentTopics(
   }
 
   throw new Error(`Agent ${targetAccountId} not found in master topic`);
+}
+
+// ── 0G Chain Config ──────────────────────────────────────────────
+const ZG_RPC = "https://evmrpc-testnet.0g.ai";
+
+// Sync iNFT on-chain state after knowledge consensus
+async function syncInftOnConsensus(
+  authorAccountId: string,
+  masterTopicId: string,
+  knowledgeZgRootHash: string | undefined,
+  isApproval: boolean
+): Promise<{ recordContribTxHash?: string; reputationTxHash: string; updateDataTxHash?: string } | null> {
+  const zgPrivateKey = process.env.ZG_STORAGE_PRIVATE_KEY;
+  if (!zgPrivateKey) return null;
+
+  const { iNftTokenId, voteTopicId } = await resolveAgentTopics(masterTopicId, authorAccountId);
+  if (!iNftTokenId || iNftTokenId === 0) return null;
+
+  const provider = new ethers.JsonRpcProvider(ZG_RPC);
+  const zgSigner = new ethers.Wallet(zgPrivateKey, provider);
+  const inftContract = new ethers.Contract(SPARKINFT_ADDRESS, SPARKINFT_ABI, zgSigner);
+
+  const result: { recordContribTxHash?: string; reputationTxHash: string; updateDataTxHash?: string } = {
+    reputationTxHash: "",
+  };
+
+  // On approval: record contribution + append knowledge data
+  if (isApproval) {
+    const contribTx = await inftContract.recordContribution(iNftTokenId);
+    await contribTx.wait();
+    result.recordContribTxHash = contribTx.hash;
+
+    // Append approved knowledge to intelligentData
+    if (knowledgeZgRootHash) {
+      const existingData = await inftContract.intelligentDatasOf(iNftTokenId);
+      const mapped = existingData.map((d: { dataDescription: string; dataHash: string }) => ({
+        dataDescription: d.dataDescription,
+        dataHash: d.dataHash,
+      }));
+      const newEntry = {
+        dataDescription: `0g://knowledge/${knowledgeZgRootHash}`,
+        dataHash: keccak256(toUtf8Bytes(knowledgeZgRootHash)),
+      };
+      const dataTx = await inftContract.updateData(iNftTokenId, [...mapped, newEntry]);
+      await dataTx.wait();
+      result.updateDataTxHash = dataTx.hash;
+    }
+  }
+
+  // Always sync reputation score from HCS-20 vote counts
+  const voteMessages = await fetchMessages(voteTopicId);
+  let upvotes = 0;
+  let downvotes = 0;
+  for (const msg of voteMessages) {
+    if (msg.p === "hcs-20" && msg.op === "mint") {
+      if (msg.tick === "upvote") upvotes++;
+      if (msg.tick === "downvote") downvotes++;
+    }
+  }
+  // +1 for the vote we just minted (Mirror Node eventual consistency)
+  if (isApproval) upvotes++;
+  else downvotes++;
+
+  const newScore = Math.max(0, upvotes - downvotes);
+  const repTx = await inftContract.updateReputation(iNftTokenId, newScore);
+  await repTx.wait();
+  result.reputationTxHash = repTx.hash;
+
+  return result;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -273,9 +345,10 @@ export default async function handler(
     if (vote === "approve") approvals++;
     else rejections++;
 
-    // Step 7: Check consensus
+    // Step 7: Check consensus + iNFT sync
     let status: "pending" | "approved" | "rejected" = "pending";
     let reputationEffect: string | null = null;
+    let inftSyncResult: { recordContribTxHash?: string; reputationTxHash: string; updateDataTxHash?: string } | null = null;
 
     if (approvals >= CONSENSUS_THRESHOLD) {
       status = "approved";
@@ -324,6 +397,14 @@ export default async function handler(
       await upvoteTx.getReceipt(client);
       reputationEffect = "upvote on author's vote topic";
 
+      // Sync iNFT: recordContribution + updateReputation + updateData
+      try {
+        const zgHash = knowledgeItem.zgRootHash as string | undefined;
+        inftSyncResult = await syncInftOnConsensus(author, config.masterTopicId!, zgHash, true);
+      } catch (inftErr) {
+        console.error("[approve-knowledge] iNFT sync failed (approval):", inftErr);
+      }
+
     } else if (rejections >= CONSENSUS_THRESHOLD) {
       status = "rejected";
 
@@ -370,6 +451,13 @@ export default async function handler(
 
       await downvoteTx.getReceipt(client);
       reputationEffect = "downvote on author's vote topic";
+
+      // Sync iNFT: updateReputation only (no contribution for rejections)
+      try {
+        inftSyncResult = await syncInftOnConsensus(author, config.masterTopicId!, undefined, false);
+      } catch (inftErr) {
+        console.error("[approve-knowledge] iNFT sync failed (rejection):", inftErr);
+      }
     }
 
     return res.status(200).json({
@@ -385,6 +473,8 @@ export default async function handler(
       rejections,
       status,
       reputationEffect,
+      inftSynced: !!inftSyncResult,
+      inftSyncTxHashes: inftSyncResult || null,
     });
   } catch (err: unknown) {
     return res.status(500).json({

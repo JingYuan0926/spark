@@ -91,6 +91,37 @@ export default function SparkPage() {
   const [directoryAgents, setDirectoryAgents] = useState<DirectoryAgent[]>([]);
   const [directoryLoading, setDirectoryLoading] = useState(false);
 
+  // ── iNFT Data Manager state ──────────────────────────────────
+  interface InftFileEntry {
+    content: string;
+    label: string;
+    type: "memory" | "skills" | "heartbeat" | "personality";
+  }
+  const [inftTokenId, setInftTokenId] = useState("");
+  const [inftFiles, setInftFiles] = useState<InftFileEntry[]>([
+    { content: "", label: "", type: "memory" },
+  ]);
+  const [inftResult, setInftResult] = useState<ApiResult | null>(null);
+  const [inftLoading, setInftLoading] = useState(false);
+  const [inftExistingData, setInftExistingData] = useState<
+    { dataDescription: string; dataHash: string }[]
+  >([]);
+
+  // ── Register file attachments state ─────────────────────────
+  const [registerFiles, setRegisterFiles] = useState<InftFileEntry[]>([]);
+  const [showRegisterFiles, setShowRegisterFiles] = useState(false);
+
+  // ── Update Profile state ──────────────────────────────────────
+  const [profileDomainTags, setProfileDomainTags] = useState("");
+  const [profileServiceOfferings, setProfileServiceOfferings] = useState("");
+  const [profileResult, setProfileResult] = useState<ApiResult | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  // ── View iNFT Data state ──────────────────────────────────────
+  const [viewDataContent, setViewDataContent] = useState<unknown>(null);
+  const [viewDataLoading, setViewDataLoading] = useState<string | null>(null);
+  const [viewDataError, setViewDataError] = useState<string | null>(null);
+
   // ── Knowledge Ledger state ────────────────────────────────────
   interface TopicEntry {
     topicId: string;
@@ -140,6 +171,157 @@ export default function SparkPage() {
       console.error("Registry fetch error:", err);
     }
     setRegistryLoading(false);
+  }
+
+  // ── iNFT Data Manager handlers ──────────────────────────────
+  function handleAddInftFile() {
+    setInftFiles((prev) => [...prev, { content: "", label: "", type: "memory" }]);
+  }
+
+  function handleRemoveInftFile(index: number) {
+    setInftFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleUpdateInftFile(
+    index: number,
+    field: keyof InftFileEntry,
+    value: string
+  ) {
+    setInftFiles((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
+    );
+  }
+
+  async function handleUploadToInft() {
+    if (!inftTokenId) {
+      setInftResult({ success: false, error: "Token ID is required" });
+      return;
+    }
+    const validFiles = inftFiles.filter((f) => f.content.trim());
+    if (validFiles.length === 0) {
+      setInftResult({ success: false, error: "At least one file with content is required" });
+      return;
+    }
+
+    setInftLoading(true);
+    setInftResult(null);
+    try {
+      const res = await fetch("/api/spark/update-inft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenId: Number(inftTokenId),
+          files: validFiles,
+        }),
+      });
+      const result = await res.json();
+      setInftResult(result);
+      if (result.success && result.uploadedEntries) {
+        setInftExistingData((prev) => [
+          ...prev,
+          ...(result.uploadedEntries as { dataDescription: string; dataHash: string }[]),
+        ]);
+      }
+    } catch (err) {
+      setInftResult({ success: false, error: String(err) });
+    }
+    setInftLoading(false);
+  }
+
+  // ── Update Profile handler ──────────────────────────────────
+  async function handleUpdateProfile() {
+    if (!inftTokenId) {
+      setProfileResult({ success: false, error: "Token ID is required" });
+      return;
+    }
+    if (!profileDomainTags.trim() && !profileServiceOfferings.trim()) {
+      setProfileResult({ success: false, error: "Provide at least one of domain tags or service offerings" });
+      return;
+    }
+    setProfileLoading(true);
+    setProfileResult(null);
+    try {
+      const res = await fetch("/api/spark/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenId: Number(inftTokenId),
+          domainTags: profileDomainTags.trim() || undefined,
+          serviceOfferings: profileServiceOfferings.trim() || undefined,
+        }),
+      });
+      const result = await res.json();
+      setProfileResult(result);
+    } catch (err) {
+      setProfileResult({ success: false, error: String(err) });
+    }
+    setProfileLoading(false);
+  }
+
+  // ── View iNFT Data handler ────────────────────────────────────
+  async function handleViewData(rootHash: string) {
+    setViewDataLoading(rootHash);
+    setViewDataContent(null);
+    setViewDataError(null);
+    try {
+      const res = await fetch("/api/spark/view-inft-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rootHash }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setViewDataContent(result.content);
+      } else {
+        setViewDataError(result.error);
+      }
+    } catch (err) {
+      setViewDataError(String(err));
+    }
+    setViewDataLoading(null);
+  }
+
+  // ── Register file attachment handlers ────────────────────────
+  function handleAddRegisterFile() {
+    setRegisterFiles((prev) => [...prev, { content: "", label: "", type: "memory" }]);
+  }
+
+  function handleRemoveRegisterFile(index: number) {
+    setRegisterFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleUpdateRegisterFile(
+    index: number,
+    field: keyof InftFileEntry,
+    value: string
+  ) {
+    setRegisterFiles((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
+    );
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        // Guess type from filename
+        const name = file.name.toLowerCase();
+        let fileType: InftFileEntry["type"] = "memory";
+        if (name.includes("skill")) fileType = "skills";
+        else if (name.includes("heartbeat")) fileType = "heartbeat";
+        else if (name.includes("personality")) fileType = "personality";
+        setRegisterFiles((prev) => [
+          ...prev,
+          { content: text, label: file.name, type: fileType },
+        ]);
+      };
+      reader.readAsText(file);
+    });
+    // Reset the input so the same file can be re-selected if removed
+    e.target.value = "";
   }
 
   async function handleApproveKnowledge(
@@ -232,6 +414,7 @@ export default function SparkPage() {
           systemPrompt,
           modelProvider,
           apiKey,
+          files: registerFiles.filter((f) => f.content.trim()),
         }),
       });
       const result = await res.json();
@@ -255,15 +438,25 @@ export default function SparkPage() {
           _botMessages: [],
           _botMessageCount: 1,
           _tokens: [{ tokenId: "0.0.7984944", balance: 100_000_000 }],
-          _intelligentData: result.zgRootHash
-            ? [{ dataDescription: `0g://storage/${result.zgRootHash}` }]
-            : [],
+          _intelligentData: [
+            ...(result.zgRootHash ? [{ dataDescription: `0g://storage/${result.zgRootHash}` }] : []),
+            ...(result.uploadedFiles || []).map((f: { dataDescription: string }) => ({ dataDescription: f.dataDescription })),
+          ],
           _registeredAt: new Date().toISOString(),
         };
         setRegisterResult(enriched);
         setAgents((prev) => [...prev, enriched]);
         // Auto-fill knowledge form with this agent's private key
         setKPrivateKey(result.hederaPrivateKey);
+        // Auto-fill iNFT Data Manager
+        setInftTokenId(String(result.iNftTokenId || ""));
+        setInftExistingData([
+          ...(result.zgRootHash ? [{ dataDescription: `0g://storage/${result.zgRootHash}`, dataHash: "" }] : []),
+          ...(result.uploadedFiles || []).map((f: { dataDescription: string; dataHash: string }) => ({
+            dataDescription: f.dataDescription,
+            dataHash: f.dataHash || "",
+          })),
+        ]);
       } else {
         setRegisterResult(result);
       }
@@ -366,6 +559,14 @@ export default function SparkPage() {
 
         // Auto-fill knowledge form
         setKPrivateKey(loadPrivateKey);
+        // Auto-fill iNFT Data Manager
+        setInftTokenId(String(result.iNftTokenId || ""));
+        setInftExistingData(
+          (result.intelligentData || []).map((d: { dataDescription: string; dataHash: string }) => ({
+            dataDescription: d.dataDescription,
+            dataHash: d.dataHash || "",
+          }))
+        );
       }
     } catch (err) {
       setLoadResult({ success: false, error: String(err) });
@@ -444,6 +645,85 @@ export default function SparkPage() {
               }}
             />
           </div>
+
+          {/* Collapsible file attachments */}
+          <div style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={() => setShowRegisterFiles(!showRegisterFiles)}
+              style={{
+                fontSize: 12,
+                cursor: "pointer",
+                padding: "4px 10px",
+                background: "#f1f5f9",
+                border: "1px solid #cbd5e1",
+                borderRadius: 4,
+                color: "#475569",
+              }}
+            >
+              {showRegisterFiles ? "Hide" : "Attach"} Files to iNFT (memory, skills, heartbeat, personality)
+            </button>
+          </div>
+
+          {showRegisterFiles && (
+            <div style={{ marginTop: 8, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
+                Optional: attach files that will be uploaded to 0G Storage and stored as intelligent data on the iNFT.
+              </div>
+              {registerFiles.map((file, i) => (
+                <div key={i} style={{ marginBottom: 8, padding: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: "bold", color: "#475569" }}>File #{i + 1}</span>
+                    <button onClick={() => handleRemoveRegisterFile(i)} style={{ fontSize: 10, cursor: "pointer", padding: "2px 6px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: 3 }}>Remove</button>
+                  </div>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <select value={file.type} onChange={(e) => handleUpdateRegisterFile(i, "type", e.target.value)} style={{ fontFamily: "monospace", fontSize: 12, padding: 4, border: "1px solid #ccc" }}>
+                        <option value="memory">Memory</option>
+                        <option value="skills">Skills</option>
+                        <option value="heartbeat">Heartbeat</option>
+                        <option value="personality">Personality</option>
+                      </select>
+                      <input type="text" value={file.label} onChange={(e) => handleUpdateRegisterFile(i, "label", e.target.value)} placeholder="Label (optional)" style={{ flex: 1, fontFamily: "monospace", fontSize: 12, padding: 4, border: "1px solid #ccc" }} />
+                    </div>
+                    <textarea value={file.content} onChange={(e) => handleUpdateRegisterFile(i, "content", e.target.value)} rows={3} placeholder="Content (JSON or text)..." style={{ width: "100%", fontFamily: "monospace", fontSize: 12, padding: 4, border: "1px solid #ccc", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    cursor: "pointer",
+                    padding: "4px 10px",
+                    background: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 4,
+                    fontFamily: "monospace",
+                    fontWeight: "bold",
+                  }}
+                >
+                  📂 Select Files
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileInputChange}
+                    style={{ display: "none" }}
+                    accept=".txt,.json,.md,.csv,.xml,.yaml,.yml,.toml,.cfg,.ini,.log"
+                  />
+                </label>
+                <button onClick={handleAddRegisterFile} style={{ fontSize: 11, cursor: "pointer", padding: "4px 10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4 }}>
+                  + Add Manually
+                </button>
+                {registerFiles.length > 0 && (
+                  <span style={{ fontSize: 11, color: "#64748b" }}>
+                    {registerFiles.length} file{registerFiles.length !== 1 ? "s" : ""} attached
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <button
@@ -577,6 +857,222 @@ export default function SparkPage() {
           ))}
         </section>
       )}
+
+      <hr style={{ margin: "24px 0" }} />
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/*  iNFT DATA MANAGER                                        */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section style={{ margin: "24px 0" }}>
+        <h2>iNFT Data Manager</h2>
+        <p style={{ color: "#666", fontSize: 13 }}>
+          Upload files to 0G Storage and attach them as intelligent data on your iNFT.
+          Supports memory, skills, heartbeat, and personality data — making the iNFT a fully reconstructable agent.
+        </p>
+
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          <Field
+            label="iNFT Token ID (auto-filled from register/load)"
+            value={inftTokenId}
+            onChange={setInftTokenId}
+            placeholder="e.g. 15"
+          />
+        </div>
+
+        {/* Current Intelligent Data with View buttons */}
+        {inftExistingData.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <SectionLabel text={`Current Intelligent Data (${inftExistingData.length} entries)`} />
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: 10, maxHeight: 300, overflow: "auto" }}>
+              {inftExistingData.map((d, i) => {
+                const match = d.dataDescription.match(/0g:\/\/(\w+)\//);
+                const dataType = match ? match[1] : "unknown";
+                const rootHashMatch = d.dataDescription.match(/0g:\/\/\w+\/(.+)/);
+                const rootHash = rootHashMatch ? rootHashMatch[1] : null;
+                const typeColor =
+                  dataType === "storage" ? "#475569" :
+                    dataType === "memory" ? "#7c3aed" :
+                      dataType === "skills" ? "#16a34a" :
+                        dataType === "heartbeat" ? "#dc2626" :
+                          dataType === "personality" ? "#2563eb" :
+                            dataType === "knowledge" ? "#ca8a04" :
+                              "#475569";
+                return (
+                  <div key={i} style={{ fontSize: 12, padding: "4px 0", borderBottom: i < inftExistingData.length - 1 ? "1px solid #f1f5f9" : "none", display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ background: typeColor, color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 10, fontWeight: "bold", textTransform: "uppercase", minWidth: 70, textAlign: "center" }}>
+                      {dataType}
+                    </span>
+                    <span style={{ color: "#475569", fontFamily: "monospace", flex: 1 }}>
+                      {d.dataDescription.length > 55
+                        ? d.dataDescription.slice(0, 28) + "..." + d.dataDescription.slice(-18)
+                        : d.dataDescription}
+                    </span>
+                    {rootHash && (
+                      <button
+                        onClick={() => handleViewData(rootHash)}
+                        disabled={viewDataLoading === rootHash}
+                        style={{
+                          fontSize: 10,
+                          cursor: viewDataLoading === rootHash ? "wait" : "pointer",
+                          padding: "2px 8px",
+                          background: viewDataLoading === rootHash ? "#e2e8f0" : "#dbeafe",
+                          color: "#2563eb",
+                          border: "1px solid #93c5fd",
+                          borderRadius: 3,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {viewDataLoading === rootHash ? "Loading..." : "View"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* View Data Result */}
+            {viewDataContent && (
+              <div style={{ marginTop: 8, background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 6, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: "bold", color: "#1e40af" }}>Downloaded Content</span>
+                  <button onClick={() => setViewDataContent(null)} style={{ fontSize: 10, cursor: "pointer", padding: "2px 8px", background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 3, color: "#2563eb" }}>Close</button>
+                </div>
+                <pre style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 4, padding: 10, overflow: "auto", maxHeight: 300, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  {typeof viewDataContent === "string" ? viewDataContent : JSON.stringify(viewDataContent as object, null, 2)}
+                </pre>
+              </div>
+            )}
+            {viewDataError && (
+              <div style={{ marginTop: 8, padding: 8, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, fontSize: 12, color: "#dc2626" }}>
+                View error: {viewDataError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Multi-file upload area */}
+        <div style={{ marginTop: 16 }}>
+          <SectionLabel text="Files to Upload" />
+          {inftFiles.map((file, i) => (
+            <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: 12, marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: "bold", color: "#475569" }}>File #{i + 1}</span>
+                {inftFiles.length > 1 && (
+                  <button onClick={() => handleRemoveInftFile(i)} style={{ fontSize: 11, cursor: "pointer", padding: "2px 8px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: 3 }}>
+                    Remove
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ minWidth: 140 }}>
+                    <label style={{ fontSize: 11, color: "#666" }}>Type</label>
+                    <select value={file.type} onChange={(e) => handleUpdateInftFile(i, "type", e.target.value)} style={{ width: "100%", fontFamily: "monospace", fontSize: 13, padding: 6, border: "1px solid #ccc" }}>
+                      <option value="memory">Memory</option>
+                      <option value="skills">Skills</option>
+                      <option value="heartbeat">Heartbeat</option>
+                      <option value="personality">Personality</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, color: "#666" }}>Label</label>
+                    <input type="text" value={file.label} onChange={(e) => handleUpdateInftFile(i, "label", e.target.value)} placeholder="e.g. Core personality traits" style={{ width: "100%", fontFamily: "monospace", fontSize: 13, padding: 6, border: "1px solid #ccc", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: "#666" }}>Content</label>
+                  <textarea value={file.content} onChange={(e) => handleUpdateInftFile(i, "content", e.target.value)} rows={4} placeholder="JSON or text content..." style={{ width: "100%", fontFamily: "monospace", fontSize: 13, padding: 8, border: "1px solid #ccc", boxSizing: "border-box" }} />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={handleAddInftFile} style={{ fontSize: 12, cursor: "pointer", padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, marginBottom: 12 }}>
+            + Add Another File
+          </button>
+        </div>
+
+        {/* Upload button */}
+        <button
+          onClick={handleUploadToInft}
+          disabled={inftLoading}
+          style={{
+            marginTop: 8,
+            padding: "10px 24px",
+            fontSize: 14,
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            cursor: inftLoading ? "wait" : "pointer",
+            background: inftLoading ? "#ccc" : "#3730a3",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          {inftLoading ? "Uploading to 0G + updating iNFT..." : "Upload to iNFT"}
+        </button>
+
+        {/* Result feedback */}
+        {inftResult && !inftResult.success && <ResultBlock data={inftResult} />}
+        {inftResult?.success && (
+          <div style={{ marginTop: 12, padding: 16, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, fontSize: 13 }}>
+            <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "#166534" }}>iNFT Updated Successfully</h4>
+            <div style={{ display: "grid", gap: 4 }}>
+              <div><span style={{ color: "#475569" }}>Token ID: </span><strong>{inftResult.tokenId as number}</strong></div>
+              <div><span style={{ color: "#475569" }}>Total Entries: </span><strong>{inftResult.totalEntries as number}</strong></div>
+              <div>
+                <span style={{ color: "#475569" }}>Update Tx: </span>
+                <a href={`https://chainscan-galileo.0g.ai/tx/${inftResult.updateDataTxHash as string}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "underline" }}>
+                  {(inftResult.updateDataTxHash as string).slice(0, 18)}...
+                </a>
+              </div>
+              {(inftResult.uploadedEntries as { dataDescription: string }[])?.map((entry, i) => (
+                <div key={i} style={{ color: "#475569" }}>Uploaded: <strong>{entry.dataDescription}</strong></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Update Profile ───────────────────────────────────── */}
+        <div style={{ marginTop: 24, padding: 16, background: "#faf5ff", border: "1px solid #d8b4fe", borderRadius: 8 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#7c3aed" }}>Update Agent Profile</h3>
+          <p style={{ color: "#666", fontSize: 12, margin: "0 0 12px" }}>
+            Update domainTags and serviceOfferings on-chain (0G Galileo). Requires iNFT Token ID above.
+          </p>
+          <div style={{ display: "grid", gap: 8 }}>
+            <Field label="Domain Tags" value={profileDomainTags} onChange={setProfileDomainTags} placeholder="e.g. defi,nft,analytics" />
+            <Field label="Service Offerings" value={profileServiceOfferings} onChange={setProfileServiceOfferings} placeholder="e.g. scraping,analysis,alerts" />
+          </div>
+          <button
+            onClick={handleUpdateProfile}
+            disabled={profileLoading}
+            style={{
+              marginTop: 8,
+              padding: "8px 20px",
+              fontSize: 13,
+              fontFamily: "monospace",
+              fontWeight: "bold",
+              cursor: profileLoading ? "wait" : "pointer",
+              background: profileLoading ? "#ccc" : "#7c3aed",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+            }}
+          >
+            {profileLoading ? "Updating profile..." : "Update Profile"}
+          </button>
+          {profileResult && !profileResult.success && <ResultBlock data={profileResult} />}
+          {profileResult?.success && (
+            <div style={{ marginTop: 8, padding: 10, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, fontSize: 12 }}>
+              Profile updated!{" "}
+              <a href={`https://chainscan-galileo.0g.ai/tx/${profileResult.txHash as string}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>
+                Tx: {(profileResult.txHash as string).slice(0, 18)}...
+              </a>
+              {" | "}Domain: <strong>{profileResult.domainTags as string}</strong> | Services: <strong>{profileResult.serviceOfferings as string}</strong>
+            </div>
+          )}
+        </div>
+
+      </section>
 
       <hr style={{ margin: "24px 0" }} />
 
@@ -856,8 +1352,8 @@ export default function SparkPage() {
           {registryLoading
             ? "Fetching..."
             : registryItems.length > 0
-            ? "Refresh"
-            : "View All"}
+              ? "Refresh"
+              : "View All"}
         </button>
 
         {/* Vote result feedback */}
@@ -882,8 +1378,8 @@ export default function SparkPage() {
                       approveResult.status === "approved"
                         ? "#16a34a"
                         : approveResult.status === "rejected"
-                        ? "#dc2626"
-                        : "#ca8a04",
+                          ? "#dc2626"
+                          : "#ca8a04",
                   }}
                 >
                   {approveResult.status as string}
@@ -909,219 +1405,219 @@ export default function SparkPage() {
           const rejectedCount = registryItems.filter((i) => i.status === "rejected").length;
 
           return (
-          <div style={{ marginTop: 16 }}>
-            {/* Summary counts */}
-            <div
-              style={{
-                display: "flex",
-                gap: 24,
-                marginBottom: 16,
-                fontSize: 14,
-              }}
-            >
-              <div style={{ textAlign: "center", padding: "12px 20px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, minWidth: 80 }}>
-                <div style={{ fontSize: 24, fontWeight: "bold" }}>{registryItems.length}</div>
-                <div style={{ color: "#64748b", fontSize: 11 }}>Total</div>
+            <div style={{ marginTop: 16 }}>
+              {/* Summary counts */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 24,
+                  marginBottom: 16,
+                  fontSize: 14,
+                }}
+              >
+                <div style={{ textAlign: "center", padding: "12px 20px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, minWidth: 80 }}>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>{registryItems.length}</div>
+                  <div style={{ color: "#64748b", fontSize: 11 }}>Total</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "12px 20px", background: "#fefce8", border: "1px solid #fde047", borderRadius: 8, minWidth: 80 }}>
+                  <div style={{ fontSize: 24, fontWeight: "bold", color: "#ca8a04" }}>{pendingCount}</div>
+                  <div style={{ color: "#a16207", fontSize: 11 }}>Pending</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "12px 20px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, minWidth: 80 }}>
+                  <div style={{ fontSize: 24, fontWeight: "bold", color: "#16a34a" }}>{approvedCount}</div>
+                  <div style={{ color: "#166534", fontSize: 11 }}>Approved</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "12px 20px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, minWidth: 80 }}>
+                  <div style={{ fontSize: 24, fontWeight: "bold", color: "#dc2626" }}>{rejectedCount}</div>
+                  <div style={{ color: "#991b1b", fontSize: 11 }}>Rejected</div>
+                </div>
               </div>
-              <div style={{ textAlign: "center", padding: "12px 20px", background: "#fefce8", border: "1px solid #fde047", borderRadius: 8, minWidth: 80 }}>
-                <div style={{ fontSize: 24, fontWeight: "bold", color: "#ca8a04" }}>{pendingCount}</div>
-                <div style={{ color: "#a16207", fontSize: 11 }}>Pending</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "12px 20px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, minWidth: 80 }}>
-                <div style={{ fontSize: 24, fontWeight: "bold", color: "#16a34a" }}>{approvedCount}</div>
-                <div style={{ color: "#166534", fontSize: 11 }}>Approved</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "12px 20px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, minWidth: 80 }}>
-                <div style={{ fontSize: 24, fontWeight: "bold", color: "#dc2626" }}>{rejectedCount}</div>
-                <div style={{ color: "#991b1b", fontSize: 11 }}>Rejected</div>
-              </div>
-            </div>
 
-            {/* Filter tabs */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-              {(["accepted", "all", "pending", "approved", "rejected"] as const).map(
-                (f) => (
-                  <button
-                    key={f}
-                    onClick={() => setRegistryFilter(f)}
-                    style={{
-                      fontSize: 11,
-                      padding: "4px 12px",
-                      cursor: "pointer",
-                      border: registryFilter === f
-                        ? f === "accepted" ? "1px solid #16a34a" : "1px solid #cbd5e1"
-                        : "1px solid #cbd5e1",
-                      borderRadius: 4,
-                      fontWeight: registryFilter === f ? "bold" : "normal",
-                      background: registryFilter === f
-                        ? f === "accepted" ? "#dcfce7" : "#e2e8f0"
-                        : "#fff",
-                      color: registryFilter === f
-                        ? f === "accepted" ? "#166534" : "#334155"
-                        : "#64748b",
-                    }}
-                  >
-                    {f === "accepted" ? "Accepted" : f.charAt(0).toUpperCase() + f.slice(1)}
-                  </button>
-                )
+              {/* Filter tabs */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                {(["accepted", "all", "pending", "approved", "rejected"] as const).map(
+                  (f) => (
+                    <button
+                      key={f}
+                      onClick={() => setRegistryFilter(f)}
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 12px",
+                        cursor: "pointer",
+                        border: registryFilter === f
+                          ? f === "accepted" ? "1px solid #16a34a" : "1px solid #cbd5e1"
+                          : "1px solid #cbd5e1",
+                        borderRadius: 4,
+                        fontWeight: registryFilter === f ? "bold" : "normal",
+                        background: registryFilter === f
+                          ? f === "accepted" ? "#dcfce7" : "#e2e8f0"
+                          : "#fff",
+                        color: registryFilter === f
+                          ? f === "accepted" ? "#166534" : "#334155"
+                          : "#64748b",
+                      }}
+                    >
+                      {f === "accepted" ? "Accepted" : f.charAt(0).toUpperCase() + f.slice(1)}
+                    </button>
+                  )
+                )}
+              </div>
+
+              {/* "Accepted" view — clean, no pending/rejected noise */}
+              {registryFilter === "accepted" && approvedCount === 0 && (
+                <p style={{ color: "#94a3b8", fontSize: 13, fontStyle: "italic", marginTop: 8 }}>
+                  No accepted knowledge yet. Items need 2 peer approvals to appear here.
+                </p>
               )}
-            </div>
 
-            {/* "Accepted" view — clean, no pending/rejected noise */}
-            {registryFilter === "accepted" && approvedCount === 0 && (
-              <p style={{ color: "#94a3b8", fontSize: 13, fontStyle: "italic", marginTop: 8 }}>
-                No accepted knowledge yet. Items need 2 peer approvals to appear here.
-              </p>
-            )}
-
-            {/* Table */}
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                fontFamily: "monospace",
-              }}
-            >
-              <thead>
-                <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
-                  {registryFilter !== "accepted" && (
-                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Status</th>
-                  )}
-                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Category</th>
-                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Content</th>
-                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Author</th>
-                  <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center" }}>Votes</th>
-                  {registryFilter !== "accepted" && (
-                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center" }}>Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {registryItems
-                  .filter((item) => {
-                    if (registryFilter === "accepted") return item.status === "approved";
-                    if (registryFilter === "all") return true;
-                    return item.status === registryFilter;
-                  })
-                  .map((item) => {
-                    const statusStyle =
-                      item.status === "approved"
-                        ? { bg: "#dcfce7", color: "#16a34a", label: "APPROVED" }
-                        : item.status === "rejected"
-                        ? { bg: "#fef2f2", color: "#dc2626", label: "REJECTED" }
-                        : { bg: "#fef9c3", color: "#ca8a04", label: "PENDING" };
-                    const catColor =
-                      KNOWLEDGE_CARD_COLORS[item.category] || "#475569";
-                    return (
-                      <tr
-                        key={item.itemId}
-                        style={{
-                          borderBottom: "1px solid #f1f5f9",
-                        }}
-                      >
-                        {registryFilter !== "accepted" && (
+              {/* Table */}
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                }}
+              >
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
+                    {registryFilter !== "accepted" && (
+                      <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Status</th>
+                    )}
+                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Category</th>
+                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Content</th>
+                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold" }}>Author</th>
+                    <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center" }}>Votes</th>
+                    {registryFilter !== "accepted" && (
+                      <th style={{ padding: "8px 6px", color: "#64748b", fontWeight: "bold", textAlign: "center" }}>Actions</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {registryItems
+                    .filter((item) => {
+                      if (registryFilter === "accepted") return item.status === "approved";
+                      if (registryFilter === "all") return true;
+                      return item.status === registryFilter;
+                    })
+                    .map((item) => {
+                      const statusStyle =
+                        item.status === "approved"
+                          ? { bg: "#dcfce7", color: "#16a34a", label: "APPROVED" }
+                          : item.status === "rejected"
+                            ? { bg: "#fef2f2", color: "#dc2626", label: "REJECTED" }
+                            : { bg: "#fef9c3", color: "#ca8a04", label: "PENDING" };
+                      const catColor =
+                        KNOWLEDGE_CARD_COLORS[item.category] || "#475569";
+                      return (
+                        <tr
+                          key={item.itemId}
+                          style={{
+                            borderBottom: "1px solid #f1f5f9",
+                          }}
+                        >
+                          {registryFilter !== "accepted" && (
+                            <td style={{ padding: "10px 6px" }}>
+                              <span
+                                style={{
+                                  background: statusStyle.bg,
+                                  color: statusStyle.color,
+                                  padding: "2px 8px",
+                                  borderRadius: 4,
+                                  fontSize: 10,
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {statusStyle.label}
+                              </span>
+                            </td>
+                          )}
                           <td style={{ padding: "10px 6px" }}>
                             <span
                               style={{
-                                background: statusStyle.bg,
-                                color: statusStyle.color,
-                                padding: "2px 8px",
-                                borderRadius: 4,
+                                background: catColor,
+                                color: "#fff",
+                                padding: "2px 6px",
+                                borderRadius: 3,
                                 fontSize: 10,
                                 fontWeight: "bold",
+                                textTransform: "uppercase",
                               }}
                             >
-                              {statusStyle.label}
+                              {item.category}
                             </span>
                           </td>
-                        )}
-                        <td style={{ padding: "10px 6px" }}>
-                          <span
+                          <td
                             style={{
-                              background: catColor,
-                              color: "#fff",
-                              padding: "2px 6px",
-                              borderRadius: 3,
-                              fontSize: 10,
-                              fontWeight: "bold",
-                              textTransform: "uppercase",
+                              padding: "10px 6px",
+                              color: "#334155",
+                              maxWidth: 350,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
                             }}
+                            title={item.content || "(no content)"}
                           >
-                            {item.category}
-                          </span>
-                        </td>
-                        <td
-                          style={{
-                            padding: "10px 6px",
-                            color: "#334155",
-                            maxWidth: 350,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                          title={item.content || "(no content)"}
-                        >
-                          {item.content
-                            ? item.content.length > 80
-                              ? item.content.slice(0, 80) + "..."
-                              : item.content
-                            : <span style={{ color: "#94a3b8", fontStyle: "italic" }}>(no content)</span>}
-                        </td>
-                        <td style={{ padding: "10px 6px", color: "#64748b" }}>
-                          {item.author}
-                        </td>
-                        <td style={{ padding: "10px 6px", textAlign: "center" }}>
-                          <span style={{ color: "#16a34a" }}>{item.approvals}</span>
-                          {" / "}
-                          <span style={{ color: "#dc2626" }}>{item.rejections}</span>
-                        </td>
-                        {registryFilter !== "accepted" && (
-                          <td style={{ padding: "10px 6px", textAlign: "center" }}>
-                            {item.status === "pending" ? (
-                              <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                                <button
-                                  onClick={() => handleApproveKnowledge(item.itemId, "approve")}
-                                  style={{
-                                    fontSize: 10,
-                                    cursor: "pointer",
-                                    padding: "3px 8px",
-                                    background: "#dcfce7",
-                                    color: "#16a34a",
-                                    border: "1px solid #86efac",
-                                    borderRadius: 3,
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleApproveKnowledge(item.itemId, "reject")}
-                                  style={{
-                                    fontSize: 10,
-                                    cursor: "pointer",
-                                    padding: "3px 8px",
-                                    background: "#fef2f2",
-                                    color: "#dc2626",
-                                    border: "1px solid #fca5a5",
-                                    borderRadius: 3,
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            ) : (
-                              <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
-                            )}
+                            {item.content
+                              ? item.content.length > 80
+                                ? item.content.slice(0, 80) + "..."
+                                : item.content
+                              : <span style={{ color: "#94a3b8", fontStyle: "italic" }}>(no content)</span>}
                           </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
+                          <td style={{ padding: "10px 6px", color: "#64748b" }}>
+                            {item.author}
+                          </td>
+                          <td style={{ padding: "10px 6px", textAlign: "center" }}>
+                            <span style={{ color: "#16a34a" }}>{item.approvals}</span>
+                            {" / "}
+                            <span style={{ color: "#dc2626" }}>{item.rejections}</span>
+                          </td>
+                          {registryFilter !== "accepted" && (
+                            <td style={{ padding: "10px 6px", textAlign: "center" }}>
+                              {item.status === "pending" ? (
+                                <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                                  <button
+                                    onClick={() => handleApproveKnowledge(item.itemId, "approve")}
+                                    style={{
+                                      fontSize: 10,
+                                      cursor: "pointer",
+                                      padding: "3px 8px",
+                                      background: "#dcfce7",
+                                      color: "#16a34a",
+                                      border: "1px solid #86efac",
+                                      borderRadius: 3,
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleApproveKnowledge(item.itemId, "reject")}
+                                    style={{
+                                      fontSize: 10,
+                                      cursor: "pointer",
+                                      padding: "3px 8px",
+                                      background: "#fef2f2",
+                                      color: "#dc2626",
+                                      border: "1px solid #fca5a5",
+                                      borderRadius: 3,
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           );
         })()}
       </section>
@@ -1155,8 +1651,8 @@ export default function SparkPage() {
           {directoryLoading
             ? "Fetching all agents..."
             : directoryAgents.length > 0
-            ? "Refresh Directory"
-            : "Load Agent Directory"}
+              ? "Refresh Directory"
+              : "Load Agent Directory"}
         </button>
 
         {directoryAgents.length > 0 && (
@@ -1669,16 +2165,57 @@ function AgentCard({
       )}
 
       {/* ── Intelligent Data (loaded only) ─────────────────── */}
-      {isLoaded && iData.length > 0 && (
-        <>
-          <SectionLabel text="Intelligent Data (from iNFT)" />
-          <div style={{ marginBottom: 12, fontSize: 12 }}>
-            {iData.map((d, i) => (
-              <div key={i} style={{ color: "#475569" }}>{d.dataDescription}</div>
-            ))}
-          </div>
-        </>
-      )}
+      {isLoaded && iData.length > 0 && (() => {
+        const knowledgeEntries = iData.filter((d) => d.dataDescription.startsWith("0g://knowledge/"));
+        const otherEntries = iData.filter((d) => !d.dataDescription.startsWith("0g://knowledge/"));
+
+        return (
+          <>
+            <SectionLabel text={`Intelligent Data (${iData.length} entries)`} />
+            <div style={{ marginBottom: 12, fontSize: 12 }}>
+              {otherEntries.map((d, i) => {
+                const match = d.dataDescription.match(/0g:\/\/(\w+)\//);
+                const dataType = match ? match[1] : "data";
+                const typeColor =
+                  dataType === "storage" ? "#475569" :
+                    dataType === "memory" ? "#7c3aed" :
+                      dataType === "skills" ? "#16a34a" :
+                        dataType === "heartbeat" ? "#dc2626" :
+                          dataType === "personality" ? "#2563eb" :
+                            "#475569";
+                return (
+                  <div key={`other-${i}`} style={{ display: "flex", gap: 6, alignItems: "center", padding: "2px 0" }}>
+                    <span style={{ background: typeColor, color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: "bold", textTransform: "uppercase", minWidth: 60, textAlign: "center" }}>{dataType}</span>
+                    <span style={{ color: "#475569" }}>
+                      {d.dataDescription.length > 50 ? d.dataDescription.slice(0, 25) + "..." + d.dataDescription.slice(-18) : d.dataDescription}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Knowledge Portfolio ──────────────────────────── */}
+            {knowledgeEntries.length > 0 && (
+              <>
+                <SectionLabel text={`Knowledge Portfolio (${knowledgeEntries.length} approved)`} />
+                <div style={{ marginBottom: 12, fontSize: 12, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: 8 }}>
+                  {knowledgeEntries.map((d, i) => {
+                    const hash = d.dataDescription.replace("0g://knowledge/", "");
+                    return (
+                      <div key={`k-${i}`} style={{ display: "flex", gap: 6, alignItems: "center", padding: "3px 0", borderBottom: i < knowledgeEntries.length - 1 ? "1px solid #fef3c7" : "none" }}>
+                        <span style={{ background: "#ca8a04", color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: "bold", minWidth: 60, textAlign: "center" }}>KNOWLEDGE</span>
+                        <span style={{ color: "#92400e", fontFamily: "monospace" }}>
+                          {hash.length > 40 ? hash.slice(0, 18) + "..." + hash.slice(-12) : hash}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* ── Hedera Testnet ──────────────────────────────── */}
       <SectionLabel text="Hedera Testnet" />
@@ -2110,8 +2647,8 @@ function KnowledgeCard({
     item.status === "approved"
       ? "#16a34a"
       : item.status === "rejected"
-      ? "#dc2626"
-      : "#ca8a04";
+        ? "#dc2626"
+        : "#ca8a04";
 
   return (
     <div

@@ -149,6 +149,7 @@ export default async function handler(
     systemPrompt = "",
     modelProvider = "",
     apiKey = "",
+    files = [],
   } = req.body;
 
   if (!botId) {
@@ -379,6 +380,63 @@ export default async function handler(
     }
 
     // ────────────────────────────────────────────────────────────
+    // Step 8c: Upload optional files (memory, skills, heartbeat, personality)
+    // ────────────────────────────────────────────────────────────
+    const uploadedFiles: { dataDescription: string; dataHash: string; zgRootHash: string; type: string }[] = [];
+    if (Array.isArray(files) && files.length > 0 && iNftTokenId > 0) {
+      const validTypes = ["memory", "skills", "heartbeat", "personality"];
+      for (const file of files) {
+        if (!file.content || !file.type || !validTypes.includes(file.type)) continue;
+
+        const contentJson = JSON.stringify({
+          type: file.type,
+          label: file.label || file.type,
+          content: file.content,
+          timestamp: new Date().toISOString(),
+        }, null, 2);
+
+        const fileTmpPath = join(tmpdir(), `spark-inft-${file.type}-${Date.now()}.json`);
+        writeFileSync(fileTmpPath, contentJson);
+
+        const fileZg = await ZgFile.fromFilePath(fileTmpPath);
+        const [fileTree, fileTreeErr] = await fileZg.merkleTree();
+        if (fileTreeErr || !fileTree) {
+          await fileZg.close();
+          unlinkSync(fileTmpPath);
+          continue;
+        }
+        const fileRootHash = fileTree.rootHash();
+
+        const [, fileUploadErr] = await indexer.upload(fileZg, ZG_RPC, zgSigner);
+        await fileZg.close();
+        unlinkSync(fileTmpPath);
+        if (fileUploadErr) continue;
+
+        uploadedFiles.push({
+          dataDescription: `0g://${file.type}/${fileRootHash}`,
+          dataHash: keccak256(toUtf8Bytes(contentJson)),
+          zgRootHash: fileRootHash,
+          type: file.type,
+        });
+      }
+
+      // Append to iNFT intelligent data
+      if (uploadedFiles.length > 0) {
+        const existingData = await inftContract.intelligentDatasOf(iNftTokenId);
+        const mapped = existingData.map((d: { dataDescription: string; dataHash: string }) => ({
+          dataDescription: d.dataDescription,
+          dataHash: d.dataHash,
+        }));
+        const newEntries = uploadedFiles.map((f) => ({
+          dataDescription: f.dataDescription,
+          dataHash: f.dataHash,
+        }));
+        const updateTx = await inftContract.updateData(iNftTokenId, [...mapped, ...newEntries]);
+        await updateTx.wait();
+      }
+    }
+
+    // ────────────────────────────────────────────────────────────
     // Step 9: Log to master topic (operator signs)
     // ────────────────────────────────────────────────────────────
     const masterMsg = JSON.stringify({
@@ -442,6 +500,7 @@ export default async function handler(
       masterSeqNo,
       botSeqNo,
       airdrop: { hbar: 10, usdc: 100 },
+      uploadedFiles,
     });
   } catch (err: unknown) {
     return res.status(500).json({
