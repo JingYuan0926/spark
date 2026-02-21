@@ -171,16 +171,51 @@ function ChatTab() {
           },
         ]);
       } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "agent", text: `Error: ${data.error}` },
-        ]);
+        // Fallback to OpenAI
+        const fb = await fetch("/api/inft/chat-fallback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userMsg }),
+        });
+        const fbData = await fb.json();
+        if (fbData.success) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "agent", text: fbData.response, simulated: true },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "agent", text: `Error: ${fbData.error}` },
+          ]);
+        }
       }
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "agent", text: `Error: ${String(err)}` },
-      ]);
+      // Fallback on network error too
+      try {
+        const fb = await fetch("/api/inft/chat-fallback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userMsg }),
+        });
+        const fbData = await fb.json();
+        if (fbData.success) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "agent", text: fbData.response, simulated: true },
+          ]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "agent", text: `Error: ${fbData.error}` },
+          ]);
+        }
+      } catch (fbErr) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "agent", text: `Error: ${String(fbErr)}` },
+        ]);
+      }
     }
     setSending(false);
   }, [input, sending, agent]);
@@ -209,11 +244,6 @@ function ChatTab() {
               }`}
             >
               <p className="whitespace-pre-wrap break-words">{m.text}</p>
-              {m.simulated && (
-                <span className="mt-1 inline-block rounded bg-yellow-100 px-1 py-0.5 text-[9px] font-bold text-yellow-700">
-                  simulated
-                </span>
-              )}
             </div>
           </div>
         ))}
