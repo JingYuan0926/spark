@@ -1438,3 +1438,305 @@ Retries a failed subscription payment. Requires `subIdx`.
 ### GET /api/subscription/status
 
 Returns all subscriptions, vault balances, and recent payment history (last 20 entries). No auth required.
+
+---
+
+## 14. 0G Compute Network (Compute Page Flow)
+
+The Compute page (`pages/compute.tsx`) is a dashboard for interacting with the **0G Compute Network** — a decentralized GPU marketplace. It supports on-chain inference and fine-tuning via the `@0glabs/0g-serving-broker` SDK on 0G Testnet (`evmrpc-testnet.0g.ai`).
+
+### Overall Flow
+
+```
+1. Discover Services  →  List AI providers & their models
+2. Account Setup      →  Create ledger → Deposit A0GI → Transfer to provider
+3. AI Inference       →  Send prompt → Get verified AI response
+4. Fine-Tuning        →  List FT providers → Create task → Monitor training
+```
+
+---
+
+### Step 1 — Discover AI Services
+
+List all available inference providers on the 0G Compute Network.
+
+**API Call:**
+```
+POST /api/compute/list-services
+```
+(No body required)
+
+**Response:**
+```json
+{
+  "success": true,
+  "services": [
+    {
+      "provider": "0xA02b95Aa6886b1116C4f334eDe00381511E31A09",
+      "model": "Qwen2.5-0.5B-Instruct",
+      "serviceType": "inference",
+      "url": "https://...",
+      "inputPrice": "...",
+      "outputPrice": "...",
+      "verifiability": "TeeML"
+    }
+  ]
+}
+```
+
+**UI behavior:** The first provider is auto-selected for both inference and transfer fields. User can click **Select** on any row to switch provider.
+
+---
+
+### Step 2 — Account Setup
+
+Three sub-steps to fund the compute ledger before making requests.
+
+#### Step 2A — Create Ledger (first time)
+
+```
+POST /api/compute/setup-account
+Content-Type: application/json
+
+{
+  "action": "create-ledger",
+  "amount": "0.5"
+}
+```
+
+Creates an on-chain ledger account and deposits the initial A0GI amount.
+
+#### Step 2B — Deposit More Funds
+
+```
+POST /api/compute/setup-account
+Content-Type: application/json
+
+{
+  "action": "deposit",
+  "amount": "0.5"
+}
+```
+
+Adds more A0GI to your existing ledger.
+
+#### Step 2C — Transfer to Provider
+
+For **inference** transfers:
+```
+POST /api/compute/setup-account
+Content-Type: application/json
+
+{
+  "action": "transfer",
+  "amount": "0.1",
+  "provider": "0xA02b95..."
+}
+```
+
+For **fine-tuning** transfers:
+```
+POST /api/compute/setup-account
+Content-Type: application/json
+
+{
+  "action": "transfer",
+  "amount": "0.1",
+  "provider": "0xA02b95...",
+  "service": "fine-tuning"
+}
+```
+
+> [!IMPORTANT]
+> You must transfer funds to a provider's sub-account **before** you can call inference or create fine-tuning tasks with that provider.
+
+#### Check Balance
+
+```
+POST /api/compute/setup-account
+Content-Type: application/json
+
+{
+  "action": "get-balance"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "balance": "0.4"
+}
+```
+
+---
+
+### Step 3 — AI Inference
+
+Send a prompt to a 0G Compute provider. The request is authenticated on-chain and the response is verifiable via TEE signatures.
+
+**API Call:**
+```
+POST /api/compute/inference
+Content-Type: application/json
+
+{
+  "provider": "0xA02b95Aa6886b1116C4f334eDe00381511E31A09",
+  "message": "Classify this text as positive, negative, or neutral: 'The new Hedera SDK update fixed the token transfer bug.'"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "response": "Positive. The text expresses a favorable outcome...",
+  "model": "Qwen2.5-0.5B-Instruct",
+  "provider": "0xA02b95...",
+  "verified": true,
+  "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 64,
+    "total_tokens": 96
+  }
+}
+```
+
+**Requires:** Provider selected + funds transferred to that provider (Step 2C).
+
+---
+
+### Step 4 — Fine-Tuning
+
+Train a custom model on your own data via decentralized GPU infrastructure.
+
+#### Step 4A — Discover Fine-Tuning Providers
+
+```
+POST /api/compute/ft-list-services
+```
+(No body required)
+
+**Response:**
+```json
+{
+  "success": true,
+  "services": [
+    {
+      "provider": "0xA02b95...",
+      "url": "https://...",
+      "pricePerToken": "0.001",
+      "models": ["Qwen2.5-0.5B-Instruct"],
+      "occupied": false,
+      "teeSignerAcknowledged": true
+    }
+  ]
+}
+```
+
+**Status:** `occupied: false` means the provider is available; `true` means busy with another task.
+
+#### List Available Models
+
+```
+POST /api/compute/ft-list-models
+```
+(No body required)
+
+Returns the list of models available for fine-tuning across all providers.
+
+#### Step 4B — Create Fine-Tuning Task
+
+```
+POST /api/compute/ft-create-task
+Content-Type: application/json
+
+{
+  "provider": "0xA02b95Aa6886b1116C4f334eDe00381511E31A09",
+  "model": "Qwen2.5-0.5B-Instruct",
+  "dataset": [
+    {
+      "instruction": "Classify this developer question",
+      "input": "How do I fix a token transfer bug in Hedera SDK?",
+      "output": "Category: SDK Bug Report | Domain: Hedera | Priority: High"
+    },
+    {
+      "instruction": "Classify this developer question",
+      "input": "What is the best way to deploy a smart contract on 0G?",
+      "output": "Category: Deployment Guide | Domain: 0G | Priority: Medium"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "taskId": "ft-abc123..."
+}
+```
+
+**Requires:** Provider selected + funds transferred for fine-tuning (Step 2C with `service: "fine-tuning"`). Dataset must be a valid JSON array of `{instruction, input, output}` objects.
+
+#### Step 4C — Monitor Task
+
+Three monitoring actions, all via the same endpoint:
+
+**Get task status** (single task by ID):
+```
+POST /api/compute/ft-get-task
+Content-Type: application/json
+
+{
+  "provider": "0xA02b95...",
+  "taskId": "ft-abc123..."
+}
+```
+
+**List all tasks:**
+```
+POST /api/compute/ft-get-task
+Content-Type: application/json
+
+{
+  "provider": "0xA02b95...",
+  "action": "list"
+}
+```
+
+**Get training log:**
+```
+POST /api/compute/ft-get-task
+Content-Type: application/json
+
+{
+  "provider": "0xA02b95...",
+  "taskId": "ft-abc123...",
+  "action": "log"
+}
+```
+
+**Task fields returned:**
+```json
+{
+  "id": "ft-abc123...",
+  "createdAt": "2025-02-28T10:00:00Z",
+  "updatedAt": "2025-02-28T10:05:00Z",
+  "progress": "100%",
+  "datasetHash": "0x...",
+  "preTrainedModelHash": "0x...",
+  "fee": "0.05"
+}
+```
+
+---
+
+### How SPARK Uses 0G Compute
+
+| Use Case | Type | Description |
+|----------|------|-------------|
+| Semantic Search | Inference | Generate embeddings for knowledge queries, similarity search against stored knowledge |
+| SPARK Planner | Inference | Decompose complex tasks, recommend agents to hire, estimate cost/time/risk |
+| Knowledge Quality Scoring | Inference | Classify new submissions, detect duplicates, route to correct validator pool |
+| Domain Relevance Model | Fine-tuning | Train on SPARK knowledge data to improve retrieval accuracy for domain-specific queries |
