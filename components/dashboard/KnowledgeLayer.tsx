@@ -2,11 +2,11 @@ import { useRef, useEffect, useState, useCallback } from "react";
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {
-  scam:       { color: [166, 28, 60],   topicId: "0.0.7993401", label: "Scam" },
-  blockchain: { color: [105, 74, 56],   topicId: "0.0.7993402", label: "Blockchain" },
-  legal:      { color: [244, 172, 69],  topicId: "0.0.7993403", label: "Legal" },
-  trend:      { color: [208, 241, 191], topicId: "0.0.7993404", label: "Trend" },
-  skills:     { color: [75, 127, 82],   topicId: "0.0.7993405", label: "Skills" },
+  scam: { color: [166, 28, 60], topicId: "0.0.7993401", label: "Scam" },
+  blockchain: { color: [105, 74, 56], topicId: "0.0.7993402", label: "Blockchain" },
+  legal: { color: [244, 172, 69], topicId: "0.0.7993403", label: "Legal" },
+  trend: { color: [208, 241, 191], topicId: "0.0.7993404", label: "Trend" },
+  skills: { color: [75, 127, 82], topicId: "0.0.7993405", label: "Skills" },
 };
 
 /* ── Globe block colors (3 shades × 5 categories) ──────── */
@@ -156,7 +156,7 @@ function drawSphere(
 }
 
 /* ── Preview Globe (small, card view) ──────────────────── */
-function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
+function KnowledgeGlobe({ width, height, onClick }: { width: number; height: number; onClick?: (k: any) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blocksRef = useRef<Block[]>(generateBlocks());
   const angleRef = useRef(0);
@@ -188,7 +188,7 @@ function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
     return () => cancelAnimationFrame(animId);
   }, [width, height]);
 
-  return <canvas ref={canvasRef} style={{ width, height }} />;
+  return <canvas ref={canvasRef} style={{ width, height }} onClick={onClick ? () => onClick("show-gated-registry") : undefined} />;
 }
 
 /* ── Modal Globe (interactive — rays, glow, moon) ──────── */
@@ -220,6 +220,7 @@ function ModalGlobe({
   const angleRef = useRef(0);
   const mouseRef = useRef({ x: -1, y: -1 });
   const isHoveringGlobeRef = useRef(false);
+  const isOverMoonRef = useRef(false);
   const raysRef = useRef<LightRay[]>([]);
   const lastRayTimeRef = useRef(0);
   const lastHoveredKeyRef = useRef("");
@@ -268,6 +269,7 @@ function ModalGlobe({
       const isOverMoon = mdx * mdx + mdy * mdy < moonRadius * moonRadius;
 
       isHoveringGlobeRef.current = isOverGlobe || isOverMoon;
+      isOverMoonRef.current = isOverMoon;
 
       // ── Spawn light rays ──
       if (timestamp - lastRayTimeRef.current > 400) {
@@ -409,25 +411,23 @@ function ModalGlobe({
         ctx.arc(moonCx, moonCy, moonRadius + 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Lock arch
+        // Eye icon
         ctx.strokeStyle = "rgba(255,255,255,0.85)";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(moonCx, moonCy - 14, 6, Math.PI, 0);
+        ctx.ellipse(moonCx, moonCy - 8, 10, 6, 0, 0, Math.PI * 2);
         ctx.stroke();
-
-        // Lock body
         ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.beginPath();
-        ctx.roundRect(moonCx - 8, moonCy - 12, 16, 12, 2);
+        ctx.arc(moonCx, moonCy - 8, 3, 0, Math.PI * 2);
         ctx.fill();
 
         // Text
-        ctx.font = "bold 9px sans-serif";
+        ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.fillText("Subscription", moonCx, moonCy + 12);
-        ctx.fillText("Required", moonCx, moonCy + 22);
+        ctx.fillText("View Gated", moonCx, moonCy + 10);
+        ctx.fillText("Registry", moonCx, moonCy + 22);
       }
 
       // ── Rotate ──
@@ -458,6 +458,10 @@ function ModalGlobe({
   }, [onHoverKnowledge]);
 
   const handleClick = useCallback(() => {
+    if (isOverMoonRef.current) {
+      onClickKnowledge("show-gated-registry" as any);
+      return;
+    }
     const items = knowledgeRef.current;
     if (lastHoveredKeyRef.current && items.length > 0) {
       onClickKnowledge(items[Math.floor(Math.random() * items.length)]);
@@ -506,13 +510,12 @@ function KnowledgeDetail({ knowledge, isPreview }: { knowledge: Knowledge; isPre
         <span className="text-xs text-white/50">
           {cat.label} · {knowledge.author}
         </span>
-        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-          knowledge.status === "approved"
-            ? "bg-[#4B7F52]/30 text-[#4B7F52]"
-            : knowledge.status === "rejected"
-              ? "bg-red-500/20 text-red-400"
-              : "bg-yellow-500/20 text-yellow-400"
-        }`}>
+        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${knowledge.status === "approved"
+          ? "bg-[#4B7F52]/30 text-[#4B7F52]"
+          : knowledge.status === "rejected"
+            ? "bg-red-500/20 text-red-400"
+            : "bg-yellow-500/20 text-yellow-400"
+          }`}>
           {knowledge.status}
         </span>
       </div>
@@ -543,19 +546,27 @@ function KnowledgeDetail({ knowledge, isPreview }: { knowledge: Knowledge; isPre
   );
 }
 
+/* ── Filter tabs ──────────────────────────────────────── */
+type FilterTab = "accepted" | "all" | "pending" | "approved" | "rejected";
+
 /* ── Knowledge Modal ───────────────────────────────────── */
 function KnowledgeModal({
   onClose,
   knowledgeItems,
   counts,
+  onRefresh,
 }: {
   onClose: () => void;
   knowledgeItems: Knowledge[];
   counts: { pending: number; approved: number; rejected: number; total: number };
+  onRefresh: () => void;
 }) {
   const [hoveredKnowledge, setHoveredKnowledge] = useState<Knowledge | null>(null);
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
   const [isGrouped, setIsGrouped] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>("accepted");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showGatedRegistry, setShowGatedRegistry] = useState(false);
   const globeContainerRef = useRef<HTMLDivElement>(null);
   const [globeSize, setGlobeSize] = useState<{ w: number; h: number } | null>(null);
 
@@ -572,13 +583,34 @@ function KnowledgeModal({
 
   const displayKnowledge = selectedKnowledge || hoveredKnowledge;
 
+  // Filter knowledge items based on active tab
+  const filteredItems = knowledgeItems.filter((k) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "accepted") return k.status === "approved";
+    return k.status === activeFilter;
+  });
+
+  const FILTER_TABS: { key: FilterTab; label: string }[] = [
+    { key: "accepted", label: "Accepted" },
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending" },
+    { key: "approved", label: "Approved" },
+    { key: "rejected", label: "Rejected" },
+  ];
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative flex h-[80vh] w-[85vw] max-w-[1400px] overflow-hidden rounded-2xl bg-[#2d3f47]/90 backdrop-blur-md"
+        className="relative flex h-[85vh] w-[92vw] max-w-[1500px] overflow-hidden rounded-2xl bg-[#2d3f47]/90 backdrop-blur-md"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
@@ -592,148 +624,248 @@ function KnowledgeModal({
           </svg>
         </button>
 
-        {/* Left — Globe (30%) */}
-        <div
-          ref={globeContainerRef}
-          className="flex w-[30%] shrink-0 items-center justify-center border-r border-white/10 p-4"
-        >
-          {globeSize && globeSize.w > 0 && globeSize.h > 0 && (
-            <ModalGlobe
-              width={globeSize.w - 32}
-              height={globeSize.h - 32}
-              isGrouped={isGrouped}
-              knowledgeItems={knowledgeItems}
-              onHoverKnowledge={setHoveredKnowledge}
-              onClickKnowledge={setSelectedKnowledge}
-            />
-          )}
-        </div>
-
-        {/* Right — Content (70%) */}
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
+        {/* Left — Globe + Categories (40%) */}
+        <div className="flex min-h-0 w-[40%] shrink-0 flex-col gap-4 border-r border-white/10 p-6">
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-bold text-white">Knowledge Layer</h3>
             <button
               onClick={() => setIsGrouped(!isGrouped)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                isGrouped
-                  ? "bg-[#4B7F52]/80 text-white"
-                  : "bg-white/10 text-white/50 hover:bg-white/20"
-              }`}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${isGrouped
+                ? "bg-[#4B7F52]/80 text-white"
+                : "bg-white/10 text-white/50 hover:bg-white/20"
+                }`}
             >
               {isGrouped ? "Grouped" : "Mixed"}
             </button>
-            <p className="text-xs text-white/40">
-              Hover to preview · Click to pin
-            </p>
           </div>
 
-          {/* Legend + Stats row */}
-          <div className="flex gap-8">
-            {/* Legend */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Categories
-              </h4>
-              <div className="mt-2 space-y-1.5">
-                {Object.entries(CATEGORIES).map(([key, { color, topicId, label }]) => (
-                  <div key={key} className="flex items-center gap-2.5 text-sm">
-                    <span
-                      className="h-3 w-3 rounded-sm"
-                      style={{ backgroundColor: `rgb(${color.join(",")})` }}
-                    />
-                    <span className="font-medium text-white/80">{label}</span>
-                    <span className="font-mono text-xs text-white/30">{topicId}</span>
+          {/* Categories legend */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              Categories
+            </h4>
+            <div className="mt-2 space-y-1.5">
+              {Object.entries(CATEGORIES).map(([key, { color, topicId, label }]) => (
+                <div key={key} className="flex items-center gap-2.5 text-sm">
+                  <span
+                    className="h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: `rgb(${color.join(",")})` }}
+                  />
+                  <span className="font-medium text-white/80">{label}</span>
+                  <span className="font-mono text-xs text-white/30">{topicId}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Globe container */}
+          <div ref={globeContainerRef} className="flex min-h-[200px] flex-1 items-center justify-center">
+            {showGatedRegistry ? (
+              <div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white/5 p-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Gated Knowledge Registry</h3>
+                    <p className="mt-0.5 text-[10px] text-white/50">All gated submissions.</p>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowGatedRegistry(false); }}
+                    className="rounded-lg bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/70 transition hover:bg-white/20 hover:text-white"
+                  >
+                    Back to Globe
+                  </button>
+                </div>
 
-            {/* Stats */}
-            <div className="flex gap-6">
-              <div>
-                <p className="text-xs text-white/40">Total</p>
-                <p className="text-lg font-bold text-white">{counts.total.toLocaleString()}</p>
+                <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.2) transparent" }}>
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-white/10 text-[9px] font-semibold uppercase tracking-wider text-white/30">
+                        <th className="pb-2">Status</th>
+                        <th className="pb-2">Category</th>
+                        <th className="pb-2">Content</th>
+                        <th className="pb-2">Author</th>
+                        <th className="pb-2">Votes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-white/5">
+                        <td className="py-2.5 pr-2">
+                          <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-red-400">REJECTED</span>
+                        </td>
+                        <td className="py-2.5 pr-2">
+                          <span className="flex items-center gap-1.5 text-[9px] text-white/70">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${CATEGORIES.blockchain.color.join(",")})` }} />
+                            blockchain
+                          </span>
+                        </td>
+                        <td className="max-w-[100px] truncate py-2.5 pr-2 text-[9px] text-white/60">
+                          hi
+                        </td>
+                        <td className="py-2.5 pr-2 font-mono text-[9px] text-white/40">
+                          0.0.7993406
+                        </td>
+                        <td className="py-2.5 text-[9px]">
+                          <span className="text-white/20">0 / 3</span>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-white/5">
+                        <td className="py-2.5 pr-2">
+                          <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-red-400">REJECTED</span>
+                        </td>
+                        <td className="py-2.5 pr-2">
+                          <span className="flex items-center gap-1.5 text-[9px] text-white/70">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${CATEGORIES.blockchain.color.join(",")})` }} />
+                            blockchain
+                          </span>
+                        </td>
+                        <td className="max-w-[100px] truncate py-2.5 pr-2 text-[9px] text-white/60">
+                          awwfefwefwefw
+                        </td>
+                        <td className="py-2.5 pr-2 font-mono text-[9px] text-white/40">
+                          0.0.7993406
+                        </td>
+                        <td className="py-2.5 text-[9px]">
+                          <span className="text-white/20">0 / 3</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-white/40">Approved</p>
-                <p className="text-lg font-bold text-[#4B7F52]">{counts.approved.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-xs text-white/40">Pending</p>
-                <p className="text-lg font-bold text-yellow-400">{counts.pending.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Knowledge list */}
-          <div className="flex-1 space-y-3">
-            {selectedKnowledge && (
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Pinned Knowledge
-                </span>
-                <button
-                  onClick={() => setSelectedKnowledge(null)}
-                  className="text-xs text-white/30 transition hover:text-white/60"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-            {displayKnowledge ? (
-              <KnowledgeDetail
-                knowledge={displayKnowledge}
-                isPreview={!selectedKnowledge}
+            ) : globeSize && globeSize.w > 0 && globeSize.h > 0 && (
+              <ModalGlobe
+                width={globeSize.w - 32}
+                height={globeSize.h - 32}
+                isGrouped={isGrouped}
+                knowledgeItems={knowledgeItems}
+                onHoverKnowledge={setHoveredKnowledge}
+                onClickKnowledge={(k: any) => {
+                  if (k === "show-gated-registry") setShowGatedRegistry(true);
+                  else setSelectedKnowledge(k);
+                }}
               />
-            ) : (
-              <div className="flex h-32 items-center justify-center text-sm text-white/30">
-                {knowledgeItems.length > 0
-                  ? "Hover over the globe to explore knowledge"
-                  : "No knowledge entries yet"}
-              </div>
-            )}
-
-            {/* All knowledge entries list */}
-            {!selectedKnowledge && !hoveredKnowledge && knowledgeItems.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                  All Entries ({knowledgeItems.length})
-                </h4>
-                {knowledgeItems.map((k) => {
-                  const cat = CATEGORIES[k.category] || CATEGORIES.blockchain;
-                  return (
-                    <div
-                      key={k.id}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg bg-white/5 p-3 transition hover:bg-white/10"
-                      onClick={() => setSelectedKnowledge(k)}
-                    >
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: `rgb(${cat.color.join(",")})` }}
-                      />
-                      <span className="flex-1 truncate text-sm text-white/80">{k.title}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        k.status === "approved"
-                          ? "bg-[#4B7F52]/30 text-[#4B7F52]"
-                          : k.status === "rejected"
-                            ? "bg-red-500/20 text-red-400"
-                            : "bg-yellow-500/20 text-yellow-400"
-                      }`}>
-                        {k.status}
-                      </span>
-                      <span className="text-xs text-white/30">
-                        {k.upvotes}/{k.downvotes}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
             )}
           </div>
         </div>
+
+        {/* Right — Knowledge Registry (60%) */}
+        <div className="flex min-h-0 flex-1 flex-col p-6">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white">Knowledge Registry</h3>
+              <p className="mt-0.5 text-xs text-white/40">
+                Consensus state of all knowledge submissions. &quot;Accepted&quot; shows only approved knowledge — the final human-readable view.
+              </p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="ml-4 shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
+            >
+              <span className={`inline-block ${refreshing ? "animate-spin" : ""}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                </svg>
+              </span>
+              Refresh
+            </button>
+          </div>
+
+          {/* Stats bar */}
+          <div className="mt-4 flex gap-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Total</span>
+              <span className="text-base font-bold text-white">{counts.total}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Pending</span>
+              <span className="text-base font-bold text-yellow-400">{counts.pending}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Approved</span>
+              <span className="text-base font-bold text-[#4B7F52]">{counts.approved}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Rejected</span>
+              <span className="text-base font-bold text-red-400">{counts.rejected}</span>
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="mt-4 flex gap-1 rounded-lg bg-white/5 p-1">
+            {FILTER_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveFilter(tab.key)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${activeFilter === tab.key
+                  ? "bg-[#483519] text-white"
+                  : "text-white/40 hover:text-white/70"
+                  }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10 text-left text-[11px] font-semibold uppercase tracking-wider text-white/30">
+                  <th className="pb-2 pr-4">Category</th>
+                  <th className="pb-2 pr-4">Content</th>
+                  <th className="pb-2 pr-4">Author</th>
+                  <th className="pb-2">Votes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-sm text-white/30">
+                      No entries found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((k) => {
+                    const cat = CATEGORIES[k.category] || CATEGORIES.blockchain;
+                    return (
+                      <tr
+                        key={k.id}
+                        className="cursor-pointer border-b border-white/5 transition hover:bg-white/5"
+                        onClick={() => setSelectedKnowledge(k)}
+                      >
+                        <td className="py-2.5 pr-4">
+                          <span className="flex items-center gap-2 text-xs text-white/70">
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                              style={{ backgroundColor: `rgb(${cat.color.join(",")})` }}
+                            />
+                            {cat.label}
+                          </span>
+                        </td>
+                        <td className="max-w-[300px] truncate py-2.5 pr-4 text-xs text-white/60">
+                          {k.description || "(no content)"}
+                        </td>
+                        <td className="py-2.5 pr-4 font-mono text-xs text-white/40">
+                          {k.author}
+                        </td>
+                        <td className="py-2.5 text-xs">
+                          <span className="text-[#4B7F52]">{k.upvotes}</span>
+                          <span className="text-white/20"> / </span>
+                          <span className="text-red-400">{k.downvotes}</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </div>
+    </div >
   );
 }
 
@@ -836,6 +968,7 @@ export function KnowledgeLayer() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[#2d3f47]">
           Knowledge Layer
         </h2>
+
         <div className="flex flex-1 items-center justify-center">
           {size && <KnowledgeGlobe width={size.w - 24} height={size.h - 90} />}
         </div>
@@ -860,6 +993,7 @@ export function KnowledgeLayer() {
           onClose={() => setShowModal(false)}
           knowledgeItems={knowledgeItems}
           counts={counts}
+          onRefresh={fetchKnowledge}
         />
       )}
     </>
