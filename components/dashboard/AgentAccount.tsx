@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useAgent } from "@/contexts/AgentContext";
+import { useState, useCallback } from "react";
+import { useAgent, AgentData } from "@/contexts/AgentContext";
 
 function formatHbar(value: number): string {
   if (value === 0) return "0";
@@ -140,8 +140,26 @@ function AgentAccountModal({ onClose }: { onClose: () => void }) {
 }
 
 export function AgentAccount() {
-  const { agent } = useAgent();
+  const { agent, setAgent, privateKey } = useAgent();
   const [showModal, setShowModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (!privateKey || refreshing) return;
+    setRefreshing(true);
+    try {
+      const res = await fetch("/api/spark/load-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hederaPrivateKey: privateKey }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAgent(data as AgentData);
+      }
+    } catch { /* silently fail */ }
+    setRefreshing(false);
+  }, [privateKey, refreshing, setAgent]);
 
   if (!agent) return null;
 
@@ -158,9 +176,19 @@ export function AgentAccount() {
         className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#DD6E42]/50 p-6 transition hover:bg-[#DD6E42]/60"
         onClick={() => setShowModal(true)}
       >
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[#7a3a1f]">
-          Agent Account
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#7a3a1f]">
+            Agent Account
+          </h2>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
+            disabled={refreshing}
+            className={`rounded-full p-1.5 transition ${refreshing ? "animate-spin text-[#7a3a1f]/40" : "text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"}`}
+            title="Refresh balances"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+          </button>
+        </div>
 
         <div className="mt-5 space-y-4">
           {/* Agent ID + status icons */}
