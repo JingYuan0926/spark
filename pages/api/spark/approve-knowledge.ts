@@ -3,12 +3,11 @@ import {
   PrivateKey,
   TopicMessageSubmitTransaction,
 } from "@hashgraph/sdk";
-import { ethers, keccak256, toUtf8Bytes } from "ethers";
+import { ethers } from "ethers";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
 import { getHederaClient, getOperatorKey } from "@/lib/hedera";
-import { SPARKINFT_ABI, SPARKINFT_ADDRESS } from "@/lib/sparkinft-abi";
 import {
   PAYROLL_VAULT_ADDRESS,
   PAYROLL_VAULT_ABI,
@@ -58,16 +57,13 @@ async function fetchMessages(topicId: string): Promise<TopicMessage[]> {
         _consensusAt: msg.consensus_timestamp,
       });
     } catch {
-      // skip non-JSON
+      // skip
     }
   }
   return msgs;
 }
 
-// Resolve voter's accountId from private key
-async function resolveVoterAccount(
-  voterKey: PrivateKey
-): Promise<string> {
+async function resolveVoterAccount(voterKey: PrivateKey): Promise<string> {
   const publicKeyDer = voterKey.publicKey.toString();
   const mirrorRes = await fetch(
     `${MIRROR_URL}/api/v1/accounts?account.publickey=${publicKeyDer}&limit=1`
@@ -79,11 +75,10 @@ async function resolveVoterAccount(
   return mirrorData.accounts[0].account;
 }
 
-// Resolve target agent's voteTopicId + botTopicId + iNftTokenId + evmAddress from master topic
 async function resolveAgentTopics(
   masterTopicId: string,
   targetAccountId: string
-): Promise<{ voteTopicId: string; botTopicId: string; iNftTokenId: number; evmAddress: string }> {
+): Promise<{ voteTopicId: string; botTopicId: string; evmAddress: string }> {
   const topicRes = await fetch(
     `${MIRROR_URL}/api/v1/topics/${masterTopicId}/messages?limit=100`
   );
@@ -101,7 +96,6 @@ async function resolveAgentTopics(
         return {
           voteTopicId: decoded.voteTopicId,
           botTopicId: decoded.botTopicId,
-          iNftTokenId: decoded.iNftTokenId || 0,
           evmAddress: decoded.evmAddress || "",
         };
       }
@@ -112,79 +106,6 @@ async function resolveAgentTopics(
 
   throw new Error(`Agent ${targetAccountId} not found in master topic`);
 }
-
-// ── 0G Chain Config ──────────────────────────────────────────────
-const ZG_RPC = "https://evmrpc-testnet.0g.ai";
-
-// Sync iNFT on-chain state after knowledge consensus
-async function syncInftOnConsensus(
-  authorAccountId: string,
-  masterTopicId: string,
-  knowledgeZgRootHash: string | undefined,
-  isApproval: boolean
-): Promise<{ recordContribTxHash?: string; reputationTxHash: string; updateDataTxHash?: string } | null> {
-  const zgPrivateKey = process.env.ZG_STORAGE_PRIVATE_KEY;
-  if (!zgPrivateKey) return null;
-
-  const { iNftTokenId, voteTopicId } = await resolveAgentTopics(masterTopicId, authorAccountId);
-  if (!iNftTokenId || iNftTokenId === 0) return null;
-
-  const provider = new ethers.JsonRpcProvider(ZG_RPC);
-  const zgSigner = new ethers.Wallet(zgPrivateKey, provider);
-  const inftContract = new ethers.Contract(SPARKINFT_ADDRESS, SPARKINFT_ABI, zgSigner);
-
-  const result: { recordContribTxHash?: string; reputationTxHash: string; updateDataTxHash?: string } = {
-    reputationTxHash: "",
-  };
-
-  // On approval: record contribution + append knowledge data
-  if (isApproval) {
-    const contribTx = await inftContract.recordContribution(iNftTokenId);
-    await contribTx.wait();
-    result.recordContribTxHash = contribTx.hash;
-
-    // Append approved knowledge to intelligentData
-    if (knowledgeZgRootHash) {
-      const existingData = await inftContract.intelligentDatasOf(iNftTokenId);
-      const mapped = existingData.map((d: { dataDescription: string; dataHash: string }) => ({
-        dataDescription: d.dataDescription,
-        dataHash: d.dataHash,
-      }));
-      const newEntry = {
-        dataDescription: `0g://knowledge/${knowledgeZgRootHash}`,
-        dataHash: keccak256(toUtf8Bytes(knowledgeZgRootHash)),
-      };
-      const dataTx = await inftContract.updateData(iNftTokenId, [...mapped, newEntry]);
-      await dataTx.wait();
-      result.updateDataTxHash = dataTx.hash;
-    }
-  }
-
-  // Always sync reputation score from HCS-20 vote counts
-  const voteMessages = await fetchMessages(voteTopicId);
-  let upvotes = 0;
-  let downvotes = 0;
-  for (const msg of voteMessages) {
-    if (msg.p === "hcs-20" && msg.op === "mint") {
-      if (msg.tick === "upvote") upvotes++;
-      if (msg.tick === "downvote") downvotes++;
-    }
-  }
-  // +1 for the vote we just minted (Mirror Node eventual consistency)
-  if (isApproval) upvotes++;
-  else downvotes++;
-
-  const newScore = Math.max(0, upvotes - downvotes);
-  const repTx = await inftContract.updateReputation(iNftTokenId, newScore);
-  await repTx.wait();
-  result.reputationTxHash = repTx.hash;
-
-  return result;
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  HANDLER
-// ══════════════════════════════════════════════════════════════════
 
 export default async function handler(
   req: NextApiRequest,
@@ -236,7 +157,6 @@ export default async function handler(
       categoryEntries.map((e) => fetchMessages(e.topicId))
     );
 
-    // Find the knowledge_submitted message with matching itemId
     let knowledgeItem: TopicMessage | null = null;
     let categoryTopicId = "";
     let categoryName = "";
@@ -265,19 +185,7 @@ export default async function handler(
 
     const author = knowledgeItem.author as string;
 
-    // Step 3: Self-vote check — disabled for demo
-    // if (voterAccountId === author) { ... }
-
-    // Step 4: Check existing votes for this itemId
-    const existingVotes = categoryMessages.filter(
-      (m) => m.action === "knowledge_vote" && m.itemId === itemId
-    );
-
-    // Double-vote check — disabled for demo
-    // const alreadyVoted = existingVotes.some((v) => v.voter === voterAccountId);
-    // if (alreadyVoted) { ... }
-
-    // Already finalized check
+    // Step 3: Check if already finalized
     const isFinalized = categoryMessages.some(
       (m) =>
         (m.action === "knowledge_approved" || m.action === "knowledge_rejected") &&
@@ -286,15 +194,18 @@ export default async function handler(
     if (isFinalized) {
       return res.status(400).json({
         success: false,
-        error: "This knowledge item has already been finalized (approved or rejected)",
+        error: "This knowledge item has already been finalized",
       });
     }
 
-    // Count current votes
+    // Step 4: Count existing votes
+    const existingVotes = categoryMessages.filter(
+      (m) => m.action === "knowledge_vote" && m.itemId === itemId
+    );
     let approvals = existingVotes.filter((v) => v.vote === "approve").length;
     let rejections = existingVotes.filter((v) => v.vote === "reject").length;
 
-    // Step 5: Log knowledge_vote to category sub-topic (operator signs)
+    // Step 5: Log knowledge_vote to category sub-topic
     const voteMsg = JSON.stringify({
       action: "knowledge_vote",
       itemId,
@@ -313,7 +224,7 @@ export default async function handler(
     const voteReceipt = await voteResponse.getReceipt(client);
     const voteSeqNo = voteReceipt.topicSequenceNumber?.toString() ?? "0";
 
-    // Step 6: Log i_voted_on_knowledge to voter's bot topic
+    // Step 6: Log to voter's bot topic
     const { botTopicId: voterBotTopicId } = await resolveAgentTopics(
       config.masterTopicId,
       voterAccountId
@@ -335,14 +246,13 @@ export default async function handler(
 
     await (await botTx.execute(client)).getReceipt(client);
 
-    // Update counts with this vote
+    // Update counts
     if (vote === "approve") approvals++;
     else rejections++;
 
-    // Step 7: Check consensus + iNFT sync
+    // Step 7: Check consensus
     let status: "pending" | "approved" | "rejected" = "pending";
     let reputationEffect: string | null = null;
-    let inftSyncResult: { recordContribTxHash?: string; reputationTxHash: string; updateDataTxHash?: string } | null = null;
     let payrollResult: { agentIdx?: string; startTxHash?: string } | null = null;
 
     if (approvals >= CONSENSUS_THRESHOLD) {
@@ -384,23 +294,16 @@ export default async function handler(
         timestamp: new Date().toISOString(),
       });
 
-      const upvoteTx = await new TopicMessageSubmitTransaction()
-        .setTopicId(authorVoteTopicId)
-        .setMessage(upvoteMsg)
-        .execute(client);
+      await (
+        await new TopicMessageSubmitTransaction()
+          .setTopicId(authorVoteTopicId)
+          .setMessage(upvoteMsg)
+          .execute(client)
+      ).getReceipt(client);
 
-      await upvoteTx.getReceipt(client);
       reputationEffect = "upvote on author's vote topic";
 
-      // Sync iNFT: recordContribution + updateReputation + updateData
-      try {
-        const zgHash = knowledgeItem.zgRootHash as string | undefined;
-        inftSyncResult = await syncInftOnConsensus(author, config.masterTopicId!, zgHash, true);
-      } catch (inftErr) {
-        console.error("[approve-knowledge] iNFT sync failed (approval):", inftErr);
-      }
-
-      // Step 8: If gated knowledge, add author as payroll agent in vault for payouts
+      // Step 8: If gated knowledge, add author as payroll agent
       const knowledgeAccessTier = knowledgeItem.accessTier as string | undefined;
       if (knowledgeAccessTier === "gated" && authorEvmAddress) {
         try {
@@ -410,12 +313,10 @@ export default async function handler(
             const hWallet = new ethers.Wallet(hederaPrivKey, hProvider);
             const vault = new ethers.Contract(PAYROLL_VAULT_ADDRESS, PAYROLL_VAULT_ABI, hWallet);
 
-            // Check if author is already a payroll agent
             const alreadyAgent = await vault.isAgent(authorEvmAddress);
             if (!alreadyAgent) {
-              // Add as payroll agent: 0.5 USDC per 60s payout
-              const payoutAmount = ethers.parseUnits("0.5", 6); // 0.5 USDC (6 decimals)
-              const payoutInterval = BigInt(60); // every 60 seconds
+              const payoutAmount = ethers.parseUnits("0.5", 6);
+              const payoutInterval = BigInt(60);
 
               const addTx = await vault.addAgent(
                 authorEvmAddress,
@@ -423,13 +324,11 @@ export default async function handler(
                 payoutAmount,
                 payoutInterval
               );
-              const addReceipt = await addTx.wait();
+              await addTx.wait();
 
-              // Get the agent index from the event or count
               const agentCount = await vault.getAgentCount();
               const agentIdx = Number(agentCount) - 1;
 
-              // Start the payroll schedule
               const startTx = await vault.startPayroll(BigInt(agentIdx));
               await startTx.wait();
 
@@ -447,7 +346,6 @@ export default async function handler(
     } else if (rejections >= CONSENSUS_THRESHOLD) {
       status = "rejected";
 
-      // Log knowledge_rejected
       const rejectedMsg = JSON.stringify({
         action: "knowledge_rejected",
         itemId,
@@ -467,7 +365,7 @@ export default async function handler(
 
       await (await rejectedTx.execute(client)).getReceipt(client);
 
-      // Mint HCS-20 downvote on author's vote topic
+      // Mint HCS-20 downvote
       const { voteTopicId: authorVoteTopicId } = await resolveAgentTopics(
         config.masterTopicId,
         author
@@ -483,20 +381,14 @@ export default async function handler(
         timestamp: new Date().toISOString(),
       });
 
-      const downvoteTx = await new TopicMessageSubmitTransaction()
-        .setTopicId(authorVoteTopicId)
-        .setMessage(downvoteMsg)
-        .execute(client);
+      await (
+        await new TopicMessageSubmitTransaction()
+          .setTopicId(authorVoteTopicId)
+          .setMessage(downvoteMsg)
+          .execute(client)
+      ).getReceipt(client);
 
-      await downvoteTx.getReceipt(client);
       reputationEffect = "downvote on author's vote topic";
-
-      // Sync iNFT: updateReputation only (no contribution for rejections)
-      try {
-        inftSyncResult = await syncInftOnConsensus(author, config.masterTopicId!, undefined, false);
-      } catch (inftErr) {
-        console.error("[approve-knowledge] iNFT sync failed (rejection):", inftErr);
-      }
     }
 
     return res.status(200).json({
@@ -512,8 +404,6 @@ export default async function handler(
       rejections,
       status,
       reputationEffect,
-      inftSynced: !!inftSyncResult,
-      inftSyncTxHashes: inftSyncResult || null,
       payrollStarted: !!payrollResult,
       payrollResult: payrollResult || null,
     });
