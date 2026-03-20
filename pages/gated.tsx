@@ -1179,7 +1179,7 @@ export default function GatedPage() {
                             {row.name}<div style={{ fontSize: 9, color: "#888" }}>{shortAddr(row.address)}</div>
                           </td>
                           <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>
-                            <a href={`https://hashscan.io/testnet/account/${row.address}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }} title={row.address}>{shortAddr(row.address)}</a>
+                            <a href={`https://hashscan.io/testnet/account/0.0.7314364/operations?ps=1&p2=1&p3=1`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }} title={row.address}>{shortAddr(row.address)}</a>
                           </td>
                           <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{formatUsdc(row.amount)}</td>
                           <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{row.interval}s</td>
@@ -1359,7 +1359,7 @@ export default function GatedPage() {
                     <tr key={a.idx} style={{ opacity: a.active ? 1 : 0.5 }}>
                       <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{a.idx}</td>
                       <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>
-                        <a href={`https://hashscan.io/testnet/account/${a.address}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }} title={a.address}>
+                        <a href={`https://hashscan.io/testnet/account/0.0.7314364/operations?ps=1&p2=1&p3=1`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }} title={a.address}>
                           {shortAddr(a.address)}
                         </a>
                       </td>
@@ -1482,7 +1482,7 @@ export default function GatedPage() {
                               <tr key={a.idx}>
                                 <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: "bold" }}>{a.name}</td>
                                 <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>
-                                  <a href={`https://hashscan.io/testnet/account/${a.address}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }}>
+                                  <a href={`https://hashscan.io/testnet/account/0.0.7314364/operations?ps=1&p2=1&p3=1`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }}>
                                     {shortAddr(a.address)}
                                   </a>
                                 </td>

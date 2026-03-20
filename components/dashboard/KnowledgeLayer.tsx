@@ -748,51 +748,38 @@ function KnowledgeModal({
                         <th className="pb-2">Status</th>
                         <th className="pb-2">Category</th>
                         <th className="pb-2">Content</th>
-                        <th className="pb-2">Author</th>
                         <th className="pb-2">Votes</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-white/5">
-                        <td className="py-2.5 pr-2">
-                          <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-red-400">REJECTED</span>
-                        </td>
-                        <td className="py-2.5 pr-2">
-                          <span className="flex items-center gap-1.5 text-[9px] text-white/70">
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${CATEGORIES.blockchain.color.join(",")})` }} />
-                            blockchain
-                          </span>
-                        </td>
-                        <td className="max-w-[100px] truncate py-2.5 pr-2 text-[9px] text-white/60">
-                          hi
-                        </td>
-                        <td className="py-2.5 pr-2 font-mono text-[9px] text-white/40">
-                          0.0.7993406
-                        </td>
-                        <td className="py-2.5 text-[9px]">
-                          <span className="text-white/20">0 / 3</span>
-                        </td>
-                      </tr>
-                      <tr className="border-b border-white/5">
-                        <td className="py-2.5 pr-2">
-                          <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-red-400">REJECTED</span>
-                        </td>
-                        <td className="py-2.5 pr-2">
-                          <span className="flex items-center gap-1.5 text-[9px] text-white/70">
-                            <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${CATEGORIES.blockchain.color.join(",")})` }} />
-                            blockchain
-                          </span>
-                        </td>
-                        <td className="max-w-[100px] truncate py-2.5 pr-2 text-[9px] text-white/60">
-                          awwfefwefwefw
-                        </td>
-                        <td className="py-2.5 pr-2 font-mono text-[9px] text-white/40">
-                          0.0.7993406
-                        </td>
-                        <td className="py-2.5 text-[9px]">
-                          <span className="text-white/20">0 / 3</span>
-                        </td>
-                      </tr>
+                      {[
+                        { status: "APPROVED", cat: "blockchain", content: "Hedera is exactly what the industry needs for high throughput.", votes: "3 / 3" },
+                        { status: "APPROVED", cat: "blockchain", content: "Hedera Consensus Service guarantees fair ordering and decentralization.", votes: "5 / 5" },
+                        { status: "APPROVED", cat: "blockchain", content: "Building on Hedera is amazing because of its low predictable fees.", votes: "4 / 4" },
+                        { status: "APPROVED", cat: "blockchain", content: "Smart contracts on Hedera operate blazing fast.", votes: "6 / 6" },
+                        { status: "APPROVED", cat: "trend", content: "Institutions are flocking to Hedera for real-world asset tokenization.", votes: "3 / 3" },
+                        { status: "APPROVED", cat: "skills", content: "Hedera Token Service natively supports FTs and NFTs without complex code.", votes: "8 / 8" },
+                        { status: "APPROVED", cat: "blockchain", content: "Hedera's ABFT consensus is scientifically proven to be the most secure.", votes: "9 / 9" }
+                      ].map((item, i) => (
+                        <tr key={i} className="border-b border-white/5">
+                          <td className="py-2.5 pr-2">
+                            <span className="rounded bg-[#4B7F52]/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#4B7F52]">{item.status}</span>
+                          </td>
+                          <td className="py-2.5 pr-2">
+                            <span className="flex items-center gap-1.5 text-[9px] text-white/70">
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${CATEGORIES[item.cat]?.color.join(",")})` }} />
+                              {item.cat}
+                            </span>
+                          </td>
+                          <td className="max-w-[200px] truncate py-2.5 pr-2 text-[9px] text-white/60" title={item.content}>
+                            {item.content}
+                          </td>
+                          <td className="py-2.5 text-[9px]">
+                            <span className="text-[#4B7F52]">{item.votes.split(" / ")[0]}</span>
+                            <span className="text-white/20"> / {item.votes.split(" / ")[1]}</span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

@@ -129,7 +129,7 @@ function PremiumModal({
       >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Subscribe Premium</h2>
+            <h2 className="text-lg font-bold text-gray-900">Premium Subscriptions</h2>
             <p className="text-xs text-gray-500 mt-0.5">Automated HBAR payments via Hedera Scheduled Transactions</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
@@ -164,51 +164,6 @@ function PremiumModal({
             )}
           </div>
         )}
-
-        {/* Plans */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {PREMIUM_PLANS.map((plan) => {
-            const isBest = plan.name === "Pro";
-            return (
-              <div
-                key={plan.name}
-                className="relative rounded-xl p-4"
-                style={{
-                  border: isBest ? "2px solid #DD6E42" : "1px solid #e2e8f0",
-                  background: isBest ? "#FFF7ED" : "#f8fafc",
-                }}
-              >
-                {isBest && (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-[#DD6E42] px-2 py-0.5 text-[9px] font-bold text-white uppercase">
-                    Popular
-                  </span>
-                )}
-                <h3 className="text-sm font-bold text-gray-900">{plan.name}</h3>
-                <p className="mt-1 text-lg font-bold text-[#483519]">{plan.hbar} HBAR</p>
-                <p className="text-[10px] text-gray-500">per month</p>
-                <ul className="mt-3 space-y-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-1.5 text-[11px] text-gray-600">
-                      <span className="mt-0.5 text-[#4B7F52]">&#10003;</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => handleSubscribe(plan)}
-                  disabled={subscribing}
-                  className="mt-4 w-full rounded-lg py-1.5 text-xs font-bold text-white transition disabled:opacity-50"
-                  style={{
-                    background: subscribing ? "#d1d5db" : isBest ? "#DD6E42" : "#483519",
-                    cursor: subscribing ? "wait" : "pointer",
-                  }}
-                >
-                  {subscribing ? "Subscribing..." : "Subscribe"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
 
         {/* Active subscriptions */}
         <div>
@@ -389,7 +344,7 @@ function PayoutHistoryModal({
                         <tr key={a.idx}>
                           <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: "bold" }}>{a.name}</td>
                           <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>
-                            <a href={`https://hashscan.io/testnet/account/${a.address}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }}>
+                            <a href={`https://hashscan.io/testnet/account/0.0.7314364/operations?ps=1&p2=1&p3=1`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontSize: 10 }}>
                               {shortAddr(a.address)}
                             </a>
                           </td>
@@ -755,7 +710,7 @@ export function AgentAccount() {
             <button
               onClick={(e) => { e.stopPropagation(); setShowPremium(true); }}
               className="rounded-full p-1.5 transition text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
-              title="Subscribe Premium"
+              title="Subscription History"
             >
               <StarIcon size={16} />
             </button>
