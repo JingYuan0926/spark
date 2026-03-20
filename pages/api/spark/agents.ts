@@ -1,12 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { ethers } from "ethers";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
-import { SPARKINFT_ABI, SPARKINFT_ADDRESS } from "@/lib/sparkinft-abi";
-
 const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
-const ZG_RPC = "https://evmrpc-testnet.0g.ai";
 const CONFIG_PATH = join(process.cwd(), "data", "spark-config.json");
 
 interface Registration {
@@ -14,9 +10,9 @@ interface Registration {
   botId: string;
   botTopicId: string;
   voteTopicId: string;
-  zgRootHash: string;
-  iNftTokenId: number;
   evmAddress: string;
+  domainTags: string;
+  serviceOfferings: string;
   timestamp: string;
   [key: string]: unknown;
 }
@@ -34,14 +30,13 @@ async function fetchTopicMessages(topicId: string) {
       );
       msgs.push(decoded);
     } catch {
-      // skip non-JSON
+      // skip
     }
   }
   return msgs;
 }
 
 async function fetchAgentPublicData(reg: Registration) {
-  // Fetch balance, tokens, votes, bot activity in parallel
   const [balanceRes, tokenRes, voteMessages, botMessages] = await Promise.all([
     fetch(`${MIRROR_URL}/api/v1/accounts/${reg.hederaAccountId}`),
     fetch(`${MIRROR_URL}/api/v1/accounts/${reg.hederaAccountId}/tokens`),
@@ -52,12 +47,10 @@ async function fetchAgentPublicData(reg: Registration) {
   const balanceData = await balanceRes.json();
   const tokenData = await tokenRes.json();
 
-  // HBAR balance from mirror node (balance.balance is in tinybar)
   const hbarBalance = balanceData.balance
     ? balanceData.balance.balance / 1e8
     : 0;
 
-  // Token balances
   const tokens = (tokenData.tokens || []).map(
     (t: { token_id: string; balance: number }) => ({
       tokenId: t.token_id,
@@ -65,7 +58,6 @@ async function fetchAgentPublicData(reg: Registration) {
     })
   );
 
-  // Count HCS-20 upvotes/downvotes
   let upvotes = 0;
   let downvotes = 0;
   for (const msg of voteMessages) {
@@ -79,10 +71,10 @@ async function fetchAgentPublicData(reg: Registration) {
     hederaAccountId: reg.hederaAccountId,
     botId: reg.botId,
     evmAddress: reg.evmAddress,
+    domainTags: reg.domainTags || "",
+    serviceOfferings: reg.serviceOfferings || "",
     botTopicId: reg.botTopicId,
     voteTopicId: reg.voteTopicId,
-    zgRootHash: reg.zgRootHash,
-    iNftTokenId: reg.iNftTokenId,
     hbarBalance,
     tokens,
     upvotes,
@@ -138,55 +130,9 @@ export default async function handler(
     }
 
     // Step 2: Fetch public data for each agent in parallel
-    const agentData = await Promise.all(
+    const agents = await Promise.all(
       registrations.map((reg) => fetchAgentPublicData(reg))
     );
-
-    // Step 3: Fetch iNFT profiles from 0G Chain (batch)
-    let iNftProfiles: Record<number, Record<string, unknown>> = {};
-    try {
-      const provider = new ethers.JsonRpcProvider(ZG_RPC);
-      const contract = new ethers.Contract(
-        SPARKINFT_ADDRESS,
-        SPARKINFT_ABI,
-        provider
-      );
-
-      const profilePromises = registrations
-        .filter((r) => r.iNftTokenId && r.iNftTokenId > 0)
-        .map(async (r) => {
-          try {
-            const profile = await contract.getAgentProfile(r.iNftTokenId);
-            return {
-              tokenId: r.iNftTokenId,
-              profile: {
-                botId: profile.botId,
-                domainTags: profile.domainTags,
-                serviceOfferings: profile.serviceOfferings,
-                reputationScore: Number(profile.reputationScore),
-                contributionCount: Number(profile.contributionCount),
-              },
-            };
-          } catch {
-            return { tokenId: r.iNftTokenId, profile: null };
-          }
-        });
-
-      const profiles = await Promise.all(profilePromises);
-      for (const p of profiles) {
-        if (p.profile) {
-          iNftProfiles[p.tokenId] = p.profile;
-        }
-      }
-    } catch {
-      // 0G chain unavailable, non-critical
-    }
-
-    // Step 4: Merge iNFT profiles into agent data
-    const agents = agentData.map((agent) => ({
-      ...agent,
-      agentProfile: iNftProfiles[agent.iNftTokenId] || null,
-    }));
 
     return res.status(200).json({
       success: true,
