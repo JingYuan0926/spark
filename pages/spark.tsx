@@ -51,7 +51,6 @@ export default function SparkPage() {
     content: string;
     category: string;
     accessTier: "public" | "gated";
-    zgRootHash: string;
     timestamp: string;
     approvals: number;
     rejections: number;
@@ -72,8 +71,6 @@ export default function SparkPage() {
     evmAddress: string;
     botTopicId: string;
     voteTopicId: string;
-    zgRootHash: string;
-    iNftTokenId: number;
     hbarBalance: number;
     tokens: { tokenId: string; balance: number }[];
     upvotes: number;
@@ -92,36 +89,14 @@ export default function SparkPage() {
   const [directoryAgents, setDirectoryAgents] = useState<DirectoryAgent[]>([]);
   const [directoryLoading, setDirectoryLoading] = useState(false);
 
-  // ── iNFT Data Manager state ──────────────────────────────────
-  interface InftFileEntry {
+  // ── Register file attachments state ─────────────────────────
+  interface FileEntry {
     content: string;
     label: string;
     type: "memory" | "skills" | "heartbeat" | "personality";
   }
-  const [inftTokenId, setInftTokenId] = useState("");
-  const [inftFiles, setInftFiles] = useState<InftFileEntry[]>([
-    { content: "", label: "", type: "memory" },
-  ]);
-  const [inftResult, setInftResult] = useState<ApiResult | null>(null);
-  const [inftLoading, setInftLoading] = useState(false);
-  const [inftExistingData, setInftExistingData] = useState<
-    { dataDescription: string; dataHash: string }[]
-  >([]);
-
-  // ── Register file attachments state ─────────────────────────
-  const [registerFiles, setRegisterFiles] = useState<InftFileEntry[]>([]);
+  const [registerFiles, setRegisterFiles] = useState<FileEntry[]>([]);
   const [showRegisterFiles, setShowRegisterFiles] = useState(false);
-
-  // ── Update Profile state ──────────────────────────────────────
-  const [profileDomainTags, setProfileDomainTags] = useState("");
-  const [profileServiceOfferings, setProfileServiceOfferings] = useState("");
-  const [profileResult, setProfileResult] = useState<ApiResult | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-
-  // ── View iNFT Data state ──────────────────────────────────────
-  const [viewDataContent, setViewDataContent] = useState<unknown>(null);
-  const [viewDataLoading, setViewDataLoading] = useState<string | null>(null);
-  const [viewDataError, setViewDataError] = useState<string | null>(null);
 
   // ── Knowledge Ledger state ────────────────────────────────────
   interface TopicEntry {
@@ -174,114 +149,6 @@ export default function SparkPage() {
     setRegistryLoading(false);
   }
 
-  // ── iNFT Data Manager handlers ──────────────────────────────
-  function handleAddInftFile() {
-    setInftFiles((prev) => [...prev, { content: "", label: "", type: "memory" }]);
-  }
-
-  function handleRemoveInftFile(index: number) {
-    setInftFiles((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function handleUpdateInftFile(
-    index: number,
-    field: keyof InftFileEntry,
-    value: string
-  ) {
-    setInftFiles((prev) =>
-      prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
-    );
-  }
-
-  async function handleUploadToInft() {
-    if (!inftTokenId) {
-      setInftResult({ success: false, error: "Token ID is required" });
-      return;
-    }
-    const validFiles = inftFiles.filter((f) => f.content.trim());
-    if (validFiles.length === 0) {
-      setInftResult({ success: false, error: "At least one file with content is required" });
-      return;
-    }
-
-    setInftLoading(true);
-    setInftResult(null);
-    try {
-      const res = await fetch("/api/spark/update-inft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tokenId: Number(inftTokenId),
-          files: validFiles,
-        }),
-      });
-      const result = await res.json();
-      setInftResult(result);
-      if (result.success && result.uploadedEntries) {
-        setInftExistingData((prev) => [
-          ...prev,
-          ...(result.uploadedEntries as { dataDescription: string; dataHash: string }[]),
-        ]);
-      }
-    } catch (err) {
-      setInftResult({ success: false, error: String(err) });
-    }
-    setInftLoading(false);
-  }
-
-  // ── Update Profile handler ──────────────────────────────────
-  async function handleUpdateProfile() {
-    if (!inftTokenId) {
-      setProfileResult({ success: false, error: "Token ID is required" });
-      return;
-    }
-    if (!profileDomainTags.trim() && !profileServiceOfferings.trim()) {
-      setProfileResult({ success: false, error: "Provide at least one of domain tags or service offerings" });
-      return;
-    }
-    setProfileLoading(true);
-    setProfileResult(null);
-    try {
-      const res = await fetch("/api/spark/update-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tokenId: Number(inftTokenId),
-          domainTags: profileDomainTags.trim() || undefined,
-          serviceOfferings: profileServiceOfferings.trim() || undefined,
-        }),
-      });
-      const result = await res.json();
-      setProfileResult(result);
-    } catch (err) {
-      setProfileResult({ success: false, error: String(err) });
-    }
-    setProfileLoading(false);
-  }
-
-  // ── View iNFT Data handler ────────────────────────────────────
-  async function handleViewData(rootHash: string) {
-    setViewDataLoading(rootHash);
-    setViewDataContent(null);
-    setViewDataError(null);
-    try {
-      const res = await fetch("/api/spark/view-inft-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rootHash }),
-      });
-      const result = await res.json();
-      if (result.success) {
-        setViewDataContent(result.content);
-      } else {
-        setViewDataError(result.error);
-      }
-    } catch (err) {
-      setViewDataError(String(err));
-    }
-    setViewDataLoading(null);
-  }
-
   // ── Register file attachment handlers ────────────────────────
   function handleAddRegisterFile() {
     setRegisterFiles((prev) => [...prev, { content: "", label: "", type: "memory" }]);
@@ -293,7 +160,7 @@ export default function SparkPage() {
 
   function handleUpdateRegisterFile(
     index: number,
-    field: keyof InftFileEntry,
+    field: keyof FileEntry,
     value: string
   ) {
     setRegisterFiles((prev) =>
@@ -310,7 +177,7 @@ export default function SparkPage() {
         const text = ev.target?.result as string;
         // Guess type from filename
         const name = file.name.toLowerCase();
-        let fileType: InftFileEntry["type"] = "memory";
+        let fileType: FileEntry["type"] = "memory";
         if (name.includes("skill")) fileType = "skills";
         else if (name.includes("heartbeat")) fileType = "heartbeat";
         else if (name.includes("personality")) fileType = "personality";
@@ -432,32 +299,18 @@ export default function SparkPage() {
             reputationScore: 0,
             contributionCount: 0,
           },
-          _isAuthorized: true,
           _upvotes: 0,
           _downvotes: 0,
           _netReputation: 0,
           _botMessages: [],
           _botMessageCount: 1,
           _tokens: [{ tokenId: "0.0.7984944", balance: 100_000_000 }],
-          _intelligentData: [
-            ...(result.zgRootHash ? [{ dataDescription: `0g://storage/${result.zgRootHash}` }] : []),
-            ...(result.uploadedFiles || []).map((f: { dataDescription: string }) => ({ dataDescription: f.dataDescription })),
-          ],
           _registeredAt: new Date().toISOString(),
         };
         setRegisterResult(enriched);
         setAgents((prev) => [...prev, enriched]);
         // Auto-fill knowledge form with this agent's private key
         setKPrivateKey(result.hederaPrivateKey);
-        // Auto-fill iNFT Data Manager
-        setInftTokenId(String(result.iNftTokenId || ""));
-        setInftExistingData([
-          ...(result.zgRootHash ? [{ dataDescription: `0g://storage/${result.zgRootHash}`, dataHash: "" }] : []),
-          ...(result.uploadedFiles || []).map((f: { dataDescription: string; dataHash: string }) => ({
-            dataDescription: f.dataDescription,
-            dataHash: f.dataHash || "",
-          })),
-        ]);
       } else {
         setRegisterResult(result);
       }
@@ -534,20 +387,16 @@ export default function SparkPage() {
           botTopicId: result.botTopicId,
           voteTopicId: result.voteTopicId,
           masterTopicId: result.masterTopicId,
-          iNftTokenId: result.iNftTokenId,
-          zgRootHash: result.zgRootHash,
           airdrop: { hbar: result.hbarBalance, usdc: usdcBalance },
           // Extra loaded data
           _loaded: true,
           _agentProfile: result.agentProfile,
-          _isAuthorized: result.isAuthorized,
           _upvotes: result.upvotes,
           _downvotes: result.downvotes,
           _netReputation: result.netReputation,
           _botMessages: result.botMessages,
           _botMessageCount: result.botMessageCount,
           _tokens: result.tokens,
-          _intelligentData: result.intelligentData,
           _registeredAt: result.registeredAt,
         };
 
@@ -561,14 +410,6 @@ export default function SparkPage() {
 
         // Auto-fill knowledge form
         setKPrivateKey(loadPrivateKey);
-        // Auto-fill iNFT Data Manager
-        setInftTokenId(String(result.iNftTokenId || ""));
-        setInftExistingData(
-          (result.intelligentData || []).map((d: { dataDescription: string; dataHash: string }) => ({
-            dataDescription: d.dataDescription,
-            dataHash: d.dataHash || "",
-          }))
-        );
       }
     } catch (err) {
       setLoadResult({ success: false, error: String(err) });
@@ -1862,7 +1703,7 @@ function AgentCard({
         </>
       )}
 
-      {/* ── iNFT Profile (loaded only) ─────────────────────── */}
+      {/* ── Agent Profile (loaded only) ─────────────────────── */}
       {isLoaded && agentProfile && !(agentProfile as Record<string, unknown>).error && (
         <>
           <SectionLabel text="Agent Profile" />
@@ -1887,59 +1728,6 @@ function AgentCard({
           </div>
         </>
       )}
-
-      {/* ── Intelligent Data (loaded only) ─────────────────── */}
-      {isLoaded && iData.length > 0 && (() => {
-        const knowledgeEntries = iData.filter((d) => d.dataDescription.startsWith("0g://knowledge/"));
-        const otherEntries = iData.filter((d) => !d.dataDescription.startsWith("0g://knowledge/"));
-
-        return (
-          <>
-            <SectionLabel text={`Intelligent Data (${iData.length} entries)`} />
-            <div style={{ marginBottom: 12, fontSize: 12 }}>
-              {otherEntries.map((d, i) => {
-                const match = d.dataDescription.match(/0g:\/\/(\w+)\//);
-                const dataType = match ? match[1] : "data";
-                const typeColor =
-                  dataType === "storage" ? "#475569" :
-                    dataType === "memory" ? "#7c3aed" :
-                      dataType === "skills" ? "#16a34a" :
-                        dataType === "heartbeat" ? "#dc2626" :
-                          dataType === "personality" ? "#2563eb" :
-                            "#475569";
-                return (
-                  <div key={`other-${i}`} style={{ display: "flex", gap: 6, alignItems: "center", padding: "2px 0" }}>
-                    <span style={{ background: typeColor, color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: "bold", textTransform: "uppercase", minWidth: 60, textAlign: "center" }}>{dataType}</span>
-                    <span style={{ color: "#475569" }}>
-                      {d.dataDescription.length > 50 ? d.dataDescription.slice(0, 25) + "..." + d.dataDescription.slice(-18) : d.dataDescription}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* ── Knowledge Portfolio ──────────────────────────── */}
-            {knowledgeEntries.length > 0 && (
-              <>
-                <SectionLabel text={`Knowledge Portfolio (${knowledgeEntries.length} approved)`} />
-                <div style={{ marginBottom: 12, fontSize: 12, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: 8 }}>
-                  {knowledgeEntries.map((d, i) => {
-                    const hash = d.dataDescription.replace("0g://knowledge/", "");
-                    return (
-                      <div key={`k-${i}`} style={{ display: "flex", gap: 6, alignItems: "center", padding: "3px 0", borderBottom: i < knowledgeEntries.length - 1 ? "1px solid #fef3c7" : "none" }}>
-                        <span style={{ background: "#ca8a04", color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 9, fontWeight: "bold", minWidth: 60, textAlign: "center" }}>KNOWLEDGE</span>
-                        <span style={{ color: "#92400e", fontFamily: "monospace" }}>
-                          {hash.length > 40 ? hash.slice(0, 18) + "..." + hash.slice(-12) : hash}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </>
-        );
-      })()}
 
       {/* ── Hedera Testnet ──────────────────────────────── */}
       <SectionLabel text="Hedera Testnet" />
@@ -1983,60 +1771,6 @@ function AgentCard({
           onCopy={onCopy}
           detail="submit key = operator"
         />
-      </div>
-
-      {/* ── 0G Chain ────────────────────────────────────── */}
-      <SectionLabel text="0G Galileo Testnet (Chain ID 16602)" />
-      <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
-        <LinkRow
-          label={`iNFT #${tokenId}`}
-          value={INFT_CONTRACT}
-          url={`${ZG_EXPLORER}/address/${INFT_CONTRACT}`}
-          onCopy={onCopy}
-          detail={`tokenId=${tokenId}, authorized=${evmAddr}`}
-        />
-        {mintTxHash && (
-          <LinkRow
-            label="Mint Tx"
-            value={mintTxHash}
-            url={`${ZG_EXPLORER}/tx/${mintTxHash}`}
-            onCopy={onCopy}
-          />
-        )}
-        {authTxHash && (
-          <LinkRow
-            label="Authorize Tx"
-            value={authTxHash}
-            url={`${ZG_EXPLORER}/tx/${authTxHash}`}
-            onCopy={onCopy}
-          />
-        )}
-        {configHash && (
-          <LinkRow
-            label="Config Hash"
-            value={configHash}
-            onCopy={onCopy}
-          />
-        )}
-      </div>
-
-      {/* ── 0G Storage ──────────────────────────────────── */}
-      <SectionLabel text="0G Storage (Decentralized)" />
-      <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
-        <LinkRow
-          label="Root Hash"
-          value={zgHash}
-          onCopy={onCopy}
-          detail="agent config, encrypted API key, system prompt"
-        />
-        {zgUploadTxHash && (
-          <LinkRow
-            label="Upload Tx"
-            value={zgUploadTxHash}
-            url={`${ZG_EXPLORER}/tx/${zgUploadTxHash}`}
-            onCopy={onCopy}
-          />
-        )}
       </div>
 
       {/* ── Credentials (expandable) ────────────────────── */}
@@ -2242,7 +1976,6 @@ function LoadedAgentSummary({ data }: { data: ApiResult }) {
   const profile = data.agentProfile as Record<string, unknown> | null;
   const tokens = (data.tokens as { tokenId: string; balance: number }[]) || [];
   const botMsgs = data.botMessageCount as number;
-  const iData = (data.intelligentData as { dataDescription: string }[]) || [];
 
   return (
     <div
@@ -2264,7 +1997,6 @@ function LoadedAgentSummary({ data }: { data: ApiResult }) {
       <div style={{ fontSize: 12, lineHeight: 1.8 }}>
         <div>Account: <strong>{data.hederaAccountId as string}</strong></div>
         <div>EVM: <strong>{data.evmAddress as string}</strong></div>
-        <div>iNFT #{data.iNftTokenId as number} — authorized: <strong>{data.isAuthorized ? "YES" : "NO"}</strong></div>
         <div>Registered: {data.registeredAt as string}</div>
       </div>
 
@@ -2279,7 +2011,7 @@ function LoadedAgentSummary({ data }: { data: ApiResult }) {
         ))}
       </div>
 
-      {/* On-chain Profile (from iNFT) */}
+      {/* Agent Profile */}
       {profile && !profile.error && (
         <>
           <SectionLabel text="Agent Profile" />
@@ -2306,16 +2038,6 @@ function LoadedAgentSummary({ data }: { data: ApiResult }) {
         <div>{botMsgs} messages on bot topic</div>
       </div>
 
-      {/* 0G Storage */}
-      {iData.length > 0 && (
-        <>
-          <SectionLabel text="Intelligent Data (0G Storage)" />
-          {iData.map((d, i) => (
-            <div key={i} style={{ fontSize: 12 }}>{d.dataDescription}</div>
-          ))}
-        </>
-      )}
-
       {/* Topics */}
       <SectionLabel text="Explorer Links" />
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
@@ -2323,7 +2045,6 @@ function LoadedAgentSummary({ data }: { data: ApiResult }) {
         <a href={`https://hashscan.io/testnet/topic/${data.botTopicId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>Bot Topic</a>
         <a href={`https://hashscan.io/testnet/topic/${data.voteTopicId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>Vote Topic</a>
         <a href={`https://hashscan.io/testnet/topic/${data.masterTopicId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>Master Topic</a>
-        <a href={`${ZG_EXPLORER}/address/${INFT_CONTRACT}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>iNFT Contract</a>
       </div>
     </div>
   );
@@ -2356,7 +2077,6 @@ function KnowledgeCard({
     author: string;
     content: string;
     category: string;
-    zgRootHash: string;
     timestamp: string;
     approvals: number;
     rejections: number;
@@ -2625,21 +2345,9 @@ function TopicSection({
                   </span>
                 )}
               </div>
-              {(msg.zgRootHash as string) && (
+              {(msg.itemId as string) && (
                 <div style={{ marginTop: 4, color: "#64748b" }}>
-                  0G: <span
-                    onClick={() => onCopy(msg.zgRootHash as string)}
-                    style={{ cursor: "pointer", textDecoration: "underline" }}
-                    title="Click to copy"
-                  >
-                    {(msg.zgRootHash as string).slice(0, 18)}...
-                  </span>
-                  {msg.iNftTokenId !== undefined && (
-                    <span> | iNFT #{msg.iNftTokenId as number}</span>
-                  )}
-                  {(msg.itemId as string) && (
-                    <span> | {msg.itemId as string}</span>
-                  )}
+                  {msg.itemId as string}
                 </div>
               )}
               {(msg.content as string) && (

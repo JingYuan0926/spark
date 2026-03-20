@@ -614,7 +614,29 @@ function KnowledgeModal({
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
   const [isGrouped, setIsGrouped] = useState(false);
   const [registryFilter, setRegistryFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [showGatedRegistry, setShowGatedRegistry] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [votingId, setVotingId] = useState<string | null>(null);
+  const voteTopicMap: Record<string, string> = {};
   const globeContainerRef = useRef<HTMLDivElement>(null);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try { await onRefresh?.(); } finally { setRefreshing(false); }
+  }
+
+  const FILTER_TABS = [
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending" },
+    { key: "approved", label: "Approved" },
+    { key: "rejected", label: "Rejected" },
+  ];
+
+  const filteredItems = knowledgeItems.filter((k) =>
+    activeFilter === "all" ? true : k.status === activeFilter
+  );
 
   // Vote state
   const [voteLoading, setVoteLoading] = useState(false);
@@ -653,6 +675,12 @@ function KnowledgeModal({
       setVoteResult({ success: false, error: err instanceof Error ? err.message : String(err) });
     }
     setVoteLoading(false);
+  }
+
+  async function handleApprove(itemId: string, vote: "approve" | "reject") {
+    setApprovingId(itemId + vote);
+    await handleVote(itemId, vote);
+    setApprovingId(null);
   }
   async function handleSubmitKnowledge() {
     if (!privateKey) {
@@ -1111,6 +1139,10 @@ function KnowledgeModal({
               ))}
             </div>
           </div>
+            ) : (
+              <p className="text-sm text-white/30">Click to explore knowledge</p>
+            )}
+          </div>
 
           {/* Filter tabs + entries */}
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pb-6">
@@ -1410,7 +1442,7 @@ function KnowledgeModal({
                           <div className="flex items-center gap-1">
                             {/* Upvote */}
                             <button
-                              onClick={() => handleVote(k.author, "upvote", k.id)}
+                              onClick={() => handleVote(k.id, "approve")}
                               disabled={!!votingId}
                               className="rounded p-1 text-white/30 transition hover:bg-[#4B7F52]/20 hover:text-[#4B7F52] disabled:opacity-30"
                               title="Upvote (HCS-20)"
@@ -1423,7 +1455,7 @@ function KnowledgeModal({
                             </button>
                             {/* Downvote */}
                             <button
-                              onClick={() => handleVote(k.author, "downvote", k.id)}
+                              onClick={() => handleVote(k.id, "reject")}
                               disabled={!!votingId}
                               className="rounded p-1 text-white/30 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-30"
                               title="Downvote (HCS-20)"
@@ -1473,7 +1505,7 @@ function KnowledgeModal({
           </div>
         </div>
       </div>
-    </div >
+    </div>
   );
 }
 
