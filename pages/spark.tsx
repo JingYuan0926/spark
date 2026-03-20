@@ -591,7 +591,7 @@ export default function SparkPage() {
     >
       <h1>SPARK — Agent Registration</h1>
       <p style={{ color: "#888" }}>
-        Register AI agents across Hedera + 0G, then submit knowledge
+        Register AI agents on Hedera, then submit knowledge
       </p>
 
       <hr style={{ margin: "24px 0" }} />
@@ -602,12 +602,12 @@ export default function SparkPage() {
       <section style={{ margin: "24px 0" }}>
         <h2>1. Register Agent</h2>
         <p style={{ color: "#666", fontSize: 13 }}>
-          Creates Hedera account (10 HBAR + 100 USDC), 3 HCS topics, uploads
-          config to 0G Storage, mints iNFT on 0G Chain.
+          Creates Hedera account (10 HBAR + 100 USDC), 3 HCS topics, stores
+          config on HCS, and logs to the master ledger.
         </p>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-          <Field label="Bot Name (optional)" value={botId} onChange={setBotId} placeholder="Leave blank for auto-name (SPARK Bot #iNFT)" />
+          <Field label="Bot Name (optional)" value={botId} onChange={setBotId} placeholder="Leave blank for auto-name" />
           <Field
             label="Domain Tags"
             value={domainTags}
@@ -624,7 +624,7 @@ export default function SparkPage() {
             onChange={setModelProvider}
           />
           <Field
-            label="API Key (encrypted on 0G)"
+            label="API Key"
             value={apiKey}
             onChange={setApiKey}
             type="password"
@@ -663,14 +663,14 @@ export default function SparkPage() {
                 color: "#475569",
               }}
             >
-              {showRegisterFiles ? "Hide" : "Attach"} Files to iNFT (memory, skills, heartbeat, personality)
+              {showRegisterFiles ? "Hide" : "Attach"} Files (memory, skills, heartbeat, personality)
             </button>
           </div>
 
           {showRegisterFiles && (
             <div style={{ marginTop: 8, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
-                Optional: attach files that will be uploaded to 0G Storage and stored as intelligent data on the iNFT.
+                Optional: attach files that will be stored as agent data.
               </div>
               {registerFiles.map((file, i) => (
                 <div key={i} style={{ marginBottom: 8, padding: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 4 }}>
@@ -777,7 +777,7 @@ export default function SparkPage() {
         <h2>Load Existing Agent</h2>
         <p style={{ color: "#666", fontSize: 13 }}>
           Paste a private key to reconstruct the full agent profile from
-          on-chain data (Hedera + 0G).
+          on-chain data (Hedera).
         </p>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
@@ -810,7 +810,7 @@ export default function SparkPage() {
           }}
         >
           {loadLoading
-            ? "Loading... (querying Hedera + 0G)"
+            ? "Loading... (querying Hedera)"
             : "Load Agent"}
         </button>
 
@@ -860,221 +860,6 @@ export default function SparkPage() {
         </section>
       )}
 
-      <hr style={{ margin: "24px 0" }} />
-
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/*  iNFT DATA MANAGER                                        */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <section style={{ margin: "24px 0" }}>
-        <h2>iNFT Data Manager</h2>
-        <p style={{ color: "#666", fontSize: 13 }}>
-          Upload files to 0G Storage and attach them as intelligent data on your iNFT.
-          Supports memory, skills, heartbeat, and personality data — making the iNFT a fully reconstructable agent.
-        </p>
-
-        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-          <Field
-            label="iNFT Token ID (auto-filled from register/load)"
-            value={inftTokenId}
-            onChange={setInftTokenId}
-            placeholder="e.g. 15"
-          />
-        </div>
-
-        {/* Current Intelligent Data with View buttons */}
-        {inftExistingData.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <SectionLabel text={`Current Intelligent Data (${inftExistingData.length} entries)`} />
-            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: 10, maxHeight: 300, overflow: "auto" }}>
-              {inftExistingData.map((d, i) => {
-                const match = d.dataDescription.match(/0g:\/\/(\w+)\//);
-                const dataType = match ? match[1] : "unknown";
-                const rootHashMatch = d.dataDescription.match(/0g:\/\/\w+\/(.+)/);
-                const rootHash = rootHashMatch ? rootHashMatch[1] : null;
-                const typeColor =
-                  dataType === "storage" ? "#475569" :
-                    dataType === "memory" ? "#7c3aed" :
-                      dataType === "skills" ? "#16a34a" :
-                        dataType === "heartbeat" ? "#dc2626" :
-                          dataType === "personality" ? "#2563eb" :
-                            dataType === "knowledge" ? "#ca8a04" :
-                              "#475569";
-                return (
-                  <div key={i} style={{ fontSize: 12, padding: "4px 0", borderBottom: i < inftExistingData.length - 1 ? "1px solid #f1f5f9" : "none", display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ background: typeColor, color: "#fff", padding: "1px 6px", borderRadius: 3, fontSize: 10, fontWeight: "bold", textTransform: "uppercase", minWidth: 70, textAlign: "center" }}>
-                      {dataType}
-                    </span>
-                    <span style={{ color: "#475569", fontFamily: "monospace", flex: 1 }}>
-                      {d.dataDescription.length > 55
-                        ? d.dataDescription.slice(0, 28) + "..." + d.dataDescription.slice(-18)
-                        : d.dataDescription}
-                    </span>
-                    {rootHash && (
-                      <button
-                        onClick={() => handleViewData(rootHash)}
-                        disabled={viewDataLoading === rootHash}
-                        style={{
-                          fontSize: 10,
-                          cursor: viewDataLoading === rootHash ? "wait" : "pointer",
-                          padding: "2px 8px",
-                          background: viewDataLoading === rootHash ? "#e2e8f0" : "#dbeafe",
-                          color: "#2563eb",
-                          border: "1px solid #93c5fd",
-                          borderRadius: 3,
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {viewDataLoading === rootHash ? "Loading..." : "View"}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* View Data Result */}
-            {viewDataContent ? (
-              <div style={{ marginTop: 8, background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 6, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: "bold", color: "#1e40af" }}>Downloaded Content</span>
-                  <button onClick={() => setViewDataContent(null)} style={{ fontSize: 10, cursor: "pointer", padding: "2px 8px", background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 3, color: "#2563eb" }}>Close</button>
-                </div>
-                <pre style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 4, padding: 10, overflow: "auto", maxHeight: 300, fontSize: 12, margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                  {typeof viewDataContent === "string" ? viewDataContent : JSON.stringify(viewDataContent as object, null, 2)}
-                </pre>
-              </div>
-            ) : null}
-            {viewDataError && (
-              <div style={{ marginTop: 8, padding: 8, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, fontSize: 12, color: "#dc2626" }}>
-                View error: {viewDataError}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Multi-file upload area */}
-        <div style={{ marginTop: 16 }}>
-          <SectionLabel text="Files to Upload" />
-          {inftFiles.map((file, i) => (
-            <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: 12, marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: "bold", color: "#475569" }}>File #{i + 1}</span>
-                {inftFiles.length > 1 && (
-                  <button onClick={() => handleRemoveInftFile(i)} style={{ fontSize: 11, cursor: "pointer", padding: "2px 8px", background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5", borderRadius: 3 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ minWidth: 140 }}>
-                    <label style={{ fontSize: 11, color: "#666" }}>Type</label>
-                    <select value={file.type} onChange={(e) => handleUpdateInftFile(i, "type", e.target.value)} style={{ width: "100%", fontFamily: "monospace", fontSize: 13, padding: 6, border: "1px solid #ccc" }}>
-                      <option value="memory">Memory</option>
-                      <option value="skills">Skills</option>
-                      <option value="heartbeat">Heartbeat</option>
-                      <option value="personality">Personality</option>
-                    </select>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: "#666" }}>Label</label>
-                    <input type="text" value={file.label} onChange={(e) => handleUpdateInftFile(i, "label", e.target.value)} placeholder="e.g. Core personality traits" style={{ width: "100%", fontFamily: "monospace", fontSize: 13, padding: 6, border: "1px solid #ccc", boxSizing: "border-box" }} />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: "#666" }}>Content</label>
-                  <textarea value={file.content} onChange={(e) => handleUpdateInftFile(i, "content", e.target.value)} rows={4} placeholder="JSON or text content..." style={{ width: "100%", fontFamily: "monospace", fontSize: 13, padding: 8, border: "1px solid #ccc", boxSizing: "border-box" }} />
-                </div>
-              </div>
-            </div>
-          ))}
-
-          <button onClick={handleAddInftFile} style={{ fontSize: 12, cursor: "pointer", padding: "6px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, marginBottom: 12 }}>
-            + Add Another File
-          </button>
-        </div>
-
-        {/* Upload button */}
-        <button
-          onClick={handleUploadToInft}
-          disabled={inftLoading}
-          style={{
-            marginTop: 8,
-            padding: "10px 24px",
-            fontSize: 14,
-            fontFamily: "monospace",
-            fontWeight: "bold",
-            cursor: inftLoading ? "wait" : "pointer",
-            background: inftLoading ? "#ccc" : "#3730a3",
-            color: "#fff",
-            border: "none",
-          }}
-        >
-          {inftLoading ? "Uploading to 0G + updating iNFT..." : "Upload to iNFT"}
-        </button>
-
-        {/* Result feedback */}
-        {inftResult && !inftResult.success && <ResultBlock data={inftResult} />}
-        {inftResult?.success && (
-          <div style={{ marginTop: 12, padding: 16, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 8, fontSize: 13 }}>
-            <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "#166534" }}>iNFT Updated Successfully</h4>
-            <div style={{ display: "grid", gap: 4 }}>
-              <div><span style={{ color: "#475569" }}>Token ID: </span><strong>{inftResult.tokenId as number}</strong></div>
-              <div><span style={{ color: "#475569" }}>Total Entries: </span><strong>{inftResult.totalEntries as number}</strong></div>
-              <div>
-                <span style={{ color: "#475569" }}>Update Tx: </span>
-                <a href={`https://chainscan-galileo.0g.ai/tx/${inftResult.updateDataTxHash as string}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "underline" }}>
-                  {(inftResult.updateDataTxHash as string).slice(0, 18)}...
-                </a>
-              </div>
-              {(inftResult.uploadedEntries as { dataDescription: string }[])?.map((entry, i) => (
-                <div key={i} style={{ color: "#475569" }}>Uploaded: <strong>{entry.dataDescription}</strong></div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Update Profile ───────────────────────────────────── */}
-        <div style={{ marginTop: 24, padding: 16, background: "#faf5ff", border: "1px solid #d8b4fe", borderRadius: 8 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#7c3aed" }}>Update Agent Profile</h3>
-          <p style={{ color: "#666", fontSize: 12, margin: "0 0 12px" }}>
-            Update domainTags and serviceOfferings on-chain (0G Galileo). Requires iNFT Token ID above.
-          </p>
-          <div style={{ display: "grid", gap: 8 }}>
-            <Field label="Domain Tags" value={profileDomainTags} onChange={setProfileDomainTags} placeholder="e.g. defi,nft,analytics" />
-            <Field label="Service Offerings" value={profileServiceOfferings} onChange={setProfileServiceOfferings} placeholder="e.g. scraping,analysis,alerts" />
-          </div>
-          <button
-            onClick={handleUpdateProfile}
-            disabled={profileLoading}
-            style={{
-              marginTop: 8,
-              padding: "8px 20px",
-              fontSize: 13,
-              fontFamily: "monospace",
-              fontWeight: "bold",
-              cursor: profileLoading ? "wait" : "pointer",
-              background: profileLoading ? "#ccc" : "#7c3aed",
-              color: "#fff",
-              border: "none",
-              borderRadius: 4,
-            }}
-          >
-            {profileLoading ? "Updating profile..." : "Update Profile"}
-          </button>
-          {profileResult && !profileResult.success && <ResultBlock data={profileResult} />}
-          {profileResult?.success && (
-            <div style={{ marginTop: 8, padding: 10, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, fontSize: 12 }}>
-              Profile updated!{" "}
-              <a href={`https://chainscan-galileo.0g.ai/tx/${profileResult.txHash as string}`} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>
-                Tx: {(profileResult.txHash as string).slice(0, 18)}...
-              </a>
-              {" | "}Domain: <strong>{profileResult.domainTags as string}</strong> | Services: <strong>{profileResult.serviceOfferings as string}</strong>
-            </div>
-          )}
-        </div>
-
-      </section>
 
       <hr style={{ margin: "24px 0" }} />
 
@@ -1085,7 +870,7 @@ export default function SparkPage() {
         <h2>2. Submit Knowledge</h2>
         <p style={{ color: "#666", fontSize: 13 }}>
           Just the private key + content. API auto-resolves account ID and bot
-          topic from the master ledger, then uploads to 0G + logs to HCS.
+          topic from the master ledger, then logs to HCS.
         </p>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
@@ -1150,7 +935,7 @@ export default function SparkPage() {
           }}
         >
           {knowledgeLoading
-            ? "Submitting... (uploading to 0G + HCS)"
+            ? "Submitting... (logging to HCS)"
             : "Submit Knowledge"}
         </button>
 
@@ -1634,7 +1419,7 @@ export default function SparkPage() {
       <section style={{ margin: "24px 0" }}>
         <h2>Agent Directory</h2>
         <p style={{ color: "#666", fontSize: 13 }}>
-          All registered agents on the network. Data fetched from master topic + Mirror Node + 0G Chain. No private key needed.
+          All registered agents on the network. Data fetched from master topic + Mirror Node. No private key needed.
         </p>
 
         <button
@@ -1686,9 +1471,7 @@ export default function SparkPage() {
                       <h3 style={{ margin: 0, fontSize: 15 }}>
                         {agent.botId && agent.botId !== "spark-bot-001"
                           ? agent.botId
-                          : agent.iNftTokenId > 0
-                            ? `SPARK Bot #${String(agent.iNftTokenId).padStart(3, "0")}`
-                            : `Agent ${agent.hederaAccountId.split(".").pop()}`}
+                          : `Agent ${agent.hederaAccountId.split(".").pop()}`}
                       </h3>
                       <a
                         href={`https://hashscan.io/testnet/account/${agent.hederaAccountId}`}
@@ -1700,24 +1483,6 @@ export default function SparkPage() {
                       </a>
                     </div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      {agent.iNftTokenId > 0 && (
-                        <a
-                          href={`https://chainscan-galileo.0g.ai/address/0xc6D7c5Db8Ae14Be4aAB5332711a72026D41b7dB5`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            background: "#e0e7ff",
-                            color: "#3730a3",
-                            padding: "2px 8px",
-                            borderRadius: 12,
-                            fontSize: 11,
-                            fontWeight: "bold",
-                            textDecoration: "none",
-                          }}
-                        >
-                          iNFT #{agent.iNftTokenId}
-                        </a>
-                      )}
                     </div>
                   </div>
 
@@ -1741,7 +1506,7 @@ export default function SparkPage() {
                     </span>
                   </div>
 
-                  {/* iNFT Profile */}
+                  {/* Agent Profile */}
                   {agent.agentProfile && (
                     <div style={{ display: "flex", gap: 16, fontSize: 12, flexWrap: "wrap", marginBottom: 10 }}>
                       <span>Domain: <strong>{agent.agentProfile.domainTags}</strong></span>
@@ -1853,9 +1618,6 @@ function Field({
   );
 }
 
-const INFT_CONTRACT = "0xc6D7c5Db8Ae14Be4aAB5332711a72026D41b7dB5";
-const ZG_EXPLORER = "https://chainscan-galileo.0g.ai";
-
 // Known token decimals for display formatting
 const TOKEN_DECIMALS: Record<string, { decimals: number; symbol: string }> = {
   "0.0.7984944": { decimals: 6, symbol: "USDC" },
@@ -1889,7 +1651,6 @@ function OnChainResult({
   const [showJson, setShowJson] = useState(false);
   const masterTopicId = data.masterTopicId as string;
   const botTopicId = data.botTopicId as string;
-  const zgHash = data.zgRootHash as string;
   const category = data.category as string;
   const categoryTopicId = data.categoryTopicId as string;
 
@@ -1937,32 +1698,7 @@ function OnChainResult({
         />
       </div>
 
-      {/* 0G Storage */}
-      <SectionLabel text="0G Storage" />
-      <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
-        <LinkRow
-          label="Root Hash"
-          value={zgHash}
-          onCopy={onCopy}
-        />
-        {(data.zgUploadTxHash as string) && (
-          <LinkRow
-            label="Upload Tx"
-            value={data.zgUploadTxHash as string}
-            url={`${ZG_EXPLORER}/tx/${data.zgUploadTxHash as string}`}
-            onCopy={onCopy}
-          />
-        )}
-        {(data.configHash as string) && (
-          <LinkRow
-            label="Config Hash"
-            value={data.configHash as string}
-            onCopy={onCopy}
-          />
-        )}
-      </div>
-
-      {/* Register-specific: account + iNFT */}
+      {/* Register-specific: account identity */}
       {type === "register" && (
         <>
           <SectionLabel text="Identity" />
@@ -1977,12 +1713,6 @@ function OnChainResult({
             <LinkRow
               label="EVM Address"
               value={data.evmAddress as string}
-              onCopy={onCopy}
-            />
-            <LinkRow
-              label={`iNFT #${data.iNftTokenId as number}`}
-              value={INFT_CONTRACT}
-              url={`${ZG_EXPLORER}/address/${INFT_CONTRACT}`}
               onCopy={onCopy}
             />
             <LinkRow
@@ -2049,22 +1779,14 @@ function AgentCard({
   const botTopicId = agent.botTopicId as string;
   const voteTopicId = agent.voteTopicId as string;
   const masterTopicId = agent.masterTopicId as string;
-  const tokenId = agent.iNftTokenId as number;
-  const zgHash = agent.zgRootHash as string;
-  const configHash = (agent.configHash as string) || "";
-  const zgUploadTxHash = (agent.zgUploadTxHash as string) || "";
-  const mintTxHash = (agent.mintTxHash as string) || "";
-  const authTxHash = (agent.authTxHash as string) || "";
   const airdrop = agent.airdrop as { hbar: number; usdc: number };
   const isLoaded = agent._loaded as boolean;
   const agentProfile = agent._agentProfile as Record<string, unknown> | null;
-  const isAuthorized = agent._isAuthorized as boolean;
   const upvotes = (agent._upvotes as number) || 0;
   const downvotes = (agent._downvotes as number) || 0;
   const netRep = (agent._netReputation as number) || 0;
   const botMsgCount = (agent._botMessageCount as number) || 0;
   const tokens = (agent._tokens as { tokenId: string; balance: number }[]) || [];
-  const iData = (agent._intelligentData as { dataDescription: string }[]) || [];
   const registeredAt = agent._registeredAt as string;
 
   return (
@@ -2088,9 +1810,7 @@ function AgentCard({
         <h3 style={{ margin: 0, fontSize: 16 }}>
           {agent.botId && (agent.botId as string) !== "spark-bot-001"
             ? agent.botId as string
-            : tokenId > 0
-              ? `SPARK Bot #${String(tokenId).padStart(3, "0")}`
-              : `Agent #${index + 1}`}
+            : `Agent #${index + 1}`}
           {" "}<span style={{ fontWeight: "normal", fontSize: 13, color: "#64748b" }}>— {accountId}</span>
         </h3>
         <div style={{ display: "flex", gap: 6 }}>
@@ -2110,7 +1830,7 @@ function AgentCard({
           )}
           <span
             style={{
-              background: isAuthorized ? "#dcfce7" : "#dcfce7",
+              background: "#dcfce7",
               color: "#166534",
               padding: "2px 10px",
               borderRadius: 12,
@@ -2118,7 +1838,7 @@ function AgentCard({
               fontWeight: "bold",
             }}
           >
-            {isAuthorized ? "Authorized" : "Registered"}
+            Registered
           </span>
         </div>
       </div>
@@ -2126,8 +1846,8 @@ function AgentCard({
       {/* Summary line */}
       <p style={{ color: "#666", fontSize: 12, margin: "4px 0 12px" }}>
         {isLoaded
-          ? `Balance: ${formatHbar(airdrop.hbar)} HBAR + ${airdrop.usdc} USDC | iNFT #${tokenId} | ${botMsgCount} messages | Registered: ${registeredAt?.slice(0, 10) || "?"}`
-          : `Funded: ${airdrop.hbar} HBAR + ${airdrop.usdc} USDC | iNFT #${tokenId} | Master seq #${agent.masterSeqNo as string}`}
+          ? `Balance: ${formatHbar(airdrop.hbar)} HBAR + ${airdrop.usdc} USDC | ${botMsgCount} messages | Registered: ${registeredAt?.slice(0, 10) || "?"}`
+          : `Funded: ${airdrop.hbar} HBAR + ${airdrop.usdc} USDC | Master seq #${agent.masterSeqNo as string}`}
       </p>
 
       {/* ── Live Balances (loaded only) ────────────────────── */}
@@ -2145,7 +1865,7 @@ function AgentCard({
       {/* ── iNFT Profile (loaded only) ─────────────────────── */}
       {isLoaded && agentProfile && !(agentProfile as Record<string, unknown>).error && (
         <>
-          <SectionLabel text="iNFT Agent Profile (0G Chain)" />
+          <SectionLabel text="Agent Profile" />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 12, fontSize: 12 }}>
             <div>Domain: <strong>{agentProfile.domainTags as string}</strong></div>
             <div>Services: <strong>{agentProfile.serviceOfferings as string}</strong></div>
@@ -2562,7 +2282,7 @@ function LoadedAgentSummary({ data }: { data: ApiResult }) {
       {/* On-chain Profile (from iNFT) */}
       {profile && !profile.error && (
         <>
-          <SectionLabel text="iNFT Agent Profile (0G Chain)" />
+          <SectionLabel text="Agent Profile" />
           <div style={{ fontSize: 12, lineHeight: 1.8 }}>
             <div>Domain: <strong>{profile.domainTags as string}</strong></div>
             <div>Services: <strong>{profile.serviceOfferings as string}</strong></div>

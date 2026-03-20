@@ -6,7 +6,6 @@ import { AgentSession } from "@/components/dashboard/AgentSession";
 import { KnowledgeLayer } from "@/components/dashboard/KnowledgeLayer";
 import { AgentAccount } from "@/components/dashboard/AgentAccount";
 import { AgentProvider, useAgent, AgentData } from "@/contexts/AgentContext";
-import { AgentComputePanel } from "@/components/dashboard/AgentComputePanel";
 
 const REGISTER_STEPS = [
   "Creating Hedera Account",
@@ -14,9 +13,7 @@ const REGISTER_STEPS = [
   "Creating Bot Topic",
   "Creating Vote Topic",
   "Deploying HCS-20 Tokens",
-  "Uploading to 0G Storage",
-  "Minting iNFT on 0G Chain",
-  "Authorizing on iNFT",
+  "Storing Config on HCS",
   "Logging to Master Ledger",
 ];
 
@@ -97,21 +94,13 @@ function AuthGate() {
           hederaAccountId: result.hederaAccountId,
           hederaPublicKey: result.hederaPublicKey,
           evmAddress: result.evmAddress,
+          domainTags: result.domainTags || "",
+          serviceOfferings: result.serviceOfferings || "",
           hbarBalance: result.hbarBalance || 0,
           tokens: result.tokens || [],
           masterTopicId: result.masterTopicId,
           botTopicId: result.botTopicId,
           voteTopicId: result.voteTopicId,
-          iNftTokenId: result.iNftTokenId || 0,
-          isAuthorized: result.isAuthorized || false,
-          agentProfile: result.agentProfile || null,
-          intelligentData: (result.intelligentData || []).map(
-            (d: { dataDescription: string; dataHash: string }) => ({
-              dataDescription: d.dataDescription,
-              dataHash: d.dataHash || "",
-            })
-          ),
-          zgRootHash: result.zgRootHash || "",
           upvotes: result.upvotes || 0,
           downvotes: result.downvotes || 0,
           netReputation: result.netReputation || 0,
@@ -183,25 +172,13 @@ function AuthGate() {
         hederaAccountId: result.hederaAccountId,
         hederaPublicKey: result.hederaPublicKey,
         evmAddress: result.evmAddress,
+        domainTags,
+        serviceOfferings,
         hbarBalance: result.airdrop?.hbar || 10,
         tokens: [{ tokenId: "0.0.7984944", balance: (usdcToken.usdc || 100) * 1e6 }],
         masterTopicId: result.masterTopicId,
         botTopicId: result.botTopicId,
         voteTopicId: result.voteTopicId,
-        iNftTokenId: result.iNftTokenId || 0,
-        isAuthorized: true,
-        agentProfile: {
-          botId: result.botId || effectiveBotId,
-          domainTags,
-          serviceOfferings,
-          reputationScore: 0,
-          contributionCount: 0,
-        },
-        intelligentData: result.zgRootHash
-          ? [{ dataDescription: `0g://storage/${result.zgRootHash}`, dataHash: "" }]
-          : [],
-        zgRootHash: result.zgRootHash || "",
-        zgUploadTxHash: result.zgUploadTxHash || "",
         upvotes: 0,
         downvotes: 0,
         netReputation: 0,
@@ -243,22 +220,13 @@ function AuthGate() {
         hederaAccountId: result.hederaAccountId,
         hederaPublicKey: result.hederaPublicKey,
         evmAddress: result.evmAddress,
+        domainTags: result.domainTags || "",
+        serviceOfferings: result.serviceOfferings || "",
         hbarBalance: result.hbarBalance || 0,
         tokens: result.tokens || [],
         masterTopicId: result.masterTopicId,
         botTopicId: result.botTopicId,
         voteTopicId: result.voteTopicId,
-        iNftTokenId: result.iNftTokenId || 0,
-        isAuthorized: result.isAuthorized || false,
-        agentProfile: result.agentProfile || null,
-        intelligentData: (result.intelligentData || []).map(
-          (d: { dataDescription: string; dataHash: string }) => ({
-            dataDescription: d.dataDescription,
-            dataHash: d.dataHash || "",
-          })
-        ),
-        zgRootHash: result.zgRootHash || "",
-        zgUploadTxHash: result.zgUploadTxHash || "",
         upvotes: result.upvotes || 0,
         downvotes: result.downvotes || 0,
         netReputation: result.netReputation || 0,
@@ -615,13 +583,8 @@ function AuthGate() {
 }
 
 function DashboardContent() {
-<<<<<<< HEAD
   const { agent, signOut } = useAgent();
   const router = useRouter();
-=======
-  const { agent } = useAgent();
-  const [showComputePanel, setShowComputePanel] = useState(false);
->>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
 
   if (!agent) return <AuthGate />;
 
@@ -646,20 +609,6 @@ function DashboardContent() {
         <KnowledgeLayer />
         <AgentAccount />
       </div>
-
-      {/* Floating action button */}
-      <button
-        onClick={() => setShowComputePanel((v) => !v)}
-        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#DD6E42] text-white shadow-lg transition hover:bg-[#c55e38] hover:shadow-xl active:scale-95"
-        title="Agent Compute & Chat"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-      </button>
-
-      <AgentComputePanel
-        isOpen={showComputePanel}
-        onClose={() => setShowComputePanel(false)}
-      />
     </div>
   );
 }

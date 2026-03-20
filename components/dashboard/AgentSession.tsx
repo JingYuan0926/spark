@@ -138,8 +138,7 @@ function parseActivity(msg: Record<string, unknown>, seqNo: number): ActivityEnt
 
   if (type === "agent_registered") {
     const evmAddr = (msg.evmAddress as string) || "";
-    const iNft = msg.iNftTokenId ?? msg.inft_token_id ?? "";
-    detail = `0G: ${evmAddr ? evmAddr.slice(0, 20) + "..." : "—"} | iNFT #${iNft}`;
+    detail = `EVM: ${evmAddr ? evmAddr.slice(0, 20) + "..." : "—"}`;
   } else if (type === "knowledge_submitted") {
     const cat = (msg.category as string) || "";
     const hash = (msg.dataHash as string) || (msg.data_hash as string) || "";
@@ -217,7 +216,7 @@ export function AgentSession() {
   const [activity, setActivity] = useState<ActivityEntry[]>(FALLBACK_ACTIVITY);
   const [masterTopicId, setMasterTopicId] = useState<string | null>(null);
 
-  // Chat state (from HEAD — iNFT chat)
+  // Chat state
   const [chatInput, setChatInput] = useState("");
   const [chatHistory, setChatHistory] = useState<{ role: "user" | "agent"; text: string }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -234,13 +233,12 @@ export function AgentSession() {
     setChatHistory((prev) => [...prev, { role: "user", text: userMsg }]);
     setChatLoading(true);
     try {
-      const res = await fetch("/api/inft/infer", {
+      const res = await fetch("/api/spark/agent-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tokenId: agent.iNftTokenId,
-          message: userMsg,
-          userAddress: agent.evmAddress,
+          conversationHistory: [{ role: "user", content: userMsg }],
+          currentStage: "researching",
         }),
       });
       const data = await res.json();
@@ -249,7 +247,7 @@ export function AgentSession() {
       } else {
         setChatHistory((prev) => [
           ...prev,
-          { role: "agent", text: data.response + (data.simulated ? " [simulated]" : "") },
+          { role: "agent", text: data.response },
         ]);
       }
     } catch (err: unknown) {
@@ -650,11 +648,11 @@ export function AgentSession() {
           <canvas ref={canvasRef} className="h-full w-full" />
         </div>
 
-        {/* Chat — 2x2 top-right (iNFT chat from HEAD) */}
+        {/* Chat — 2x2 top-right */}
         <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-lg bg-white/30">
           <div className="border-b border-[#483519]/10 px-3 py-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">
-              Chat with iNFT #{agent?.iNftTokenId ?? "—"}
+              Chat with Agent
             </p>
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2">

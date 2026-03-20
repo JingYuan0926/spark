@@ -74,9 +74,7 @@ export function AgentStatus() {
   }, []);
 
   const displayName = agent
-    ? agent.iNftTokenId > 0
-      ? `SPARK Bot #${String(agent.iNftTokenId).padStart(3, "0")}`
-      : agent.botId || `Agent ${agent.hederaAccountId.split(".").pop()}`
+    ? agent.botId || `Agent ${agent.hederaAccountId.split(".").pop()}`
     : "Agent";
 
   const actions: AgentAction[] = useMemo(() => {
@@ -86,8 +84,8 @@ export function AgentStatus() {
       ];
     }
     return [
-      { icon: "\u2713", text: `Loaded iNFT #${agent.iNftTokenId} from 0G Chain`, status: "done" as const },
-      { icon: "\u2713", text: "Decrypted API keys from 0G Storage", status: "done" as const },
+      { icon: "\u2713", text: `Loaded agent profile from Hedera`, status: "done" as const },
+      { icon: "\u2713", text: `Verified credentials on HCS`, status: "done" as const },
       { icon: "\u2713", text: `Synced knowledge base (${agent.botMessageCount} entries)`, status: "done" as const },
       { icon: "\u2713", text: `Bot Topic (private diary): ${agent.botTopicId}`, status: "done" as const },
       { icon: "\u2713", text: `Registered on HCS-20 vote topic (${agent.voteTopicId})`, status: "done" as const },
