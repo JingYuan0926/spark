@@ -4,17 +4,10 @@ import {
   PrivateKey,
   TopicMessageSubmitTransaction,
 } from "@hashgraph/sdk";
-import { ethers } from "ethers";
-import { ZgFile, Indexer } from "@0gfoundation/0g-ts-sdk";
-import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { tmpdir } from "os";
 
 import { getHederaClient, getOperatorKey } from "@/lib/hedera";
-
-// ── 0G Config ────────────────────────────────────────────────────
-const ZG_RPC = "https://evmrpc-testnet.0g.ai";
-const ZG_INDEXER = "https://indexer-storage-testnet-turbo.0g.ai";
 
 // ── Mirror Node ──────────────────────────────────────────────────
 const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
@@ -23,7 +16,7 @@ const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
 const KNOWLEDGE_CATEGORIES = ["scam", "blockchain", "legal", "trend", "skills"] as const;
 type KnowledgeCategory = (typeof KNOWLEDGE_CATEGORIES)[number];
 
-// ── Topic config persistence (same as register-agent) ────────────
+// ── Topic config persistence ─────────────────────────────────────
 const CONFIG_PATH = join(process.cwd(), "data", "spark-config.json");
 
 interface SparkConfig {
@@ -72,7 +65,6 @@ async function resolveAgent(botKey: PrivateKey): Promise<{
   const publicKeyDer = botKey.publicKey.toString();
   const { masterTopicId } = getTopicIds();
 
-  // Look up account by public key via Mirror Node
   const mirrorRes = await fetch(
     `${MIRROR_URL}/api/v1/accounts?account.publickey=${publicKeyDer}&limit=1`
   );
@@ -84,7 +76,6 @@ async function resolveAgent(botKey: PrivateKey): Promise<{
 
   const accountId = mirrorData.accounts[0].account;
 
-  // Scan master topic for registration event to find botTopicId
   const topicRes = await fetch(
     `${MIRROR_URL}/api/v1/topics/${masterTopicId}/messages?limit=100`
   );
@@ -102,7 +93,7 @@ async function resolveAgent(botKey: PrivateKey): Promise<{
         return { accountId, botTopicId: decoded.botTopicId };
       }
     } catch {
-      // skip non-JSON messages
+      // skip
     }
   }
 
@@ -110,10 +101,6 @@ async function resolveAgent(botKey: PrivateKey): Promise<{
     `Account ${accountId} not found in SPARK master topic (${masterTopicId})`
   );
 }
-
-// ══════════════════════════════════════════════════════════════════
-//  HANDLER
-// ══════════════════════════════════════════════════════════════════
 
 export default async function handler(
   req: NextApiRequest,
@@ -151,72 +138,24 @@ export default async function handler(
     });
   }
 
-  const zgPrivateKey = process.env.ZG_STORAGE_PRIVATE_KEY;
-  if (!zgPrivateKey) {
-    return res
-      .status(500)
-      .json({ success: false, error: "Missing ZG_STORAGE_PRIVATE_KEY" });
-  }
-
   try {
     const client = getHederaClient();
     const operatorKey = getOperatorKey();
     const { masterTopicId, subTopics } = getTopicIds();
     const categoryTopicId = subTopics[category as KnowledgeCategory];
 
-    // ────────────────────────────────────────────────────────────
-    // Step 0: Resolve agent identity from private key
-    // ────────────────────────────────────────────────────────────
+    // Step 1: Resolve agent identity from private key
     const botKey = PrivateKey.fromStringED25519(hederaPrivateKey);
     const { accountId, botTopicId } = await resolveAgent(botKey);
 
     const itemId = `k-${Date.now()}`;
 
-    // ────────────────────────────────────────────────────────────
-    // Step 1: Upload content to 0G Storage
-    // ────────────────────────────────────────────────────────────
-    const knowledgeItem = JSON.stringify({
-      type: "knowledge-item",
-      itemId,
-      category,
-      content,
-      accessTier,
-      author: accountId,
-      version: 1,
-      timestamp: new Date().toISOString(),
-    });
-
-    const tmpPath = join(tmpdir(), `spark-knowledge-${Date.now()}.json`);
-    writeFileSync(tmpPath, knowledgeItem);
-
-    const provider = new ethers.JsonRpcProvider(ZG_RPC);
-    const zgSigner = new ethers.Wallet(zgPrivateKey, provider);
-    const indexer = new Indexer(ZG_INDEXER);
-
-    const zgFile = await ZgFile.fromFilePath(tmpPath);
-    const [tree, treeErr] = await zgFile.merkleTree();
-    if (treeErr || !tree) throw new Error(`Merkle tree: ${treeErr}`);
-    const zgRootHash = tree.rootHash();
-
-    const [zgUploadResult, uploadErr] = await indexer.upload(zgFile, ZG_RPC, zgSigner);
-    if (uploadErr) throw new Error(`0G upload: ${uploadErr}`);
-    const zgUploadTxHash = zgUploadResult
-      ? "txHash" in zgUploadResult
-        ? zgUploadResult.txHash
-        : zgUploadResult.txHashes?.[0] ?? ""
-      : "";
-
-    await zgFile.close();
-    unlinkSync(tmpPath);
-
-    // ────────────────────────────────────────────────────────────
     // Step 2: Log to category sub-topic (operator signs)
-    // ────────────────────────────────────────────────────────────
+    // Content is stored directly in the HCS message
     const categoryMsg = JSON.stringify({
       action: "knowledge_submitted",
       itemId,
       author: accountId,
-      zgRootHash,
       category,
       content,
       accessTier,
@@ -230,13 +169,10 @@ export default async function handler(
       operatorKey
     );
 
-    // ────────────────────────────────────────────────────────────
     // Step 3: Log to bot topic (bot signs with its own key)
-    // ────────────────────────────────────────────────────────────
     const botMsg = JSON.stringify({
       action: "i_submitted_knowledge",
       itemId,
-      zgRootHash,
       category,
       timestamp: new Date().toISOString(),
     });
@@ -248,11 +184,8 @@ export default async function handler(
       botKey
     );
 
-    // ────────────────────────────────────────────────────────────
     // Step 4 (gated only): Auto-approve — skip voting for demo
-    // ────────────────────────────────────────────────────────────
     let autoApproved = false;
-    let autoApproveError: string | null = null;
     if (accessTier === "gated") {
       try {
         const approvedMsg = JSON.stringify({
@@ -262,28 +195,20 @@ export default async function handler(
           approvedBy: ["auto-approved"],
           timestamp: new Date().toISOString(),
         });
-
         await submitToTopic(client, categoryTopicId, approvedMsg, operatorKey);
         autoApproved = true;
       } catch (err) {
-        autoApproveError = err instanceof Error ? err.message : String(err);
-        console.error("[submit-knowledge] auto-approve failed:", autoApproveError);
+        console.error("[submit-knowledge] auto-approve failed:", err);
       }
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Return
-    // ────────────────────────────────────────────────────────────
     return res.status(200).json({
       success: true,
       itemId,
       author: accountId,
-      zgRootHash,
-      zgUploadTxHash: zgUploadTxHash ?? "",
       category,
       accessTier,
       autoApproved,
-      autoApproveError,
       categoryTopicId,
       masterTopicId,
       categorySeqNo,
