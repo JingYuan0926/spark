@@ -259,3 +259,4 @@ The HCS heartbeat is for liveness signals; the iNFT heartbeat file is for persis
 - [x] Agent Heartbeat (post status to personal HCS bot topic, signed with agent's key)
 - [x] View/Download intelligent data (download files from 0G Storage via rootHash)
 - [x] Knowledge Portfolio (show approved 0g://knowledge/* entries in AgentCard with dedicated section)
+- [x] Automation test — confirmed settings allow auto-approval (2026-03-21)
