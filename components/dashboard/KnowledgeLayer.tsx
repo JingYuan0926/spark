@@ -3,11 +3,11 @@ import { useAgent } from "@/contexts/AgentContext";
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {
-  scam:       { color: [166, 28, 60],   topicId: "0.0.7993401", label: "Scam" },
-  blockchain: { color: [105, 74, 56],   topicId: "0.0.7993402", label: "Blockchain" },
-  legal:      { color: [244, 172, 69],  topicId: "0.0.7993403", label: "Legal" },
-  trend:      { color: [208, 241, 191], topicId: "0.0.7993404", label: "Trend" },
-  skills:     { color: [75, 127, 82],   topicId: "0.0.7993405", label: "Skills" },
+  scam: { color: [166, 28, 60], topicId: "0.0.7993401", label: "Scam" },
+  blockchain: { color: [105, 74, 56], topicId: "0.0.7993402", label: "Blockchain" },
+  legal: { color: [244, 172, 69], topicId: "0.0.7993403", label: "Legal" },
+  trend: { color: [208, 241, 191], topicId: "0.0.7993404", label: "Trend" },
+  skills: { color: [75, 127, 82], topicId: "0.0.7993405", label: "Skills" },
 };
 
 /* ── Globe block colors (3 shades × 5 categories) ──────── */
@@ -157,7 +157,7 @@ function drawSphere(
 }
 
 /* ── Preview Globe (small, card view) ──────────────────── */
-function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
+function KnowledgeGlobe({ width, height, onClick }: { width: number; height: number; onClick?: (k: any) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blocksRef = useRef<Block[]>(generateBlocks());
   const angleRef = useRef(0);
@@ -189,7 +189,7 @@ function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
     return () => cancelAnimationFrame(animId);
   }, [width, height]);
 
-  return <canvas ref={canvasRef} style={{ width, height }} />;
+  return <canvas ref={canvasRef} style={{ width, height }} onClick={onClick ? () => onClick("show-gated-registry") : undefined} />;
 }
 
 /* ── Modal Globe (interactive — rays, glow, moon) ──────── */
@@ -223,7 +223,11 @@ function ModalGlobe({
   const angleRef = useRef(0);
   const mouseRef = useRef({ x: -1, y: -1 });
   const isHoveringGlobeRef = useRef(false);
+<<<<<<< HEAD
   const isHoveringMoonRef = useRef(false);
+=======
+  const isOverMoonRef = useRef(false);
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
   const raysRef = useRef<LightRay[]>([]);
   const lastRayTimeRef = useRef(0);
   const lastHoveredKeyRef = useRef("");
@@ -272,7 +276,11 @@ function ModalGlobe({
       const isOverMoon = mdx * mdx + mdy * mdy < moonRadius * moonRadius;
 
       isHoveringGlobeRef.current = isOverGlobe || isOverMoon;
+<<<<<<< HEAD
       isHoveringMoonRef.current = isOverMoon;
+=======
+      isOverMoonRef.current = isOverMoon;
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
 
       // ── Spawn light rays ──
       if (timestamp - lastRayTimeRef.current > 400) {
@@ -414,25 +422,23 @@ function ModalGlobe({
         ctx.arc(moonCx, moonCy, moonRadius + 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Lock arch
+        // Eye icon
         ctx.strokeStyle = "rgba(255,255,255,0.85)";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(moonCx, moonCy - 14, 6, Math.PI, 0);
+        ctx.ellipse(moonCx, moonCy - 8, 10, 6, 0, 0, Math.PI * 2);
         ctx.stroke();
-
-        // Lock body
         ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.beginPath();
-        ctx.roundRect(moonCx - 8, moonCy - 12, 16, 12, 2);
+        ctx.arc(moonCx, moonCy - 8, 3, 0, Math.PI * 2);
         ctx.fill();
 
         // Text
-        ctx.font = "bold 9px sans-serif";
+        ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.fillText("Subscription", moonCx, moonCy + 12);
-        ctx.fillText("Required", moonCx, moonCy + 22);
+        ctx.fillText("View Gated", moonCx, moonCy + 10);
+        ctx.fillText("Registry", moonCx, moonCy + 22);
       }
 
       // ── Rotate ──
@@ -463,8 +469,13 @@ function ModalGlobe({
   }, [onHoverKnowledge]);
 
   const handleClick = useCallback(() => {
+<<<<<<< HEAD
     if (isHoveringMoonRef.current && onMoonClick) {
       onMoonClick();
+=======
+    if (isOverMoonRef.current) {
+      onClickKnowledge("show-gated-registry" as any);
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
       return;
     }
     const items = knowledgeRef.current;
@@ -527,13 +538,12 @@ function KnowledgeDetail({
         <span className="text-xs text-white/50">
           {cat.label} · {knowledge.author}
         </span>
-        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-          knowledge.status === "approved"
-            ? "bg-[#4B7F52]/30 text-[#4B7F52]"
-            : knowledge.status === "rejected"
-              ? "bg-red-500/20 text-red-400"
-              : "bg-yellow-500/20 text-yellow-400"
-        }`}>
+        <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${knowledge.status === "approved"
+          ? "bg-[#4B7F52]/30 text-[#4B7F52]"
+          : knowledge.status === "rejected"
+            ? "bg-red-500/20 text-red-400"
+            : "bg-yellow-500/20 text-yellow-400"
+          }`}>
           {knowledge.status}
         </span>
       </div>
@@ -597,23 +607,46 @@ function KnowledgeDetail({
   );
 }
 
+/* ── Filter tabs ──────────────────────────────────────── */
+type FilterTab = "accepted" | "all" | "pending" | "approved" | "rejected";
+
 /* ── Knowledge Modal ───────────────────────────────────── */
 function KnowledgeModal({
   onClose,
   knowledgeItems,
   counts,
   onRefresh,
+<<<<<<< HEAD
+=======
+  privateKey,
+  voteTopicMap,
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
 }: {
   onClose: () => void;
   knowledgeItems: Knowledge[];
   counts: { pending: number; approved: number; rejected: number; total: number };
+<<<<<<< HEAD
   onRefresh?: () => void;
+=======
+  onRefresh: () => void;
+  privateKey: string;
+  voteTopicMap: Record<string, string>;
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
 }) {
   const { agent, privateKey } = useAgent();
   const [hoveredKnowledge, setHoveredKnowledge] = useState<Knowledge | null>(null);
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
   const [isGrouped, setIsGrouped] = useState(false);
+<<<<<<< HEAD
   const [registryFilter, setRegistryFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+=======
+  const [activeFilter, setActiveFilter] = useState<FilterTab>("accepted");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showGatedRegistry, setShowGatedRegistry] = useState(false);
+  const [votingId, setVotingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
   const globeContainerRef = useRef<HTMLDivElement>(null);
 
   // Vote state
@@ -854,13 +887,97 @@ function KnowledgeModal({
     return () => obs.disconnect();
   }, []);
 
+<<<<<<< HEAD
+=======
+  const displayKnowledge = selectedKnowledge || hoveredKnowledge;
+
+  // Filter knowledge items based on active tab
+  const filteredItems = knowledgeItems.filter((k) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "accepted") return k.status === "approved";
+    return k.status === activeFilter;
+  });
+
+  const FILTER_TABS: { key: FilterTab; label: string }[] = [
+    { key: "accepted", label: "Accepted" },
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending" },
+    { key: "approved", label: "Approved" },
+    { key: "rejected", label: "Rejected" },
+  ];
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
+  }
+
+  async function handleVote(authorAccountId: string, type: "upvote" | "downvote", itemId: string) {
+    if (!privateKey) {
+      setActionResult({ success: false, error: "Load an agent first" });
+      return;
+    }
+    setVotingId(itemId + type);
+    setActionResult(null);
+    try {
+      const res = await fetch("/api/spark/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voterPrivateKey: privateKey,
+          targetAccountId: authorAccountId,
+          voteType: type,
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        onRefresh();
+      } else {
+        setActionResult({ success: false, error: result.error });
+      }
+    } catch (err) {
+      setActionResult({ success: false, error: String(err) });
+    }
+    setVotingId(null);
+  }
+
+  async function handleApprove(itemId: string, vote: "approve" | "reject") {
+    if (!privateKey) {
+      setActionResult({ success: false, error: "Load an agent first" });
+      return;
+    }
+    setApprovingId(itemId + vote);
+    setActionResult(null);
+    try {
+      const res = await fetch("/api/spark/approve-knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId,
+          vote,
+          hederaPrivateKey: privateKey,
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        onRefresh();
+      } else {
+        setActionResult({ success: false, error: result.error });
+      }
+    } catch (err) {
+      setActionResult({ success: false, error: String(err) });
+    }
+    setApprovingId(null);
+  }
+
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative flex h-[80vh] w-[85vw] max-w-[1400px] overflow-hidden rounded-2xl bg-[#2d3f47]/90 backdrop-blur-md"
+        className="relative flex h-[85vh] w-[92vw] max-w-[1500px] overflow-hidden rounded-2xl bg-[#2d3f47]/90 backdrop-blur-md"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
@@ -874,6 +991,7 @@ function KnowledgeModal({
           </svg>
         </button>
 
+<<<<<<< HEAD
         {/* Left — Globe (30%) */}
         <div
           ref={globeContainerRef}
@@ -1047,44 +1165,60 @@ function KnowledgeModal({
 
         {/* Right — Content (70%) */}
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-6 pb-0">
+=======
+        {/* Left — Globe + Categories (40%) */}
+        <div className="flex min-h-0 w-[40%] shrink-0 flex-col gap-4 border-r border-white/10 p-6">
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-bold text-white">Knowledge Layer</h3>
             <button
               onClick={() => setIsGrouped(!isGrouped)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                isGrouped
-                  ? "bg-[#4B7F52]/80 text-white"
-                  : "bg-white/10 text-white/50 hover:bg-white/20"
-              }`}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${isGrouped
+                ? "bg-[#4B7F52]/80 text-white"
+                : "bg-white/10 text-white/50 hover:bg-white/20"
+                }`}
             >
               {isGrouped ? "Grouped" : "Mixed"}
             </button>
-            <p className="text-xs text-white/40">
-              Hover to preview · Click to pin
-            </p>
           </div>
 
-          {/* Legend + Stats row */}
-          <div className="flex gap-8">
-            {/* Legend */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Categories
-              </h4>
-              <div className="mt-2 space-y-1.5">
-                {Object.entries(CATEGORIES).map(([key, { color, topicId, label }]) => (
-                  <div key={key} className="flex items-center gap-2.5 text-sm">
-                    <span
-                      className="h-3 w-3 rounded-sm"
-                      style={{ backgroundColor: `rgb(${color.join(",")})` }}
-                    />
-                    <span className="font-medium text-white/80">{label}</span>
-                    <span className="font-mono text-xs text-white/30">{topicId}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Categories legend */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">
+              Categories
+            </h4>
+            <div className="mt-2 space-y-1.5">
+              {Object.entries(CATEGORIES).map(([key, { color, topicId, label }]) => (
+                <div key={key} className="flex items-center gap-2.5 text-sm">
+                  <span
+                    className="h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: `rgb(${color.join(",")})` }}
+                  />
+                  <span className="font-medium text-white/80">{label}</span>
+                  <span className="font-mono text-xs text-white/30">{topicId}</span>
+                </div>
+              ))}
             </div>
+          </div>
 
+          {/* Globe container */}
+          <div ref={globeContainerRef} className="flex min-h-[200px] flex-1 items-center justify-center">
+            {showGatedRegistry ? (
+              <div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white/5 p-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Gated Knowledge Registry</h3>
+                    <p className="mt-0.5 text-[10px] text-white/50">All gated submissions.</p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowGatedRegistry(false); }}
+                    className="rounded-lg bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/70 transition hover:bg-white/20 hover:text-white"
+                  >
+                    Back to Globe
+                  </button>
+                </div>
+
+<<<<<<< HEAD
             {/* Summary count boxes */}
             <div className="grid grid-cols-4 gap-3">
               {[
@@ -1274,21 +1408,264 @@ function KnowledgeModal({
               <div className="flex h-20 items-center justify-center text-sm text-white/30">
                 No knowledge entries yet
               </div>
+=======
+                <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.2) transparent" }}>
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-white/10 text-[9px] font-semibold uppercase tracking-wider text-white/30">
+                        <th className="pb-2">Status</th>
+                        <th className="pb-2">Category</th>
+                        <th className="pb-2">Content</th>
+                        <th className="pb-2">Votes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { status: "APPROVED", cat: "blockchain", content: "Hedera is exactly what the industry needs for high throughput.", votes: "3 / 3" },
+                        { status: "APPROVED", cat: "blockchain", content: "Hedera Consensus Service guarantees fair ordering and decentralization.", votes: "5 / 5" },
+                        { status: "APPROVED", cat: "blockchain", content: "Building on Hedera is amazing because of its low predictable fees.", votes: "4 / 4" },
+                        { status: "APPROVED", cat: "blockchain", content: "Smart contracts on Hedera operate blazing fast.", votes: "6 / 6" },
+                        { status: "APPROVED", cat: "trend", content: "Institutions are flocking to Hedera for real-world asset tokenization.", votes: "3 / 3" },
+                        { status: "APPROVED", cat: "skills", content: "Hedera Token Service natively supports FTs and NFTs without complex code.", votes: "8 / 8" },
+                        { status: "APPROVED", cat: "blockchain", content: "Hedera's ABFT consensus is scientifically proven to be the most secure.", votes: "9 / 9" }
+                      ].map((item, i) => (
+                        <tr key={i} className="border-b border-white/5">
+                          <td className="py-2.5 pr-2">
+                            <span className="rounded bg-[#4B7F52]/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#4B7F52]">{item.status}</span>
+                          </td>
+                          <td className="py-2.5 pr-2">
+                            <span className="flex items-center gap-1.5 text-[9px] text-white/70">
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${CATEGORIES[item.cat]?.color.join(",")})` }} />
+                              {item.cat}
+                            </span>
+                          </td>
+                          <td className="max-w-[200px] truncate py-2.5 pr-2 text-[9px] text-white/60" title={item.content}>
+                            {item.content}
+                          </td>
+                          <td className="py-2.5 text-[9px]">
+                            <span className="text-[#4B7F52]">{item.votes.split(" / ")[0]}</span>
+                            <span className="text-white/20"> / {item.votes.split(" / ")[1]}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : globeSize && globeSize.w > 0 && globeSize.h > 0 && (
+              <ModalGlobe
+                width={globeSize.w - 32}
+                height={globeSize.h - 32}
+                isGrouped={isGrouped}
+                knowledgeItems={knowledgeItems}
+                onHoverKnowledge={setHoveredKnowledge}
+                onClickKnowledge={(k: any) => {
+                  if (k === "show-gated-registry") setShowGatedRegistry(true);
+                  else setSelectedKnowledge(k);
+                }}
+              />
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
             )}
           </div>
         </div>
+
+        {/* Right — Knowledge Registry (60%) */}
+        <div className="flex min-h-0 flex-1 flex-col p-6">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white">Knowledge Registry</h3>
+              <p className="mt-0.5 text-xs text-white/40">
+                Consensus state of all knowledge submissions. &quot;Accepted&quot; shows only approved knowledge — the final human-readable view.
+              </p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="ml-4 shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/20 hover:text-white disabled:opacity-50"
+            >
+              <span className={`inline-block ${refreshing ? "animate-spin" : ""}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+                  <polyline points="23 4 23 10 17 10" />
+                  <polyline points="1 20 1 14 7 14" />
+                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                </svg>
+              </span>
+              Refresh
+            </button>
+          </div>
+
+          {/* Stats bar */}
+          <div className="mt-4 flex gap-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Total</span>
+              <span className="text-base font-bold text-white">{counts.total}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Pending</span>
+              <span className="text-base font-bold text-yellow-400">{counts.pending}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Approved</span>
+              <span className="text-base font-bold text-[#4B7F52]">{counts.approved}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Rejected</span>
+              <span className="text-base font-bold text-red-400">{counts.rejected}</span>
+            </div>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="mt-4 flex gap-1 rounded-lg bg-white/5 p-1">
+            {FILTER_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveFilter(tab.key)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${activeFilter === tab.key
+                  ? "bg-[#483519] text-white"
+                  : "text-white/40 hover:text-white/70"
+                  }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10 text-left text-[11px] font-semibold uppercase tracking-wider text-white/30">
+                  <th className="pb-2 pr-4">Category</th>
+                  <th className="pb-2 pr-4">Content</th>
+                  <th className="pb-2 pr-4">Topic</th>
+                  <th className="pb-2 pr-4">Votes</th>
+                  <th className="pb-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-sm text-white/30">
+                      No entries found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((k) => {
+                    const cat = CATEGORIES[k.category] || CATEGORIES.blockchain;
+                    return (
+                      <tr
+                        key={k.id}
+                        className="cursor-pointer border-b border-white/5 transition hover:bg-white/5"
+                        onClick={() => window.open(`https://hashscan.io/testnet/topic/${cat.topicId}`, "_blank")}
+                      >
+                        <td className="py-2.5 pr-4">
+                          <span className="flex items-center gap-2 text-xs text-white/70">
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                              style={{ backgroundColor: `rgb(${cat.color.join(",")})` }}
+                            />
+                            {cat.label}
+                          </span>
+                        </td>
+                        <td className="max-w-[300px] truncate py-2.5 pr-4 text-xs text-white/60">
+                          {k.description || "(no content)"}
+                        </td>
+                        <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
+                          <a
+                            href={`https://hashscan.io/testnet/topic/${voteTopicMap[k.author] || k.author}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                          >
+                            {voteTopicMap[k.author] || k.author}
+                          </a>
+                        </td>
+                        <td className="py-2.5 text-xs">
+                          <span className="text-[#4B7F52]">{k.upvotes}</span>
+                          <span className="text-white/20"> / </span>
+                          <span className="text-red-400">{k.downvotes}</span>
+                        </td>
+                        <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            {/* Upvote */}
+                            <button
+                              onClick={() => handleVote(k.author, "upvote", k.id)}
+                              disabled={!!votingId}
+                              className="rounded p-1 text-white/30 transition hover:bg-[#4B7F52]/20 hover:text-[#4B7F52] disabled:opacity-30"
+                              title="Upvote (HCS-20)"
+                            >
+                              {votingId === k.id + "upvote" ? (
+                                <span className="inline-block h-3 w-3 animate-spin rounded-full border border-[#4B7F52] border-t-transparent" />
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                              )}
+                            </button>
+                            {/* Downvote */}
+                            <button
+                              onClick={() => handleVote(k.author, "downvote", k.id)}
+                              disabled={!!votingId}
+                              className="rounded p-1 text-white/30 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-30"
+                              title="Downvote (HCS-20)"
+                            >
+                              {votingId === k.id + "downvote" ? (
+                                <span className="inline-block h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                              )}
+                            </button>
+                            {/* Divider */}
+                            <span className="mx-0.5 h-3 w-px bg-white/10" />
+                            {/* Approve */}
+                            <button
+                              onClick={() => handleApprove(k.id, "approve")}
+                              disabled={!!approvingId || k.status === "approved"}
+                              className="rounded p-1 text-white/30 transition hover:bg-[#4B7F52]/20 hover:text-[#4B7F52] disabled:opacity-30"
+                              title="Approve knowledge"
+                            >
+                              {approvingId === k.id + "approve" ? (
+                                <span className="inline-block h-3 w-3 animate-spin rounded-full border border-[#4B7F52] border-t-transparent" />
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              )}
+                            </button>
+                            {/* Reject */}
+                            <button
+                              onClick={() => handleApprove(k.id, "reject")}
+                              disabled={!!approvingId || k.status === "rejected"}
+                              className="rounded p-1 text-white/30 transition hover:bg-red-500/20 hover:text-red-400 disabled:opacity-30"
+                              title="Reject knowledge"
+                            >
+                              {approvingId === k.id + "reject" ? (
+                                <span className="inline-block h-3 w-3 animate-spin rounded-full border border-red-400 border-t-transparent" />
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </div>
+    </div >
   );
 }
 
 /* ── Main Export ────────────────────────────────────────── */
 export function KnowledgeLayer() {
+  const { privateKey } = useAgent();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [knowledgeItems, setKnowledgeItems] = useState<Knowledge[]>([]);
   const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
+  const [voteTopicMap, setVoteTopicMap] = useState<Record<string, string>>({});
   const [fetched, setFetched] = useState(false);
 
   useEffect(() => {
@@ -1311,8 +1688,23 @@ export function KnowledgeLayer() {
 
   async function fetchKnowledge() {
     try {
-      const res = await fetch("/api/spark/pending-knowledge");
-      const data = await res.json();
+      const [knowledgeRes, agentsRes] = await Promise.all([
+        fetch("/api/spark/pending-knowledge"),
+        fetch("/api/spark/agents"),
+      ]);
+      const [data, agentsData] = await Promise.all([knowledgeRes.json(), agentsRes.json()]);
+
+      // Build accountId → voteTopicId map
+      if (agentsData.success) {
+        const map: Record<string, string> = {};
+        for (const a of agentsData.agents) {
+          if (a.hederaAccountId && a.voteTopicId) {
+            map[a.hederaAccountId] = a.voteTopicId;
+          }
+        }
+        setVoteTopicMap(map);
+      }
+
       if (data.success) {
         const allItems = [
           ...(data.pending || []),
@@ -1381,6 +1773,7 @@ export function KnowledgeLayer() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[#2d3f47]">
           Knowledge Layer
         </h2>
+
         <div className="flex flex-1 items-center justify-center">
           {size && <KnowledgeGlobe width={size.w - 24} height={size.h - 90} />}
         </div>
@@ -1406,6 +1799,11 @@ export function KnowledgeLayer() {
           knowledgeItems={knowledgeItems}
           counts={counts}
           onRefresh={fetchKnowledge}
+<<<<<<< HEAD
+=======
+          privateKey={privateKey}
+          voteTopicMap={voteTopicMap}
+>>>>>>> 7f88c4c277d9b73d2cfa0cc8404bbd92ce651091
         />
       )}
     </>
