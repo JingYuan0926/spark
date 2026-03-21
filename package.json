@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.80.0",
+    "@hashgraphonline/standards-sdk": "^0.1.168",
     "@heroui/react": "^2.8.9",
     "@tanstack/react-query": "^5.90.21",
     "crypto-js": "^4.2.0",

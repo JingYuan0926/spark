@@ -244,6 +244,33 @@ export default async function handler(
     };
     await submitToTopic(client, botTopicId, JSON.stringify(agentConfig), botKey);
 
+    // Step 7b: Publish HCS-11 agent profile on bot topic
+    const { createHCS11Profile } = await import("@/lib/hcs-standards");
+    const hcs11Profile = createHCS11Profile(
+      botId, hederaAccountId, domainTags, serviceOfferings, botTopicId, voteTopicId
+    );
+    await submitToTopic(
+      client, botTopicId,
+      JSON.stringify({ action: "hcs11_profile", ...hcs11Profile }),
+      botKey
+    );
+
+    // Step 7c: Register in HCS-10 agent registry (master topic)
+    const hcs10Entry = JSON.stringify({
+      p: "hcs-10",
+      op: "register",
+      agentId: botId,
+      hederaAccountId,
+      profileTopicId: botTopicId,
+      voteTopicId,
+      capabilities: [
+        ...domainTags.split(",").map((t: string) => t.trim()).filter(Boolean),
+        ...serviceOfferings.split(",").map((t: string) => t.trim()).filter(Boolean),
+      ],
+      timestamp: new Date().toISOString(),
+    });
+    await submitToTopic(client, masterTopicId, hcs10Entry, operatorKey);
+
     // Step 8: Log to master topic (operator signs)
     const masterMsg = JSON.stringify({
       action: "agent_registered",
