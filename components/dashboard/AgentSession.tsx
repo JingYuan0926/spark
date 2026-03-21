@@ -14,7 +14,7 @@ function rgba(c: readonly number[], a: number) {
 }
 
 // ── Stage → Animation mapping ───────────────────────────────────
-type AgentStage = "researching" | "retrieving" | "resting" | "subscribing";
+type AgentStage = "researching" | "retrieving" | "resting";
 
 const STAGE_CONFIG: Record<AgentStage, {
   label: string;
@@ -24,7 +24,6 @@ const STAGE_CONFIG: Record<AgentStage, {
   researching: { label: "Researching...", target: { x: 0.18, y: 0.18 }, color: C.slate },
   retrieving: { label: "Retrieving from Knowledge Layer...", target: { x: 0.78, y: 0.15 }, color: C.fern },
   resting: { label: "Touching grass...", target: { x: 0.15, y: 0.75 }, color: C.peach },
-  subscribing: { label: "Subscribing to gated knowledge...", target: { x: 0.80, y: 0.78 }, color: C.walnut },
 };
 
 // ── Canvas drawing ──────────────────────────────────────────────
@@ -173,14 +172,6 @@ interface ChatMsg {
   timestamp: number;
 }
 
-// ── Subscription helpers ────────────────────────────────────────
-function hssStatusNum(s: number | string): number {
-  if (typeof s === "number") return s;
-  const labels = ["None", "Pending", "Executed", "Failed", "Cancelled"];
-  const idx = labels.findIndex((l) => l === s);
-  return idx >= 0 ? idx : 0;
-}
-
 // ── Main Component ──────────────────────────────────────────────
 
 export function AgentSession() {
@@ -196,17 +187,15 @@ export function AgentSession() {
 
   // LLM state
   const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [currentStage, setCurrentStage] = useState<AgentStage>("subscribing");
+  const [currentStage, setCurrentStage] = useState<AgentStage>("researching");
   const [running, setRunning] = useState(false);
   const conversationRef = useRef<{ role: string; content: string }[]>([]);
 
   // Deterministic stage progression — frontend drives, not LLM
-  const STAGE_SEQUENCE: AgentStage[] = ["subscribing", "retrieving", "researching", "resting"];
+  const STAGE_SEQUENCE: AgentStage[] = ["retrieving", "researching", "resting"];
   const cycleRef = useRef(0);
 
   // Subscription state
-  const [hasAccess, setHasAccess] = useState(false);
-  const subCheckRef = useRef(false);
 
   // Activity log (ledger-based from HEAD)
   const [expanded, setExpanded] = useState(false);
@@ -300,104 +289,6 @@ export function AgentSession() {
     a.currentColor = config.color;
   }, [currentStage]);
 
-  // ── Subscription: check access ──────────────────────────────
-  const checkAccess = useCallback(async (): Promise<boolean> => {
-    if (!evmAddress) return false;
-    try {
-      const res = await fetch("/api/spark/check-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscriberAddress: evmAddress }),
-      });
-      const data = await res.json();
-      const access = data.success && data.hasAccess;
-      setHasAccess(access);
-      return access;
-    } catch {
-      return false;
-    }
-  }, [evmAddress]);
-
-  // ── Subscription: subscribe ─────────────────────────────────
-  const doSubscribe = useCallback(async (): Promise<boolean> => {
-    if (!evmAddress) return false;
-    subCheckRef.current = true;
-    try {
-      // Check for existing reusable subscription
-      const statusRes = await fetch("/api/subscription/status");
-      const statusData = await statusRes.json();
-      let reuseIdx = -1;
-      let reuseAction: "start" | "retry" = "start";
-      let hasAnySub = false;
-      if (statusData.success) {
-        const myName = `gated-knowledge-${evmAddress.toLowerCase()}`;
-        for (const sub of statusData.subscriptions || []) {
-          if (sub.name.toLowerCase() !== myName) continue;
-          hasAnySub = true;
-          const sn = hssStatusNum(sub.status);
-          // None (0) + active → start
-          if (sn === 0 && sub.active) { reuseIdx = sub.idx; reuseAction = "start"; break; }
-          // Failed (3) + active → retry
-          if (sn === 3 && sub.active) { reuseIdx = sub.idx; reuseAction = "retry"; break; }
-        }
-      }
-
-      if (reuseIdx >= 0) {
-        const actionRes = await fetch(`/api/subscription/${reuseAction}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subIdx: reuseIdx }),
-        });
-        const actionResult = await actionRes.json();
-        if (actionResult.success) {
-          setHasAccess(true);
-          return true;
-        }
-        // If retry/start failed, don't create a new sub — just bail
-        return false;
-      }
-
-      // If there are already subs (all cancelled/inactive), don't create more
-      if (hasAnySub) return false;
-
-      // Only create new if there are NO existing subs for this agent
-      const res = await fetch("/api/subscription/subscribe-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: "0x000000000000000000000000000000000079d730",
-          name: `gated-knowledge-${evmAddress.toLowerCase()}`,
-          amountPerPeriod: "1",
-          intervalSeconds: 10,
-        }),
-      });
-      const result = await res.json();
-      if (!result.success) return false;
-
-      // Find and start the new subscription
-      const newStatusRes = await fetch("/api/subscription/status");
-      const newStatusData = await newStatusRes.json();
-      let latestIdx = 0;
-      if (newStatusData.success && newStatusData.subscriptions?.length > 0) {
-        latestIdx = newStatusData.subscriptions[newStatusData.subscriptions.length - 1].idx;
-      }
-      const startRes = await fetch("/api/subscription/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subIdx: latestIdx }),
-      });
-      const startResult = await startRes.json();
-      if (startResult.success) {
-        setHasAccess(true);
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    } finally {
-      subCheckRef.current = false;
-    }
-  }, [evmAddress]);
 
 
   // ── Fetch knowledge context ─────────────────────────────────
@@ -424,22 +315,6 @@ export function AgentSession() {
     setCurrentStage(stage);
 
     let knowledgeContext: string | undefined;
-
-    if (stage === "subscribing") {
-      const access = await checkAccess();
-      if (!access) {
-        setMessages((prev) => [...prev, {
-          role: "system", content: "Checking subscription status... no access. Subscribing now.",
-          stage: "subscribing", timestamp: Date.now(),
-        }]);
-        const ok = await doSubscribe();
-        knowledgeContext = ok
-          ? "Successfully subscribed to gated knowledge! Access granted."
-          : "Subscription attempt failed. Will retry next cycle.";
-      } else {
-        knowledgeContext = "Subscription is active. Access confirmed.";
-      }
-    }
 
     if (stage === "retrieving") {
       knowledgeContext = await fetchKnowledge();
@@ -478,7 +353,7 @@ export function AgentSession() {
     }
 
     cycleRef.current += 1;
-  }, [fetchKnowledge, checkAccess, doSubscribe]);
+  }, [fetchKnowledge]);
 
   // ── Main loop: run every 15s ────────────────────────────────
   useEffect(() => {
@@ -589,7 +464,6 @@ export function AgentSession() {
     researching: { bg: "bg-[#4F6D7A]/20", text: "text-[#4F6D7A]" },
     retrieving: { bg: "bg-[#4B7F52]/20", text: "text-[#4B7F52]" },
     resting: { bg: "bg-[#DD6E42]/20", text: "text-[#DD6E42]" },
-    subscribing: { bg: "bg-[#483519]/20", text: "text-[#483519]" },
   };
 
   const visibleActivity = expanded ? activity : activity.slice(0, 3);
@@ -601,11 +475,6 @@ export function AgentSession() {
           Agent Session
         </h2>
         <div className="flex items-center gap-2">
-          {hasAccess && (
-            <span className="rounded-full bg-[#4B7F52]/30 px-2 py-0.5 text-[10px] font-bold text-[#2d4a30]">
-              SUBSCRIBED
-            </span>
-          )}
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${stageBadge[currentStage].bg} ${stageBadge[currentStage].text}`}>
             {currentStage.toUpperCase()}
           </span>

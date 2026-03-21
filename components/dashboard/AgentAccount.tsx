@@ -606,15 +606,7 @@ function AgentAccountModal({ onClose }: { onClose: () => void }) {
 export function AgentAccount() {
   const { agent, setAgent } = useAgent();
   const [showModal, setShowModal] = useState(false);
-  const [showPremium, setShowPremium] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showPayout, setShowPayout] = useState(false);
-  const [payoutLoading, setPayoutLoading] = useState(false);
-  const [payoutAgents, setPayoutAgents] = useState<PayoutAgent[]>([]);
-  const [payoutHistory, setPayoutHistory] = useState<HistoryEntry[]>([]);
-  const [claiming, setClaiming] = useState(false);
-  const [claimResult, setClaimResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
-  const [cancellingIdx, setCancellingIdx] = useState<number | null>(null);
 
   const handleRefresh = useCallback(async () => {
     if (!agent || refreshing) return;
@@ -629,84 +621,6 @@ export function AgentAccount() {
     setRefreshing(false);
   }, [agent, refreshing, setAgent]);
 
-  // Silent refresh (no loading spinner, used for auto-refresh)
-  const silentRefresh = useCallback(async () => {
-    try {
-      const [payoutRes, statusRes] = await Promise.all([
-        fetch("/api/spark/payout"),
-        fetch("/api/schedule/status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vaultAddress: "0xdB818b1ED798acD53ab9D15960257b35A05AB44E" }),
-        }),
-      ]);
-      const [payoutData, statusData] = await Promise.all([payoutRes.json(), statusRes.json()]);
-      if (payoutData.success) setPayoutAgents(payoutData.agents);
-      if (statusData.success) setPayoutHistory(statusData.history || []);
-    } catch { /* silently fail */ }
-  }, []);
-
-  const handleOpenPayout = useCallback(async () => {
-    setShowPayout(true);
-    setPayoutLoading(true);
-    try {
-      // Fetch contributor agents
-      const payoutRes = await fetch("/api/spark/payout");
-      const payoutData = await payoutRes.json();
-      if (payoutData.success) {
-        setPayoutAgents(payoutData.agents);
-      }
-      // Fetch execution history
-      const statusRes = await fetch("/api/schedule/status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vaultAddress: "0xdB818b1ED798acD53ab9D15960257b35A05AB44E" }),
-      });
-      const statusData = await statusRes.json();
-      if (statusData.success) {
-        setPayoutHistory(statusData.history || []);
-      }
-    } catch { /* silently fail */ }
-    setPayoutLoading(false);
-  }, []);
-
-  const handleClaim = useCallback(async () => {
-    if (claiming || !agent) return;
-    setClaiming(true);
-    setClaimResult(null);
-    try {
-      const res = await fetch("/api/spark/payout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ evmAddress: agent.evmAddress }),
-      });
-      const result = await res.json();
-      if (result.success) {
-        setClaimResult({ success: true, message: result.message || `Payout ${result.action} for ${agent.evmAddress.slice(0, 10)}...` });
-        // Refresh payout data
-        handleOpenPayout();
-      } else {
-        setClaimResult({ success: false, error: result.error });
-      }
-    } catch (err) {
-      setClaimResult({ success: false, error: String(err) });
-    }
-    setClaiming(false);
-  }, [claiming, agent, handleOpenPayout]);
-
-  const handleCancel = useCallback(async (agentIdx: number) => {
-    setCancellingIdx(agentIdx);
-    try {
-      await fetch("/api/schedule/cancel-payroll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentIdx }),
-      });
-      // Refresh data after cancellation
-      await silentRefresh();
-    } catch { /* silently fail */ }
-    setCancellingIdx(null);
-  }, [silentRefresh]);
 
   if (!agent) return null;
 
@@ -725,30 +639,14 @@ export function AgentAccount() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#7a3a1f]">
             Agent Account
           </h2>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowPremium(true); }}
-              className="rounded-full p-1.5 transition text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
-              title="Subscription History"
-            >
-              <StarIcon size={16} />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleOpenPayout(); }}
-              className="rounded-full p-1.5 transition text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
-              title="Payout History & Earnings"
-            >
-              <DollarIcon size={16} />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
-              disabled={refreshing}
-              className={`rounded-full p-1.5 transition ${refreshing ? "animate-spin text-[#7a3a1f]/40" : "text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"}`}
-              title="Refresh balances"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-            </button>
-          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
+            disabled={refreshing}
+            className={`rounded-full p-1.5 transition ${refreshing ? "animate-spin text-[#7a3a1f]/40" : "text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"}`}
+            title="Refresh"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+          </button>
         </div>
 
         <div className="mt-5 space-y-4">
@@ -790,21 +688,6 @@ export function AgentAccount() {
       </div>
 
       {showModal && <AgentAccountModal onClose={() => setShowModal(false)} />}
-      {showPremium && <PremiumModal onClose={() => setShowPremium(false)} agentName={displayName} />}
-      {showPayout && (
-        <PayoutHistoryModal
-          onClose={() => setShowPayout(false)}
-          agents={payoutAgents}
-          history={payoutHistory}
-          loading={payoutLoading}
-          onClaim={handleClaim}
-          claiming={claiming}
-          claimResult={claimResult}
-          onCancel={handleCancel}
-          cancellingIdx={cancellingIdx}
-          onRefresh={silentRefresh}
-        />
-      )}
     </>
   );
 }
