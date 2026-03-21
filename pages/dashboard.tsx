@@ -101,10 +101,10 @@ function AuthGate() {
   if (autoLoading) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-[#f5f0e8]">
-        <div className="flex flex-col items-center gap-5">
-          <img src="/logo.png" alt="SPARK" className="h-10 animate-pulse" />
-          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#483519]/20 border-t-[#DD6E42]" />
-          <p className="text-sm font-medium text-[#483519]/70">Loading agent...</p>
+        <div className="flex flex-col items-center gap-6">
+          <img src="/logo.png" alt="SPARK" className="h-14 animate-pulse" />
+          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#483519]/20 border-t-[#DD6E42]" />
+          <p className="text-base font-medium text-[#483519]/70">Loading agent...</p>
         </div>
       </div>
     );
@@ -112,23 +112,23 @@ function AuthGate() {
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-[#f5f0e8]">
-      <div className="w-full max-w-md rounded-2xl bg-white/80 p-6 shadow-lg backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl bg-white/80 p-10 shadow-lg backdrop-blur-sm">
         <div className="flex justify-center">
-          <img src="/logo.png" alt="SPARK" className="h-9" />
+          <img src="/logo.png" alt="SPARK" className="h-14" />
         </div>
-        <p className="mt-2 text-center text-xs text-[#483519]/60">
+        <p className="mt-3 text-center text-base text-[#483519]/60">
           Monitor your agent in real-time
         </p>
 
         {error && (
-          <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <div className="mt-5 rounded-lg bg-red-50 p-4 text-base text-red-600">
             {error}
           </div>
         )}
 
-        <div className="mt-5 space-y-4">
+        <div className="mt-7 space-y-5">
           <div>
-            <label className="text-xs font-medium text-[#483519]/70">
+            <label className="text-sm font-medium text-[#483519]/70">
               Hedera Account ID
             </label>
             <input
@@ -137,30 +137,30 @@ function AuthGate() {
               onChange={(e) => setAccountId(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleLoad()}
               placeholder="0.0.12345"
-              className="mt-1 w-full rounded-lg border border-[#483519]/20 bg-white px-3 py-2.5 font-mono text-sm text-[#483519] outline-none focus:border-[#DD6E42] focus:ring-1 focus:ring-[#DD6E42]"
+              className="mt-2 w-full rounded-lg border border-[#483519]/20 bg-white px-4 py-3.5 font-mono text-base text-[#483519] outline-none focus:border-[#DD6E42] focus:ring-1 focus:ring-[#DD6E42]"
             />
           </div>
           <button
             onClick={handleLoad}
             disabled={loading}
-            className="w-full rounded-lg bg-[#DD6E42] py-2.5 text-sm font-bold text-white transition hover:bg-[#c55e38] disabled:cursor-wait disabled:opacity-50"
+            className="w-full rounded-lg bg-[#DD6E42] py-3.5 text-base font-bold text-white transition hover:bg-[#c55e38] disabled:cursor-wait disabled:opacity-50"
           >
             {loading ? "Loading..." : "View Dashboard"}
           </button>
 
-          <div className="rounded-xl border border-[#483519]/10 bg-[#f5f0e8]/60 p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">
+          <div className="rounded-xl border border-[#483519]/10 bg-[#f5f0e8]/60 p-5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#483519]/40">
               Don&apos;t have an agent?
             </p>
-            <p className="mt-1.5 text-xs text-[#483519]/60">
+            <p className="mt-2 text-sm text-[#483519]/60">
               Agents register via the SPARK API. Use the{" "}
-              <code className="rounded bg-white/60 px-1 py-0.5 text-[10px] font-mono text-[#DD6E42]">
+              <code className="rounded bg-white/60 px-1.5 py-0.5 text-xs font-mono text-[#DD6E42]">
                 /register-agent
               </code>{" "}
               endpoint or install the OpenClaw skill.
             </p>
-            <div className="mt-2 rounded-lg border border-[#483519]/10 bg-white/80 p-2.5">
-              <code className="block text-[10px] leading-relaxed font-mono text-[#483519]">
+            <div className="mt-3 rounded-lg border border-[#483519]/10 bg-white/80 p-3">
+              <code className="block text-xs leading-relaxed font-mono text-[#483519]">
                 <span className="text-[#4B7F52]">curl</span> -X POST /api/spark/register-agent \{"\n"}
                 {"  "}-d {"'{\"botId\":\"my-bot\"}'"}
               </code>
