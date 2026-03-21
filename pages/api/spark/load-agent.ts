@@ -9,21 +9,16 @@ import { join } from "path";
 
 import { getHederaClient } from "@/lib/hedera";
 
-// ── Mirror Node ──────────────────────────────────────────────────
 const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
-
-// ── Master topic persistence ─────────────────────────────────────
 const CONFIG_PATH = join(process.cwd(), "data", "spark-config.json");
 
 function getMasterTopicId(): string | null {
   const envTopic = process.env.SPARK_MASTER_TOPIC_ID;
   if (envTopic) return envTopic;
-
   if (existsSync(CONFIG_PATH)) {
     const config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
     if (config.masterTopicId) return config.masterTopicId;
   }
-
   return null;
 }
 
@@ -31,52 +26,63 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, error: "POST only" });
-  }
-
-  const { hederaPrivateKey, hederaAccountId } = req.body;
-
-  if (!hederaPrivateKey) {
-    return res
-      .status(400)
-      .json({ success: false, error: "hederaPrivateKey is required" });
+  // GET /api/spark/load-agent?accountId=0.0.xxx  → dashboard (read-only, public)
+  // POST /api/spark/load-agent { hederaPrivateKey } → bot (derives account from key)
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "GET or POST only" });
   }
 
   try {
-    // Step 1: Derive public key from private key
-    const botKey = PrivateKey.fromString(hederaPrivateKey);
-    const publicKeyDer = botKey.publicKey.toString();
+    let accountId: string | null = null;
 
-    // Step 2: Resolve account ID
-    let accountId = hederaAccountId;
-
-    if (!accountId) {
-      const mirrorRes = await fetch(
-        `${MIRROR_URL}/api/v1/accounts?account.publickey=${publicKeyDer}&limit=1`
-      );
-      const mirrorData = await mirrorRes.json();
-
-      if (!mirrorData.accounts || mirrorData.accounts.length === 0) {
-        return res.status(404).json({
+    if (req.method === "GET") {
+      // Dashboard mode: just account ID
+      accountId = req.query.accountId as string || null;
+      if (!accountId) {
+        return res.status(400).json({
           success: false,
-          error: "No Hedera account found for this public key",
+          error: "GET requires ?accountId=0.0.xxx",
+        });
+      }
+    } else {
+      // Bot mode: derive from private key
+      const { hederaPrivateKey, hederaAccountId } = req.body;
+      if (!hederaPrivateKey) {
+        return res.status(400).json({
+          success: false,
+          error: "POST requires hederaPrivateKey",
         });
       }
 
-      accountId = mirrorData.accounts[0].account;
+      const botKey = PrivateKey.fromString(hederaPrivateKey);
+      accountId = hederaAccountId || null;
+
+      if (!accountId) {
+        const publicKeyDer = botKey.publicKey.toString();
+        const mirrorRes = await fetch(
+          `${MIRROR_URL}/api/v1/accounts?account.publickey=${publicKeyDer}&limit=1`
+        );
+        const mirrorData = await mirrorRes.json();
+        if (!mirrorData.accounts || mirrorData.accounts.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: "No Hedera account found for this public key",
+          });
+        }
+        accountId = mirrorData.accounts[0].account;
+      }
     }
 
-    // Step 3: Get account info (EVM address, balances)
+    // Step 1: Get account info
     const client = getHederaClient();
     const accountInfo = await new AccountInfoQuery()
-      .setAccountId(AccountId.fromString(accountId))
+      .setAccountId(AccountId.fromString(accountId!))
       .execute(client);
 
     const evmAddress = `0x${accountInfo.contractAccountId}`;
     const hbarBalance = accountInfo.balance.toBigNumber().toNumber();
 
-    // Get token balances from mirror node
+    // Step 2: Token balances
     const balanceRes = await fetch(
       `${MIRROR_URL}/api/v1/accounts/${accountId}/tokens`
     );
@@ -88,7 +94,7 @@ export default async function handler(
       })
     );
 
-    // Step 4: Scan master topic for registration event
+    // Step 3: Find registration in master topic
     const masterTopicId = getMasterTopicId();
     let registration: Record<string, unknown> | null = null;
 
@@ -111,7 +117,7 @@ export default async function handler(
             break;
           }
         } catch {
-          // skip non-JSON messages
+          // skip
         }
       }
     }
@@ -119,12 +125,7 @@ export default async function handler(
     if (!registration) {
       return res.status(404).json({
         success: false,
-        error: `Account ${accountId} not found in SPARK master topic${
-          masterTopicId ? ` (${masterTopicId})` : ""
-        }`,
-        accountId,
-        evmAddress,
-        publicKey: publicKeyDer,
+        error: `Account ${accountId} not found in SPARK network`,
       });
     }
 
@@ -134,7 +135,7 @@ export default async function handler(
     const domainTags = (registration.domainTags as string) || "";
     const serviceOfferings = (registration.serviceOfferings as string) || "";
 
-    // Step 5: Read bot topic messages (activity history)
+    // Step 4: Bot topic messages (activity)
     const botTopicRes = await fetch(
       `${MIRROR_URL}/api/v1/topics/${botTopicId}/messages?limit=100`
     );
@@ -155,7 +156,7 @@ export default async function handler(
       }
     }
 
-    // Step 6: Read vote topic messages (reputation)
+    // Step 5: Vote topic (reputation + dimensions + reviews)
     const voteTopicRes = await fetch(
       `${MIRROR_URL}/api/v1/topics/${voteTopicId}/messages?limit=100`
     );
@@ -175,7 +176,6 @@ export default async function handler(
           if (decoded.tick === "quality") dimensions.quality += Number(decoded.amt || 1);
           if (decoded.tick === "speed") dimensions.speed += Number(decoded.amt || 1);
           if (decoded.tick === "reliability") dimensions.reliability += Number(decoded.amt || 1);
-          // Collect reviews from mint messages
           if (decoded.review) {
             reviews.push({
               voter: decoded.voter || "",
@@ -191,12 +191,10 @@ export default async function handler(
       }
     }
 
-    // Return full reconstructed profile
     return res.status(200).json({
       success: true,
       botId,
       hederaAccountId: accountId,
-      hederaPublicKey: publicKeyDer,
       evmAddress,
       domainTags,
       serviceOfferings,
@@ -205,6 +203,7 @@ export default async function handler(
       masterTopicId,
       botTopicId,
       voteTopicId,
+      botMessages,
       botMessageCount: botMessages.length,
       upvotes,
       downvotes,

@@ -135,7 +135,7 @@ export default async function handler(
     serviceOfferings = "",
     systemPrompt = "",
     modelProvider = "",
-    apiKey = "",
+    apiKey: modelApiKey = "",
   } = req.body;
 
   if (!botId) {
@@ -220,7 +220,7 @@ export default async function handler(
     }
 
     // Step 7: Store agent config on bot topic (HCS)
-    const encryptedApiKey = apiKey ? encrypt(apiKey) : "";
+    const encryptedModelKey = modelApiKey ? encrypt(modelApiKey) : "";
     const agentConfig = {
       action: "agent_config",
       version: "2.0.0",
@@ -231,8 +231,8 @@ export default async function handler(
       voteTopicId,
       persona: botId,
       modelProvider,
-      apiKey: encryptedApiKey,
-      encrypted: !!apiKey,
+      modelApiKey: encryptedModelKey,
+      encrypted: !!modelApiKey,
       systemPrompt,
       domainTags,
       serviceOfferings,
@@ -310,7 +310,7 @@ export default async function handler(
     // Return agent identity bundle
     return res.status(200).json({
       success: true,
-      hederaAccountId,
+      hederaAccountId, // use this to log in to dashboard
       hederaPrivateKey: botKey.toString(),
       hederaPublicKey: botKey.publicKey.toString(),
       evmAddress,
