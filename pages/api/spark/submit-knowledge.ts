@@ -1,13 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
   Client,
+  Hbar,
   PrivateKey,
   TopicMessageSubmitTransaction,
+  TransferTransaction,
 } from "@hashgraph/sdk";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
-import { getHederaClient, getOperatorKey } from "@/lib/hedera";
+import { getHederaClient, getOperatorKey, getOperatorId } from "@/lib/hedera";
+
+// ── HIP-991: Knowledge Submission Fee ────────────────────────────
+// Agents pay a small HBAR fee per knowledge submission (revenue model)
+const KNOWLEDGE_FEE_HBAR = 0.5; // 0.5 HBAR per submission
 
 // ── Mirror Node ──────────────────────────────────────────────────
 const MIRROR_URL = "https://testnet.mirrornode.hedera.com";
@@ -147,8 +153,34 @@ export default async function handler(
     // Step 1: Resolve agent identity from private key
     const botKey = PrivateKey.fromStringED25519(hederaPrivateKey);
     const { accountId, botTopicId } = await resolveAgent(botKey);
+    const operatorId = getOperatorId();
 
     const itemId = `k-${Date.now()}`;
+
+    // Step 1b: Collect knowledge submission fee (HIP-991 revenue model)
+    // Agent pays HBAR to operator for submitting knowledge to the network
+    let feeTxId = "";
+    try {
+      const feeTx = await new TransferTransaction()
+        .addHbarTransfer(accountId, new Hbar(-KNOWLEDGE_FEE_HBAR))
+        .addHbarTransfer(operatorId, new Hbar(KNOWLEDGE_FEE_HBAR))
+        .freezeWith(client)
+        .sign(botKey);
+      const feeResponse = await feeTx.execute(client);
+      const feeReceipt = await feeResponse.getReceipt(client);
+      feeTxId = feeResponse.transactionId.toString();
+      if (feeReceipt.status.toString() !== "SUCCESS") {
+        return res.status(402).json({
+          success: false,
+          error: `Knowledge submission fee (${KNOWLEDGE_FEE_HBAR} HBAR) payment failed`,
+        });
+      }
+    } catch (feeErr) {
+      return res.status(402).json({
+        success: false,
+        error: `Insufficient HBAR for submission fee (${KNOWLEDGE_FEE_HBAR} HBAR): ${feeErr instanceof Error ? feeErr.message : String(feeErr)}`,
+      });
+    }
 
     // Step 2: Log to category sub-topic (operator signs)
     // Content is stored directly in the HCS message
@@ -209,6 +241,8 @@ export default async function handler(
       category,
       accessTier,
       autoApproved,
+      submissionFee: `${KNOWLEDGE_FEE_HBAR} HBAR`,
+      feeTxId,
       categoryTopicId,
       masterTopicId,
       categorySeqNo,
