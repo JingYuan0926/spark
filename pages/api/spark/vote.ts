@@ -87,12 +87,12 @@ export default async function handler(
     return res.status(405).json({ success: false, error: "POST only" });
   }
 
-  const { voterPrivateKey, targetAccountId, voteType } = req.body;
+  const { hederaPrivateKey, targetAccountId, voteType } = req.body;
 
-  if (!voterPrivateKey || !targetAccountId || !voteType) {
+  if (!hederaPrivateKey || !targetAccountId || !voteType) {
     return res.status(400).json({
       success: false,
-      error: "Required: voterPrivateKey, targetAccountId, voteType (upvote|downvote)",
+      error: "Required: hederaPrivateKey, targetAccountId, voteType (upvote|downvote)",
     });
   }
 
@@ -107,7 +107,7 @@ export default async function handler(
     const client = getHederaClient();
 
     // Resolve voter identity
-    const voterKey = PrivateKey.fromString(voterPrivateKey);
+    const voterKey = PrivateKey.fromString(hederaPrivateKey);
     const voterAccountId = await resolveVoterAccount(voterKey);
 
     // Prevent self-voting
