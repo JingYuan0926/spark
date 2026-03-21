@@ -161,12 +161,14 @@ export function AgentStatus() {
 
       const label = ACTION_LABELS[action] || action.replace(/_/g, " ");
 
-      // New messages (detected this poll cycle) show as "active" with spinner
+      // Show as "active" if: detected this poll cycle OR message is < 10s old
       const isNew = i < newMessageCount;
+      const isRecent = ts ? (Date.now() / 1000 - parseFloat(ts)) < 10 : false;
+      const showActive = isNew || isRecent;
       items.push({
-        icon: isNew ? "\u25CF" : "\u2713",
+        icon: showActive ? "\u25CF" : "\u2713",
         text: `${label}${suffix}`,
-        status: isNew ? "active" as const : "done" as const,
+        status: showActive ? "active" as const : "done" as const,
       });
     }
 
