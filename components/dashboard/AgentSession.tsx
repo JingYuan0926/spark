@@ -186,8 +186,6 @@ function hssStatusNum(s: number | string): number {
 export function AgentSession() {
   const { agent } = useAgent();
   const evmAddress = agent?.evmAddress || "";
-  // Try to get privateKey if the context exposes it; fallback to empty string
-  const privateKey = (agent as unknown as Record<string, unknown>)?.hederaPrivateKey as string || "";
 
   // Canvas refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -209,7 +207,6 @@ export function AgentSession() {
   // Subscription state
   const [hasAccess, setHasAccess] = useState(false);
   const subCheckRef = useRef(false);
-  const reimburseRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Activity log (ledger-based from HEAD)
   const [expanded, setExpanded] = useState(false);
@@ -402,33 +399,6 @@ export function AgentSession() {
     }
   }, [evmAddress]);
 
-  // ── Subscription: reimburse operator ────────────────────────
-  const reimburse = useCallback(async () => {
-    if (!privateKey) return;
-    try {
-      await fetch("/api/spark/reimburse-operator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hederaPrivateKey: privateKey }),
-      });
-    } catch { /* silently continue */ }
-  }, [privateKey]);
-
-  // Start/stop reimburse timer when access changes
-  useEffect(() => {
-    if (hasAccess && privateKey) {
-      reimburseRef.current = setInterval(reimburse, 10000);
-    } else if (reimburseRef.current) {
-      clearInterval(reimburseRef.current);
-      reimburseRef.current = null;
-    }
-    return () => {
-      if (reimburseRef.current) {
-        clearInterval(reimburseRef.current);
-        reimburseRef.current = null;
-      }
-    };
-  }, [hasAccess, privateKey, reimburse]);
 
   // ── Fetch knowledge context ─────────────────────────────────
   const fetchKnowledge = useCallback(async (): Promise<string> => {

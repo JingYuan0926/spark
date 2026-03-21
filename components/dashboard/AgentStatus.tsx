@@ -3,6 +3,32 @@ import { useAgent } from "@/components/AgentContext";
 
 const SPINNER_FRAMES = ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"];
 
+const ACTION_LABELS: Record<string, string> = {
+  agent_registered: "Registered on SPARK",
+  heartbeat: "Heartbeat",
+  i_submitted_knowledge: "Submitted knowledge",
+  i_voted: "Voted on knowledge",
+  i_approved_knowledge: "Approved knowledge",
+  knowledge_submitted: "Knowledge submitted",
+  knowledge_approved: "Knowledge approved",
+  service_listed: "Listed service",
+  i_listed_service: "Listed service",
+  task_created: "Created task",
+  i_created_task: "Created task",
+  task_accepted: "Accepted task",
+  task_completed: "Completed task",
+  task_confirmed: "Task confirmed",
+  config_stored: "Config stored on HCS",
+};
+
+function formatTimeAgo(timestamp: string): string {
+  const seconds = Date.now() / 1000 - parseFloat(timestamp);
+  if (seconds < 60) return `${Math.floor(seconds)}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
+
 type ActionStatus = "done" | "active" | "pending";
 interface AgentAction { icon: string; text: string; status: ActionStatus }
 
@@ -83,19 +109,38 @@ export function AgentStatus() {
         { icon: "\u25CB", text: "Waiting for agent connection...", status: "pending" as const },
       ];
     }
-    return [
-      { icon: "\u2713", text: `Loaded agent profile from Hedera`, status: "done" as const },
-      { icon: "\u2713", text: `Verified credentials on HCS`, status: "done" as const },
-      { icon: "\u2713", text: `Synced knowledge base (${agent.botMessageCount} entries)`, status: "done" as const },
-      { icon: "\u2713", text: `Bot Topic (private diary): ${agent.botTopicId}`, status: "done" as const },
-      { icon: "\u2713", text: `Registered on HCS-20 vote topic (${agent.voteTopicId})`, status: "done" as const },
+
+    const items: AgentAction[] = [
       { icon: "\u2713", text: `Account ${agent.hederaAccountId} connected`, status: "done" as const },
-      { icon: "\u2713", text: `Reputation: ${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes} up / ${agent.downvotes} down)`, status: "done" as const },
-      { icon: "\u25CF", text: "Scraping DeFi protocol data...", status: "active" as const },
-      { icon: "\u25CB", text: "Analyze yield opportunities", status: "pending" as const },
-      { icon: "\u25CB", text: "Publish findings to knowledge layer", status: "pending" as const },
-      { icon: "\u25CB", text: "Broadcast results to agent network", status: "pending" as const },
+      { icon: "\u2713", text: `Bot Topic: ${agent.botTopicId}`, status: "done" as const },
+      { icon: "\u2713", text: `Reputation: ${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes}\u2191 ${agent.downvotes}\u2193)`, status: "done" as const },
     ];
+
+    // Show real bot messages as activity feed (newest first)
+    const messages = [...(agent.botMessages || [])].reverse();
+    for (const msg of messages) {
+      const action = (msg.action as string) || "unknown";
+      const ts = (msg.timestamp as string) || "";
+      const ago = ts ? formatTimeAgo(ts) : "";
+      const suffix = ago ? ` (${ago})` : "";
+
+      const label = ACTION_LABELS[action] || action.replace(/_/g, " ");
+      items.push({
+        icon: "\u2713",
+        text: `${label}${suffix}`,
+        status: "done" as const,
+      });
+    }
+
+    // If the latest message is recent (< 30s), show it as active
+    if (messages.length > 0 && items.length > 3) {
+      const latestTs = messages[0]?.timestamp as string;
+      if (latestTs && (Date.now() / 1000 - parseFloat(latestTs)) < 30) {
+        items[3] = { ...items[3], icon: "\u25CF", status: "active" as const };
+      }
+    }
+
+    return items;
   }, [agent]);
 
   const previewActions = actions.slice(0, PREVIEW_COUNT);

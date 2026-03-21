@@ -1,5 +1,20 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
+export interface BotMessage {
+  action?: string;
+  timestamp?: string;
+  sequenceNumber?: number;
+  [key: string]: unknown;
+}
+
+export interface Review {
+  voter: string;
+  review: string;
+  tags: string[];
+  value: number;
+  timestamp: string;
+}
+
 export interface AgentData {
   // Identity
   botId: string;
@@ -24,51 +39,50 @@ export interface AgentData {
   upvotes: number;
   downvotes: number;
   netReputation: number;
+  dimensions: { quality: number; speed: number; reliability: number };
 
   // Activity
   botMessageCount: number;
+  botMessages: BotMessage[];
+  reviews: Review[];
   registeredAt: string;
 }
 
-const STORAGE_KEY = "spark_private_key";
+const STORAGE_KEY = "spark_account_id";
 
 interface AgentContextValue {
   agent: AgentData | null;
   setAgent: (agent: AgentData | null) => void;
-  privateKey: string;
-  setPrivateKey: (key: string) => void;
-  savedKey: string | null;
+  savedAccountId: string | null;
+  setSavedAccountId: (id: string) => void;
   signOut: () => void;
 }
 
 const AgentContext = createContext<AgentContextValue | null>(null);
 
-function getSavedKey(): string | null {
+function getSavedAccountId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(STORAGE_KEY);
 }
 
 export function AgentProvider({ children }: { children: ReactNode }) {
   const [agent, setAgent] = useState<AgentData | null>(null);
-  const [privateKey, _setPrivateKey] = useState("");
 
-  const setPrivateKey = useCallback((key: string) => {
-    _setPrivateKey(key);
-    if (key) {
-      localStorage.setItem(STORAGE_KEY, key);
+  const setSavedAccountId = useCallback((id: string) => {
+    if (id) {
+      localStorage.setItem(STORAGE_KEY, id);
     }
   }, []);
 
   const signOut = useCallback(() => {
     setAgent(null);
-    _setPrivateKey("");
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const savedKey = getSavedKey();
+  const savedAccountId = getSavedAccountId();
 
   return (
-    <AgentContext.Provider value={{ agent, setAgent, privateKey, setPrivateKey, savedKey, signOut }}>
+    <AgentContext.Provider value={{ agent, setAgent, savedAccountId, setSavedAccountId, signOut }}>
       {children}
     </AgentContext.Provider>
   );

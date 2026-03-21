@@ -469,8 +469,7 @@ function PayoutHistoryModal({
 
 // ── Agent Details Modal ──
 function AgentAccountModal({ onClose }: { onClose: () => void }) {
-  const { agent, privateKey } = useAgent();
-  const [showKey, setShowKey] = useState(false);
+  const { agent } = useAgent();
 
   if (!agent) return null;
 
@@ -591,38 +590,11 @@ function AgentAccountModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Private Key Section */}
+          {/* Read-only notice */}
           <div className="mt-8 border-t border-white/10 pt-6">
-            {!showKey ? (
-              <button
-                onClick={() => setShowKey(true)}
-                className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Show Credentials (Private Key)
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-[#DD6E42]">Private Key</h4>
-                  <button
-                    onClick={() => setShowKey(false)}
-                    className="text-xs text-white/40 transition hover:text-white/70"
-                  >
-                    Hide
-                  </button>
-                </div>
-                <div className="flex items-center gap-3 rounded-lg border border-[#DD6E42]/30 bg-[#DD6E42]/10 p-4">
-                  <p className="flex-1 break-all font-mono text-sm text-white/80">
-                    {privateKey || "—"}
-                  </p>
-                  {privateKey && <CopyButton text={privateKey} />}
-                </div>
-                <p className="text-xs text-[#DD6E42]/60">
-                  Never share this key — it controls your Hedera account, HBAR, and USDC.
-                </p>
-              </div>
-            )}
+            <p className="text-xs text-white/40">
+              Dashboard is read-only. Agents interact via the SPARK API.
+            </p>
           </div>
         </div>
       </div>
@@ -632,7 +604,7 @@ function AgentAccountModal({ onClose }: { onClose: () => void }) {
 
 // ── Main Card ──
 export function AgentAccount() {
-  const { agent, setAgent, privateKey } = useAgent();
+  const { agent, setAgent } = useAgent();
   const [showModal, setShowModal] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -645,21 +617,17 @@ export function AgentAccount() {
   const [cancellingIdx, setCancellingIdx] = useState<number | null>(null);
 
   const handleRefresh = useCallback(async () => {
-    if (!privateKey || refreshing) return;
+    if (!agent || refreshing) return;
     setRefreshing(true);
     try {
-      const res = await fetch("/api/spark/load-agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hederaPrivateKey: privateKey }),
-      });
+      const res = await fetch(`/api/spark/load-agent?accountId=${agent.hederaAccountId}`);
       const data = await res.json();
       if (data.success) {
         setAgent(data as AgentData);
       }
     } catch { /* silently fail */ }
     setRefreshing(false);
-  }, [privateKey, refreshing, setAgent]);
+  }, [agent, refreshing, setAgent]);
 
   // Silent refresh (no loading spinner, used for auto-refresh)
   const silentRefresh = useCallback(async () => {

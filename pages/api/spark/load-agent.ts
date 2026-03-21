@@ -80,6 +80,7 @@ export default async function handler(
       .execute(client);
 
     const evmAddress = `0x${accountInfo.contractAccountId}`;
+    const hederaPublicKey = accountInfo.key?.toString() || "";
     const hbarBalance = accountInfo.balance.toBigNumber().toNumber();
 
     // Step 2: Token balances
@@ -195,6 +196,7 @@ export default async function handler(
       success: true,
       botId,
       hederaAccountId: accountId,
+      hederaPublicKey,
       evmAddress,
       domainTags,
       serviceOfferings,

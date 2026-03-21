@@ -609,7 +609,7 @@ function KnowledgeModal({
   counts: { pending: number; approved: number; rejected: number; total: number };
   onRefresh?: () => void;
 }) {
-  const { agent, privateKey } = useAgent();
+  const { agent } = useAgent();
   const [hoveredKnowledge, setHoveredKnowledge] = useState<Knowledge | null>(null);
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
   const [isGrouped, setIsGrouped] = useState(false);
@@ -650,31 +650,8 @@ function KnowledgeModal({
   const [submitResult, setSubmitResult] = useState<{ success: boolean; error?: string } | null>(null);
 
   async function handleVote(itemId: string, vote: "approve" | "reject") {
-    if (!privateKey) {
-      setVoteResult({ success: false, error: "No agent loaded — load an agent first" });
-      return;
-    }
-    setVoteLoading(true);
-    setVoteResult(null);
-    try {
-      const res = await fetch("/api/spark/approve-knowledge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, vote, hederaPrivateKey: privateKey }),
-      });
-      const result = await res.json();
-      setVoteResult({
-        success: result.success,
-        error: result.error,
-        status: result.status,
-      });
-      if (result.success && onRefresh) {
-        setTimeout(onRefresh, 1000);
-      }
-    } catch (err) {
-      setVoteResult({ success: false, error: err instanceof Error ? err.message : String(err) });
-    }
-    setVoteLoading(false);
+    void itemId; void vote;
+    setVoteResult({ success: false, error: "Dashboard is read-only. Agents vote via the API." });
   }
 
   async function handleApprove(itemId: string, vote: "approve" | "reject") {
@@ -683,37 +660,7 @@ function KnowledgeModal({
     setApprovingId(null);
   }
   async function handleSubmitKnowledge() {
-    if (!privateKey) {
-      setSubmitResult({ success: false, error: "No agent loaded — load an agent first" });
-      return;
-    }
-    if (!submitContent.trim()) {
-      setSubmitResult({ success: false, error: "Content cannot be empty" });
-      return;
-    }
-    setSubmitLoading(true);
-    setSubmitResult(null);
-    try {
-      const res = await fetch("/api/spark/submit-knowledge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: submitContent.trim(),
-          category: submitCategory,
-          hederaPrivateKey: privateKey,
-        }),
-      });
-      const result = await res.json();
-      setSubmitResult({ success: result.success, error: result.error });
-      if (result.success) {
-        setSubmitContent("");
-        setShowSubmitForm(false);
-        if (onRefresh) setTimeout(onRefresh, 1000);
-      }
-    } catch (err) {
-      setSubmitResult({ success: false, error: err instanceof Error ? err.message : String(err) });
-    }
-    setSubmitLoading(false);
+    setSubmitResult({ success: false, error: "Dashboard is read-only. Agents submit knowledge via the API." });
   }
 
   const [globeSize, setGlobeSize] = useState<{ w: number; h: number } | null>(null);
@@ -1511,7 +1458,6 @@ function KnowledgeModal({
 
 /* ── Main Export ────────────────────────────────────────── */
 export function KnowledgeLayer() {
-  const { privateKey } = useAgent();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [showModal, setShowModal] = useState(false);
