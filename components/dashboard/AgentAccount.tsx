@@ -632,7 +632,7 @@ export function AgentAccount() {
   return (
     <>
       <div
-        className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#DD6E42]/50 p-6 transition hover:bg-[#DD6E42]/60"
+        className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#F4BCA9] p-6 transition hover:brightness-[0.97]"
         onClick={() => setShowModal(true)}
       >
         <div className="flex items-center justify-between">

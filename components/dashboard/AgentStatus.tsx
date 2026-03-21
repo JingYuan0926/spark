@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAgent } from "@/components/AgentContext";
+import { spinners } from "unicode-animations";
+
+const brailleSpinner = spinners.braille;
 
 const ACTION_LABELS: Record<string, string> = {
   agent_registered: "Registered on SPARK",
@@ -27,15 +30,48 @@ function formatTimeAgo(timestamp: string): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-interface AgentAction { icon: string; text: string; }
+type ActionStatus = "done" | "pending" | "active";
+interface AgentAction { text: string; status: ActionStatus }
 
+const DONE_ICON = "⣿";
 const PREVIEW_COUNT = 6;
 
-function ActionRow({ action, large }: { action: AgentAction; large?: boolean }) {
+function ActionRow({ action, brailleFrame, large }: { action: AgentAction; brailleFrame: number; large?: boolean }) {
+  const size = large ? "w-5 text-lg" : "w-4 text-sm";
+
+  if (action.status === "active") {
+    // Orange CSS spinner — like login page / Claude Code
+    return (
+      <div className="flex items-center gap-3">
+        <span className={`${size} flex items-center justify-center`}>
+          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#DD6E42]/30 border-t-[#DD6E42]" />
+        </span>
+        <span className={large ? "font-medium text-[#DD6E42]" : "font-medium text-[#DD6E42]/90"}>
+          {action.text}
+        </span>
+      </div>
+    );
+  }
+
+  if (action.status === "pending") {
+    // Braille animated spinner — waiting for next
+    return (
+      <div className="flex items-center gap-3">
+        <span className={`${size} text-center text-[#483519]/40`}>
+          {brailleSpinner.frames[brailleFrame]}
+        </span>
+        <span className={large ? "text-[#483519]/40" : "text-white/30"}>
+          {action.text}
+        </span>
+      </div>
+    );
+  }
+
+  // Done — braille dot icon
   return (
     <div className="flex items-center gap-3">
-      <span className={`${large ? "w-5 text-lg" : "w-4"} text-center text-[#4B7F52]`}>
-        {action.icon}
+      <span className={`${size} text-center text-[#4B7F52]`}>
+        {DONE_ICON}
       </span>
       <span className={large ? "text-[#483519]/70" : "text-white/60"}>
         {action.text}
@@ -44,7 +80,7 @@ function ActionRow({ action, large }: { action: AgentAction; large?: boolean }) 
   );
 }
 
-function AgentStatusModal({ actions, displayName, onClose }: { actions: AgentAction[]; displayName: string; onClose: () => void }) {
+function AgentStatusModal({ actions, displayName, brailleFrame, onClose }: { actions: AgentAction[]; displayName: string; brailleFrame: number; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -60,7 +96,7 @@ function AgentStatusModal({ actions, displayName, onClose }: { actions: AgentAct
 
         <div className="mt-5 space-y-3 font-mono text-sm">
           {actions.map((action, i) => (
-            <ActionRow key={i} action={action} />
+            <ActionRow key={i} action={action} brailleFrame={brailleFrame} />
           ))}
         </div>
       </div>
@@ -71,11 +107,13 @@ function AgentStatusModal({ actions, displayName, onClose }: { actions: AgentAct
 export function AgentStatus() {
   const { agent } = useAgent();
   const [showModal, setShowModal] = useState(false);
-  const [, setTick] = useState(0);
+  const [brailleFrame, setBrailleFrame] = useState(0);
 
-  // Re-render every 5s so "Xs ago" stays fresh
+  // Animate braille spinner
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 5000);
+    const interval = setInterval(() => {
+      setBrailleFrame((f) => (f + 1) % brailleSpinner.frames.length);
+    }, brailleSpinner.interval);
     return () => clearInterval(interval);
   }, []);
 
@@ -85,13 +123,13 @@ export function AgentStatus() {
 
   const actions: AgentAction[] = useMemo(() => {
     if (!agent) {
-      return [{ icon: "\u25CB", text: "Waiting for agent connection..." }];
+      return [{ text: "Waiting for agent connection...", status: "pending" as const }];
     }
 
     const items: AgentAction[] = [
-      { icon: "\u2713", text: `Account ${agent.hederaAccountId} connected` },
-      { icon: "\u2713", text: `Bot Topic: ${agent.botTopicId}` },
-      { icon: "\u2713", text: `Reputation: ${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes}\u2191 ${agent.downvotes}\u2193)` },
+      { text: `Account ${agent.hederaAccountId} connected`, status: "done" as const },
+      { text: `Bot Topic: ${agent.botTopicId}`, status: "done" as const },
+      { text: `Reputation: ${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes}\u2191 ${agent.downvotes}\u2193)`, status: "done" as const },
     ];
 
     // Show real bot messages as activity feed (newest first)
@@ -102,8 +140,11 @@ export function AgentStatus() {
       const ago = ts ? formatTimeAgo(ts) : "";
       const suffix = ago ? ` (${ago})` : "";
       const label = ACTION_LABELS[action] || action.replace(/_/g, " ");
-      items.push({ icon: "\u2713", text: `${label}${suffix}` });
+      items.push({ text: `${label}${suffix}`, status: "done" as const });
     }
+
+    // Bottom row: waiting for next action
+    items.push({ text: "Listening for next action...", status: "pending" as const });
 
     return items;
   }, [agent]);
@@ -114,7 +155,7 @@ export function AgentStatus() {
   return (
     <>
       <div
-        className="col-span-2 flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#483519]/50 p-6 transition hover:bg-[#483519]/60"
+        className="col-span-2 flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-6 transition hover:brightness-[0.97]"
         onClick={() => setShowModal(true)}
       >
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
@@ -122,7 +163,7 @@ export function AgentStatus() {
         </h2>
         <div className="mt-4 space-y-3 font-mono text-base">
           {previewActions.map((action, i) => (
-            <ActionRow key={i} action={action} large />
+            <ActionRow key={i} action={action} brailleFrame={brailleFrame} large />
           ))}
         </div>
 
@@ -132,7 +173,7 @@ export function AgentStatus() {
         </p>
       </div>
 
-      {showModal && <AgentStatusModal actions={actions} displayName={displayName} onClose={() => setShowModal(false)} />}
+      {showModal && <AgentStatusModal actions={actions} displayName={displayName} brailleFrame={brailleFrame} onClose={() => setShowModal(false)} />}
     </>
   );
 }

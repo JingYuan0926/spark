@@ -101,8 +101,9 @@ function AuthGate() {
   if (autoLoading) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-[#f5f0e8]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#DD6E42] border-t-transparent" />
+        <div className="flex flex-col items-center gap-5">
+          <img src="/logo.png" alt="SPARK" className="h-10 animate-pulse" />
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#483519]/20 border-t-[#DD6E42]" />
           <p className="text-sm font-medium text-[#483519]/70">Loading agent...</p>
         </div>
       </div>
@@ -112,8 +113,10 @@ function AuthGate() {
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-[#f5f0e8]">
       <div className="w-full max-w-md rounded-2xl bg-white/80 p-6 shadow-lg backdrop-blur-sm">
-        <h1 className="text-center text-2xl font-bold text-[#483519]">SPARK</h1>
-        <p className="mt-0.5 text-center text-xs text-[#483519]/60">
+        <div className="flex justify-center">
+          <img src="/logo.png" alt="SPARK" className="h-9" />
+        </div>
+        <p className="mt-2 text-center text-xs text-[#483519]/60">
           Monitor your agent in real-time
         </p>
 
@@ -200,20 +203,9 @@ function DashboardContent() {
 
   return (
     <div className="flex h-screen flex-col bg-[#f5f0e8]">
-      <div className="relative">
-        <Navbar />
-        <button
-          onClick={() => {
-            signOut();
-            router.push("/dashboard");
-          }}
-          className="absolute right-[2.5%] top-1/2 -translate-y-1/2 rounded-lg border border-[#483519]/20 bg-white/80 px-4 py-1.5 text-sm font-medium text-[#483519] transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-        >
-          Sign Out
-        </button>
-      </div>
+      <Navbar onSignOut={() => { signOut(); router.push("/dashboard"); }} />
 
-      <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4 px-[2.5%] pt-[3vh] pb-[3vh]">
+      <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-6 px-[2.5%] pt-[3vh] pb-[3vh]">
         <AgentStatus />
         <AgentSession />
         <KnowledgeLayer />

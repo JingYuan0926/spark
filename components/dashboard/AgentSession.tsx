@@ -469,7 +469,7 @@ export function AgentSession() {
   const visibleActivity = expanded ? activity : activity.slice(0, 3);
 
   return (
-    <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#4B7F52]/50 p-6">
+    <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#B1C6B4] p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[#2d4a30]">
           Agent Session

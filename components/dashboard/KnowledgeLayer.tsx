@@ -1551,7 +1551,7 @@ export function KnowledgeLayer() {
     <>
       <div
         ref={containerRef}
-        className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#4F6D7A]/50 p-4 transition hover:bg-[#4F6D7A]/60"
+        className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-4 transition hover:brightness-[0.97]"
         onClick={() => setShowModal(true)}
       >
         <button
