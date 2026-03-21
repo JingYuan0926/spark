@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { useAgent } from "@/contexts/AgentContext";
+import { useAgent } from "@/lib/AgentContext";
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {

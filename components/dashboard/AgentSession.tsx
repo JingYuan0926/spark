@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { useAgent } from "@/contexts/AgentContext";
+import { useAgent } from "@/lib/AgentContext";
 
 // ── Colors ──────────────────────────────────────────────────────
 const C = {

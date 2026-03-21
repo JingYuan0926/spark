@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useAgent, AgentData } from "@/contexts/AgentContext";
+import { useAgent, AgentData } from "@/lib/AgentContext";
 
 function formatHbar(value: number): string {
   if (value === 0) return "0";
