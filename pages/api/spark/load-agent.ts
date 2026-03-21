@@ -162,6 +162,8 @@ export default async function handler(
     const voteTopicData = await voteTopicRes.json();
     let upvotes = 0;
     let downvotes = 0;
+    const dimensions: Record<string, number> = { quality: 0, speed: 0, reliability: 0 };
+    const reviews: { voter: string; review: string; tags: string[]; value: number; timestamp: string }[] = [];
     for (const msg of voteTopicData.messages || []) {
       try {
         const decoded = JSON.parse(
@@ -170,6 +172,19 @@ export default async function handler(
         if (decoded.p === "hcs-20" && decoded.op === "mint") {
           if (decoded.tick === "upvote") upvotes += Number(decoded.amt || 1);
           if (decoded.tick === "downvote") downvotes += Number(decoded.amt || 1);
+          if (decoded.tick === "quality") dimensions.quality += Number(decoded.amt || 1);
+          if (decoded.tick === "speed") dimensions.speed += Number(decoded.amt || 1);
+          if (decoded.tick === "reliability") dimensions.reliability += Number(decoded.amt || 1);
+          // Collect reviews from mint messages
+          if (decoded.review) {
+            reviews.push({
+              voter: decoded.voter || "",
+              review: decoded.review,
+              tags: decoded.tags || [],
+              value: Number(decoded.value || 0),
+              timestamp: decoded.timestamp || "",
+            });
+          }
         }
       } catch {
         // skip
@@ -194,6 +209,8 @@ export default async function handler(
       upvotes,
       downvotes,
       netReputation: upvotes - downvotes,
+      dimensions,
+      reviews,
       registeredAt: registration.timestamp,
     });
   } catch (err: unknown) {

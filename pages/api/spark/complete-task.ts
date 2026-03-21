@@ -375,6 +375,9 @@ export default async function handler(
         });
       }
 
+      // Accept feedback from request body
+      const feedback = req.body.feedback as { value?: number; tags?: string[]; review?: string } | undefined;
+
       // Publish task_confirmed to master topic (operator signs)
       const masterMsg = JSON.stringify({
         action: "task_confirmed",
@@ -382,6 +385,7 @@ export default async function handler(
         requester: callerAccountId,
         worker: taskState.worker,
         budgetHbar: taskState.budgetHbar,
+        feedback: feedback || null,
         timestamp: new Date().toISOString(),
       });
 
@@ -407,29 +411,59 @@ export default async function handler(
         );
       }
 
-      // Mint HCS-20 upvote on worker's vote topic
+      // Mint multi-dimensional HCS-20 tokens on worker's vote topic
       let upvoteSeqNo: string | null = null;
+      const mintedDimensions: string[] = ["upvote"];
       try {
         const workerVoteTopicId = await resolveVoteTopicId(taskState.worker);
         if (workerVoteTopicId) {
-          const upvoteMsg = JSON.stringify({
-            p: "hcs-20",
-            op: "mint",
-            tick: "upvote",
-            amt: "1",
-            to: taskState.worker,
-            memo: `task_confirmed:${targetSeqNo}`,
-          });
+          // Always mint upvote + reliability (completed a task)
+          const mintMessages = [
+            {
+              p: "hcs-20", op: "mint", tick: "upvote", amt: "1",
+              to: taskState.worker, memo: `task_confirmed:${targetSeqNo}`,
+              review: feedback?.review || null,
+              tags: feedback?.tags || [],
+              value: feedback?.value || null,
+            },
+            {
+              p: "hcs-20", op: "mint", tick: "reliability", amt: "1",
+              to: taskState.worker, memo: `task_confirmed:${targetSeqNo}`,
+            },
+          ];
+          mintedDimensions.push("reliability");
 
-          upvoteSeqNo = await submitToTopic(
-            client,
-            workerVoteTopicId,
-            upvoteMsg,
-            operatorKey
-          );
+          // Mint additional dimensions based on feedback tags
+          const tagToDim: Record<string, string> = {
+            accurate: "quality", thorough: "quality", "well-written": "quality",
+            fast: "speed", "on-time": "speed", quick: "speed",
+          };
+          const dimSet = new Set(["reliability"]);
+          for (const tag of (feedback?.tags || [])) {
+            const dim = tagToDim[tag];
+            if (dim && !dimSet.has(dim)) {
+              dimSet.add(dim);
+              mintedDimensions.push(dim);
+              mintMessages.push({
+                p: "hcs-20", op: "mint", tick: dim, amt: "1",
+                to: taskState.worker, memo: `task_confirmed:${targetSeqNo}:${tag}`,
+                review: null, tags: [], value: null,
+              });
+            }
+          }
+
+          for (const msg of mintMessages) {
+            const seqNo = await submitToTopic(
+              client,
+              workerVoteTopicId,
+              JSON.stringify(msg),
+              operatorKey
+            );
+            if (!upvoteSeqNo) upvoteSeqNo = seqNo;
+          }
         }
       } catch (err) {
-        console.error("[complete-task] upvote mint failed:", err);
+        console.error("[complete-task] reputation mint failed:", err);
       }
 
       // Log to requester's bot topic

@@ -115,7 +115,8 @@ export default async function handler(
     return res.status(405).json({ success: false, error: "POST only" });
   }
 
-  const { itemId, vote, hederaPrivateKey } = req.body;
+  const { itemId, vote, hederaPrivateKey, feedback } = req.body;
+  // feedback: { value?: number, tags?: string[], review?: string }
 
   if (!itemId || !vote || !hederaPrivateKey) {
     return res.status(400).json({
@@ -211,6 +212,7 @@ export default async function handler(
       itemId,
       voter: voterAccountId,
       vote,
+      feedback: feedback || null,
       timestamp: new Date().toISOString(),
     });
 
@@ -284,24 +286,53 @@ export default async function handler(
         author
       );
 
-      const upvoteMsg = JSON.stringify({
-        p: "hcs-20",
-        op: "mint",
-        tick: "upvote",
-        amt: "1",
-        voter: "consensus",
-        reason: `knowledge_approved:${itemId}`,
-        timestamp: new Date().toISOString(),
-      });
+      // Mint upvote + quality dimension token
+      const mintMessages = [
+        {
+          p: "hcs-20", op: "mint", tick: "upvote", amt: "1",
+          voter: "consensus", reason: `knowledge_approved:${itemId}`,
+          review: feedback?.review || null,
+          tags: feedback?.tags || [],
+          value: feedback?.value || null,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          p: "hcs-20", op: "mint", tick: "quality", amt: "1",
+          voter: "consensus", reason: `knowledge_approved:${itemId}`,
+          timestamp: new Date().toISOString(),
+        },
+      ];
 
-      await (
-        await new TopicMessageSubmitTransaction()
-          .setTopicId(authorVoteTopicId)
-          .setMessage(upvoteMsg)
-          .execute(client)
-      ).getReceipt(client);
+      // Mint additional dimension tokens based on feedback tags
+      const tagToDimension: Record<string, string> = {
+        accurate: "quality", "well-written": "quality", thorough: "quality",
+        fast: "speed", "on-time": "speed", quick: "speed",
+        reliable: "reliability", consistent: "reliability", trusted: "reliability",
+      };
+      const mintedDimensions = new Set(["quality"]); // already minting quality
+      for (const tag of (feedback?.tags || [])) {
+        const dim = tagToDimension[tag];
+        if (dim && !mintedDimensions.has(dim)) {
+          mintedDimensions.add(dim);
+          mintMessages.push({
+            p: "hcs-20", op: "mint", tick: dim, amt: "1",
+            voter: "consensus", reason: `knowledge_approved:${itemId}:${tag}`,
+            review: null, tags: [], value: null,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
 
-      reputationEffect = "upvote on author's vote topic";
+      for (const msg of mintMessages) {
+        await (
+          await new TopicMessageSubmitTransaction()
+            .setTopicId(authorVoteTopicId)
+            .setMessage(JSON.stringify(msg))
+            .execute(client)
+        ).getReceipt(client);
+      }
+
+      reputationEffect = `upvote + ${[...mintedDimensions].join(",")} on author's vote topic`;
 
       // Step 8: If gated knowledge, add author as payroll agent
       const knowledgeAccessTier = knowledgeItem.accessTier as string | undefined;

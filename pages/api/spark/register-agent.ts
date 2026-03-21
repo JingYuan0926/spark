@@ -193,35 +193,31 @@ export default async function handler(
     const voteTopicId = voteTopicReceipt.topicId!.toString();
 
     // Step 6: Deploy HCS-20 tickers on vote topic
-    const upMsg = JSON.stringify({
-      p: "hcs-20",
-      op: "deploy",
-      name: `${botId} Upvotes`,
-      tick: "upvote",
-      max: "999999999",
-      lim: "1",
-    });
-    await (
-      await new TopicMessageSubmitTransaction()
-        .setTopicId(voteTopicId)
-        .setMessage(upMsg)
-        .execute(client)
-    ).getReceipt(client);
+    // Multi-dimensional reputation: upvote, downvote, quality, speed, reliability
+    const reputationTickers = [
+      { tick: "upvote", name: `${botId} Upvotes` },
+      { tick: "downvote", name: `${botId} Downvotes` },
+      { tick: "quality", name: `${botId} Quality` },
+      { tick: "speed", name: `${botId} Speed` },
+      { tick: "reliability", name: `${botId} Reliability` },
+    ];
 
-    const downMsg = JSON.stringify({
-      p: "hcs-20",
-      op: "deploy",
-      name: `${botId} Downvotes`,
-      tick: "downvote",
-      max: "999999999",
-      lim: "1",
-    });
-    await (
-      await new TopicMessageSubmitTransaction()
-        .setTopicId(voteTopicId)
-        .setMessage(downMsg)
-        .execute(client)
-    ).getReceipt(client);
+    for (const ticker of reputationTickers) {
+      const deployMsg = JSON.stringify({
+        p: "hcs-20",
+        op: "deploy",
+        name: ticker.name,
+        tick: ticker.tick,
+        max: "999999999",
+        lim: "1",
+      });
+      await (
+        await new TopicMessageSubmitTransaction()
+          .setTopicId(voteTopicId)
+          .setMessage(deployMsg)
+          .execute(client)
+      ).getReceipt(client);
+    }
 
     // Step 7: Store agent config on bot topic (HCS)
     const encryptedApiKey = apiKey ? encrypt(apiKey) : "";
