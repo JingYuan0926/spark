@@ -7,7 +7,7 @@ import { KnowledgeLayer } from "@/components/dashboard/KnowledgeLayer";
 import { AgentAccount } from "@/components/dashboard/AgentAccount";
 import { AgentProvider, useAgent, AgentData } from "@/components/AgentContext";
 
-const POLL_INTERVAL = 10_000; // 10 seconds
+const POLL_INTERVAL = 3_000; // 3 seconds — matches HCS consensus latency
 
 function parseAgentResult(result: Record<string, unknown>): AgentData {
   return {
@@ -173,19 +173,24 @@ function DashboardContent() {
   const { agent, setAgent, signOut } = useAgent();
   const router = useRouter();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [lastPoll, setLastPoll] = useState<number>(Date.now());
+  const [pollActive, setPollActive] = useState(false);
 
   // Poll for real-time updates
   const refreshAgent = useCallback(async () => {
     if (!agent) return;
+    setPollActive(true);
     try {
       const res = await fetch(`/api/spark/load-agent?accountId=${agent.hederaAccountId}`);
       const result = await res.json();
       if (result.success) {
         setAgent(parseAgentResult(result));
+        setLastPoll(Date.now());
       }
     } catch {
       // silent fail on poll
     }
+    setPollActive(false);
   }, [agent?.hederaAccountId, setAgent]);
 
   useEffect(() => {
@@ -202,15 +207,25 @@ function DashboardContent() {
     <div className="flex h-screen flex-col bg-[#f5f0e8]">
       <div className="relative">
         <Navbar />
-        <button
-          onClick={() => {
-            signOut();
-            router.push("/dashboard");
-          }}
-          className="absolute right-[2.5%] top-1/2 -translate-y-1/2 rounded-lg border border-[#483519]/20 bg-white/80 px-4 py-1.5 text-sm font-medium text-[#483519] transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-        >
-          Sign Out
-        </button>
+        <div className="absolute right-[2.5%] top-1/2 -translate-y-1/2 flex items-center gap-3">
+          {/* Live indicator */}
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${pollActive ? "animate-ping bg-[#DD6E42]" : "animate-pulse bg-[#4B7F52]"}`} />
+              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${pollActive ? "bg-[#DD6E42]" : "bg-[#4B7F52]"}`} />
+            </span>
+            <span className="text-[10px] font-medium text-[#483519]/50">LIVE</span>
+          </div>
+          <button
+            onClick={() => {
+              signOut();
+              router.push("/dashboard");
+            }}
+            className="rounded-lg border border-[#483519]/20 bg-white/80 px-4 py-1.5 text-sm font-medium text-[#483519] transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4 px-[2.5%] pt-[3vh] pb-[3vh]">
