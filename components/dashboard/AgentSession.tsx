@@ -197,7 +197,6 @@ export function AgentSession() {
   // Subscription state
 
   // Activity log (ledger-based from HEAD)
-  const [expanded, setExpanded] = useState(false);
   const [activity, setActivity] = useState<ActivityEntry[]>(FALLBACK_ACTIVITY);
   const [masterTopicId, setMasterTopicId] = useState<string | null>(null);
 
@@ -421,7 +420,7 @@ export function AgentSession() {
     resting: { bg: "bg-[#DD6E42]/20", text: "text-[#DD6E42]" },
   };
 
-  const visibleActivity = expanded ? activity : activity.slice(0, 3);
+  const visibleActivity = activity;
 
   return (
     <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#B1C6B4] p-6">
@@ -473,14 +472,6 @@ export function AgentSession() {
             ))}
           </div>
 
-          {activity.length > 3 && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="w-full border-t border-[#483519]/5 py-1.5 text-xs font-medium text-[#483519]/40 transition hover:text-[#483519]/70"
-            >
-              {expanded ? "Show less" : `Show ${activity.length - 3} more...`}
-            </button>
-          )}
         </div>
       </div>
     </div>
