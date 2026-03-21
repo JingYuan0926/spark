@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAgent } from "@/components/AgentContext";
 
 const SPINNER_FRAMES = ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"];
@@ -21,6 +21,9 @@ const ACTION_LABELS: Record<string, string> = {
   config_stored: "Config stored on HCS",
 };
 
+// How long new messages show as "active" (spinner) before flipping to "done"
+const ACTIVE_DURATION_MS = 2000;
+
 function formatTimeAgo(timestamp: string): string {
   const seconds = Date.now() / 1000 - parseFloat(timestamp);
   if (seconds < 60) return `${Math.floor(seconds)}s ago`;
@@ -36,7 +39,7 @@ const PREVIEW_COUNT = 6;
 
 function ActionRow({ action, frame, large }: { action: AgentAction; frame: number; large?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 transition-all duration-500 ${action.status === "active" ? "opacity-100" : ""}`}>
       <span
         className={
           action.status === "done"
@@ -53,7 +56,7 @@ function ActionRow({ action, frame, large }: { action: AgentAction; frame: numbe
           action.status === "done"
             ? large ? "text-[#483519]/70" : "text-white/60"
             : action.status === "active"
-              ? large ? "text-[#483519]" : "text-white"
+              ? large ? "font-semibold text-[#483519]" : "font-semibold text-white"
               : large ? "text-[#483519]/30" : "text-white/30"
         }
       >
@@ -92,11 +95,42 @@ export function AgentStatus() {
   const [frame, setFrame] = useState(0);
   const [showModal, setShowModal] = useState(false);
 
+  // Track previous message count to detect new messages
+  const prevCountRef = useRef(0);
+  const [newMessageCount, setNewMessageCount] = useState(0);
+  const activeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setFrame((f) => (f + 1) % SPINNER_FRAMES.length);
     }, 80);
     return () => clearInterval(interval);
+  }, []);
+
+  // Detect new messages arriving between polls
+  const currentCount = agent?.botMessageCount || 0;
+  useEffect(() => {
+    // Skip initial load (prevCount is 0)
+    if (prevCountRef.current > 0 && currentCount > prevCountRef.current) {
+      const diff = currentCount - prevCountRef.current;
+      setNewMessageCount(diff);
+
+      // Clear any existing timer
+      if (activeTimerRef.current) clearTimeout(activeTimerRef.current);
+
+      // After ACTIVE_DURATION_MS, flip them to "done"
+      activeTimerRef.current = setTimeout(() => {
+        setNewMessageCount(0);
+      }, ACTIVE_DURATION_MS);
+    }
+    prevCountRef.current = currentCount;
+  }, [currentCount]);
+
+  // Cleanup timer
+  useEffect(() => {
+    return () => {
+      if (activeTimerRef.current) clearTimeout(activeTimerRef.current);
+    };
   }, []);
 
   const displayName = agent
@@ -118,30 +152,26 @@ export function AgentStatus() {
 
     // Show real bot messages as activity feed (newest first)
     const messages = [...(agent.botMessages || [])].reverse();
-    for (const msg of messages) {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
       const action = (msg.action as string) || "unknown";
       const ts = (msg.timestamp as string) || "";
       const ago = ts ? formatTimeAgo(ts) : "";
       const suffix = ago ? ` (${ago})` : "";
 
       const label = ACTION_LABELS[action] || action.replace(/_/g, " ");
+
+      // New messages (detected this poll cycle) show as "active" with spinner
+      const isNew = i < newMessageCount;
       items.push({
-        icon: "\u2713",
+        icon: isNew ? "\u25CF" : "\u2713",
         text: `${label}${suffix}`,
-        status: "done" as const,
+        status: isNew ? "active" as const : "done" as const,
       });
     }
 
-    // If the latest message is recent (< 30s), show it as active
-    if (messages.length > 0 && items.length > 3) {
-      const latestTs = messages[0]?.timestamp as string;
-      if (latestTs && (Date.now() / 1000 - parseFloat(latestTs)) < 30) {
-        items[3] = { ...items[3], icon: "\u25CF", status: "active" as const };
-      }
-    }
-
     return items;
-  }, [agent]);
+  }, [agent, newMessageCount]);
 
   const previewActions = actions.slice(0, PREVIEW_COUNT);
   const remaining = actions.length - PREVIEW_COUNT;
