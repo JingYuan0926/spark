@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import {
   SUBSCRIPTION_VAULT_ADDRESS,
   HEDERA_RPC_URL,
-} from "@/lib/subscription-vault-abi";
+} from "@/contracts/abi/subscription-vault-abi";
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",

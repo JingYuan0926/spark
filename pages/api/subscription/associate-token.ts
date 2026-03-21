@@ -4,7 +4,7 @@ import {
   SUBSCRIPTION_VAULT_ADDRESS,
   SUBSCRIPTION_VAULT_ABI,
   HEDERA_RPC_URL,
-} from "@/lib/subscription-vault-abi";
+} from "@/contracts/abi/subscription-vault-abi";
 
 export default async function handler(
   req: NextApiRequest,

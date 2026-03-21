@@ -5,7 +5,7 @@ import {
   PAYROLL_VAULT_ADDRESS,
   PAYROLL_VAULT_ABI,
   HEDERA_RPC_URL,
-} from "@/lib/payroll-vault-abi";
+} from "@/contracts/abi/payroll-vault-abi";
 
 // Payout config: 1 USDC per 10 seconds per contributor
 const PAYOUT_AMOUNT_USDC = "1"; // 1 USDC (6 decimals)

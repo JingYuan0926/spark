@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
-import { HASHSCAN_BASE, HEDERA_RPC_URL, ScheduleStatus, PAYROLL_VAULT_ADDRESS, PAYROLL_VAULT_ABI } from "@/lib/payroll-vault-abi";
+import { HASHSCAN_BASE, HEDERA_RPC_URL, ScheduleStatus, PAYROLL_VAULT_ADDRESS, PAYROLL_VAULT_ABI } from "@/contracts/abi/payroll-vault-abi";
 
 interface ApiResult {
   success: boolean;

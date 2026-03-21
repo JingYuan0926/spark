@@ -5,7 +5,7 @@ import { AgentStatus } from "@/components/dashboard/AgentStatus";
 import { AgentSession } from "@/components/dashboard/AgentSession";
 import { KnowledgeLayer } from "@/components/dashboard/KnowledgeLayer";
 import { AgentAccount } from "@/components/dashboard/AgentAccount";
-import { AgentProvider, useAgent, AgentData } from "@/lib/AgentContext";
+import { AgentProvider, useAgent, AgentData } from "@/components/AgentContext";
 
 const REGISTER_STEPS = [
   "Creating Hedera Account",

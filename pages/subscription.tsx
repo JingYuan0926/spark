@@ -6,8 +6,8 @@ import {
   SubscriptionScheduleStatus,
   PaymentMode,
   HEDERA_RPC_URL,
-} from "@/lib/subscription-vault-abi";
-import { HASHSCAN_BASE } from "@/lib/payroll-vault-abi";
+} from "@/contracts/abi/subscription-vault-abi";
+import { HASHSCAN_BASE } from "@/contracts/abi/payroll-vault-abi";
 
 interface ApiResult {
   success: boolean;

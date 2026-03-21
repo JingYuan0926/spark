@@ -4,7 +4,7 @@ import {
   PAYROLL_VAULT_ADDRESS,
   PAYROLL_VAULT_ABI,
   HEDERA_RPC_URL,
-} from "@/lib/payroll-vault-abi";
+} from "@/contracts/abi/payroll-vault-abi";
 
 // Minimal ERC-20 ABI for approve
 const ERC20_ABI = [
