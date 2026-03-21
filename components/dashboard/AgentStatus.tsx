@@ -1,7 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAgent } from "@/components/AgentContext";
-
-const SPINNER_FRAMES = ["\u280B", "\u2819", "\u2839", "\u2838", "\u283C", "\u2834", "\u2826", "\u2827", "\u2807", "\u280F"];
 
 const ACTION_LABELS: Record<string, string> = {
   agent_registered: "Registered on SPARK",
@@ -21,9 +19,6 @@ const ACTION_LABELS: Record<string, string> = {
   config_stored: "Config stored on HCS",
 };
 
-// How long new messages show as "active" (spinner) before flipping to "done"
-const ACTIVE_DURATION_MS = 2000;
-
 function formatTimeAgo(timestamp: string): string {
   const seconds = Date.now() / 1000 - parseFloat(timestamp);
   if (seconds < 60) return `${Math.floor(seconds)}s ago`;
@@ -32,41 +27,24 @@ function formatTimeAgo(timestamp: string): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-type ActionStatus = "done" | "active" | "pending";
-interface AgentAction { icon: string; text: string; status: ActionStatus }
+interface AgentAction { icon: string; text: string; }
 
 const PREVIEW_COUNT = 6;
 
-function ActionRow({ action, frame, large }: { action: AgentAction; frame: number; large?: boolean }) {
+function ActionRow({ action, large }: { action: AgentAction; large?: boolean }) {
   return (
-    <div className={`flex items-center gap-3 transition-all duration-500 ${action.status === "active" ? "opacity-100" : ""}`}>
-      <span
-        className={
-          action.status === "done"
-            ? `${large ? "w-5 text-lg" : "w-4"} text-center text-[#4B7F52]`
-            : action.status === "active"
-              ? `${large ? "w-5 text-lg" : "w-4"} text-center text-[#DD6E42]`
-              : `${large ? "w-5 text-lg" : "w-4"} text-center text-[#483519]/30`
-        }
-      >
-        {action.status === "active" ? SPINNER_FRAMES[frame] : action.icon}
+    <div className="flex items-center gap-3">
+      <span className={`${large ? "w-5 text-lg" : "w-4"} text-center text-[#4B7F52]`}>
+        {action.icon}
       </span>
-      <span
-        className={
-          action.status === "done"
-            ? large ? "text-[#483519]/70" : "text-white/60"
-            : action.status === "active"
-              ? large ? "font-semibold text-[#483519]" : "font-semibold text-white"
-              : large ? "text-[#483519]/30" : "text-white/30"
-        }
-      >
+      <span className={large ? "text-[#483519]/70" : "text-white/60"}>
         {action.text}
       </span>
     </div>
   );
 }
 
-function AgentStatusModal({ frame, actions, displayName, onClose }: { frame: number; actions: AgentAction[]; displayName: string; onClose: () => void }) {
+function AgentStatusModal({ actions, displayName, onClose }: { actions: AgentAction[]; displayName: string; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -82,7 +60,7 @@ function AgentStatusModal({ frame, actions, displayName, onClose }: { frame: num
 
         <div className="mt-5 space-y-3 font-mono text-sm">
           {actions.map((action, i) => (
-            <ActionRow key={i} action={action} frame={frame} />
+            <ActionRow key={i} action={action} />
           ))}
         </div>
       </div>
@@ -92,45 +70,13 @@ function AgentStatusModal({ frame, actions, displayName, onClose }: { frame: num
 
 export function AgentStatus() {
   const { agent } = useAgent();
-  const [frame, setFrame] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [, setTick] = useState(0);
 
-  // Track previous message count to detect new messages
-  const prevCountRef = useRef(0);
-  const [newMessageCount, setNewMessageCount] = useState(0);
-  const activeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // Re-render every 5s so "Xs ago" stays fresh
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame((f) => (f + 1) % SPINNER_FRAMES.length);
-    }, 80);
+    const interval = setInterval(() => setTick((t) => t + 1), 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Detect new messages arriving between polls
-  const currentCount = agent?.botMessageCount || 0;
-  useEffect(() => {
-    // Skip initial load (prevCount is 0)
-    if (prevCountRef.current > 0 && currentCount > prevCountRef.current) {
-      const diff = currentCount - prevCountRef.current;
-      setNewMessageCount(diff);
-
-      // Clear any existing timer
-      if (activeTimerRef.current) clearTimeout(activeTimerRef.current);
-
-      // After ACTIVE_DURATION_MS, flip them to "done"
-      activeTimerRef.current = setTimeout(() => {
-        setNewMessageCount(0);
-      }, ACTIVE_DURATION_MS);
-    }
-    prevCountRef.current = currentCount;
-  }, [currentCount]);
-
-  // Cleanup timer
-  useEffect(() => {
-    return () => {
-      if (activeTimerRef.current) clearTimeout(activeTimerRef.current);
-    };
   }, []);
 
   const displayName = agent
@@ -139,41 +85,28 @@ export function AgentStatus() {
 
   const actions: AgentAction[] = useMemo(() => {
     if (!agent) {
-      return [
-        { icon: "\u25CB", text: "Waiting for agent connection...", status: "pending" as const },
-      ];
+      return [{ icon: "\u25CB", text: "Waiting for agent connection..." }];
     }
 
     const items: AgentAction[] = [
-      { icon: "\u2713", text: `Account ${agent.hederaAccountId} connected`, status: "done" as const },
-      { icon: "\u2713", text: `Bot Topic: ${agent.botTopicId}`, status: "done" as const },
-      { icon: "\u2713", text: `Reputation: ${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes}\u2191 ${agent.downvotes}\u2193)`, status: "done" as const },
+      { icon: "\u2713", text: `Account ${agent.hederaAccountId} connected` },
+      { icon: "\u2713", text: `Bot Topic: ${agent.botTopicId}` },
+      { icon: "\u2713", text: `Reputation: ${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes}\u2191 ${agent.downvotes}\u2193)` },
     ];
 
     // Show real bot messages as activity feed (newest first)
     const messages = [...(agent.botMessages || [])].reverse();
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
+    for (const msg of messages) {
       const action = (msg.action as string) || "unknown";
       const ts = (msg.timestamp as string) || "";
       const ago = ts ? formatTimeAgo(ts) : "";
       const suffix = ago ? ` (${ago})` : "";
-
       const label = ACTION_LABELS[action] || action.replace(/_/g, " ");
-
-      // Show as "active" if: detected this poll cycle OR message is < 10s old
-      const isNew = i < newMessageCount;
-      const isRecent = ts ? (Date.now() / 1000 - parseFloat(ts)) < 10 : false;
-      const showActive = isNew || isRecent;
-      items.push({
-        icon: showActive ? "\u25CF" : "\u2713",
-        text: `${label}${suffix}`,
-        status: showActive ? "active" as const : "done" as const,
-      });
+      items.push({ icon: "\u2713", text: `${label}${suffix}` });
     }
 
     return items;
-  }, [agent, newMessageCount]);
+  }, [agent]);
 
   const previewActions = actions.slice(0, PREVIEW_COUNT);
   const remaining = actions.length - PREVIEW_COUNT;
@@ -189,18 +122,17 @@ export function AgentStatus() {
         </h2>
         <div className="mt-4 space-y-3 font-mono text-base">
           {previewActions.map((action, i) => (
-            <ActionRow key={i} action={action} frame={frame} large />
+            <ActionRow key={i} action={action} large />
           ))}
         </div>
 
-        {/* Click hint */}
         <p className="mt-auto flex items-center justify-end gap-1 pt-3 text-xs text-[#483519]/40">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
           {remaining > 0 ? `+${remaining} more — click to view all` : "Click to view all"}
         </p>
       </div>
 
-      {showModal && <AgentStatusModal frame={frame} actions={actions} displayName={displayName} onClose={() => setShowModal(false)} />}
+      {showModal && <AgentStatusModal actions={actions} displayName={displayName} onClose={() => setShowModal(false)} />}
     </>
   );
 }
