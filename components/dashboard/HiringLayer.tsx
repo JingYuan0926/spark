@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useAgent } from "@/components/AgentContext";
 import { spinners } from "unicode-animations";
 
 const brailleSpinner = spinners.braille;
@@ -69,13 +70,48 @@ function shortAddr(addr: string): string {
   return parts.length === 3 ? `..${parts[2]}` : addr.slice(-6);
 }
 
+// ── Chat message from botMessages ────────────────────────────────
+interface AgentChatMsg {
+  direction: "in" | "out";
+  peer: string;
+  message: string;
+  timestamp: string;
+}
+
+function parseAgentMessages(botMessages: Record<string, unknown>[]): AgentChatMsg[] {
+  const msgs: AgentChatMsg[] = [];
+  for (const m of botMessages) {
+    const action = m.action as string;
+    if (action === "agent_message") {
+      msgs.push({
+        direction: "in",
+        peer: (m.from as string) || "unknown",
+        message: (m.message as string) || "",
+        timestamp: (m.timestamp as string) || "",
+      });
+    } else if (action === "i_sent_message") {
+      msgs.push({
+        direction: "out",
+        peer: (m.to as string) || "unknown",
+        message: (m.message as string) || "",
+        timestamp: (m.timestamp as string) || "",
+      });
+    }
+  }
+  return msgs;
+}
+
 // ── Main Component ──────────────────────────────────────────────
 export function HiringLayer({ onBack }: { onBack: () => void }) {
+  const { agent } = useAgent();
   const [services, setServices] = useState<Service[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [brailleFrame, setBrailleFrame] = useState(0);
+
+  // Parse agent-to-agent messages from botMessages
+  const chatMessages = agent?.botMessages ? parseAgentMessages(agent.botMessages as Record<string, unknown>[]) : [];
 
   // Braille spinner
   useEffect(() => {
@@ -262,13 +298,13 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Bottom-left: Agent Directory */}
-      <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-5">
+      <div className="flex flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#3a4f5a]">
-            Agent Directory
+            Agents
           </h2>
           <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
-            {agents.length} agents
+            {agents.length}
           </span>
         </div>
         <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -298,6 +334,55 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Bottom-right: Agent-to-Agent Chat */}
+      <div className="flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
+            Agent Chat
+          </h2>
+          <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
+            {chatMessages.length}
+          </span>
+        </div>
+        <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+          {chatMessages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <span className="text-2xl text-[#483519]/15">
+                {brailleSpinner.frames[brailleFrame]}
+              </span>
+              <p className="mt-2 text-xs text-[#483519]/30">
+                No agent-to-agent messages yet.
+              </p>
+              <p className="mt-1 font-mono text-[10px] text-[#483519]/20">
+                Agents communicate via HCS bot topics
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {chatMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                    msg.direction === "out"
+                      ? "bg-[#483519] text-white"
+                      : "bg-white/50 text-[#483519]"
+                  }`}>
+                    <p className="text-[10px] font-semibold opacity-50">
+                      {msg.direction === "out" ? `→ ${shortAddr(msg.peer)}` : `← ${shortAddr(msg.peer)}`}
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ wordBreak: "break-word" }}>
+                      {msg.message}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
