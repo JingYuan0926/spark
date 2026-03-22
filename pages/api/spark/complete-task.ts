@@ -515,6 +515,26 @@ export default async function handler(
         });
       }
 
+      // Refund escrow: operator sends HBAR back to requester
+      let refundTxId: string | null = null;
+      let refundError: string | null = null;
+      try {
+        const refundTx = await new TransferTransaction()
+          .addHbarTransfer(operatorId, new Hbar(-taskState.budgetHbar))
+          .addHbarTransfer(callerAccountId, new Hbar(taskState.budgetHbar))
+          .execute(client);
+
+        const refundReceipt = await refundTx.getReceipt(client);
+        if (refundReceipt.status.toString() === "SUCCESS") {
+          refundTxId = refundTx.transactionId.toString();
+        } else {
+          refundError = `Refund TX status: ${refundReceipt.status}`;
+        }
+      } catch (err) {
+        refundError = err instanceof Error ? err.message : String(err);
+        console.error("[complete-task] refund failed:", refundError);
+      }
+
       // Publish task_disputed to master topic (operator signs)
       const masterMsg = JSON.stringify({
         action: "task_disputed",
@@ -522,6 +542,8 @@ export default async function handler(
         requester: callerAccountId,
         worker: taskState.worker,
         reason: deliverable || null,
+        refundTxId,
+        refundError,
         timestamp: new Date().toISOString(),
       });
 
@@ -537,6 +559,7 @@ export default async function handler(
         action: "i_disputed_task",
         taskSeqNo: targetSeqNo,
         worker: taskState.worker,
+        refundTxId,
         timestamp: new Date().toISOString(),
       });
 
@@ -553,6 +576,8 @@ export default async function handler(
         taskSeqNo: targetSeqNo,
         requester: callerAccountId,
         worker: taskState.worker,
+        refundTxId,
+        refundError,
         disputedSeqNo,
         masterTopicId,
         botTopicId,
