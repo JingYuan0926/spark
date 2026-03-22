@@ -519,27 +519,54 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 </div>
 
                 {/* Task lifecycle pipeline */}
-                <div className="mt-3 flex items-center gap-1">
-                  {(["open", "accepted", "completed", "confirmed"] as const).map((stage, i) => {
-                    const stages = ["open", "accepted", "completed", "confirmed"];
-                    const currentIdx = stages.indexOf(task.status);
-                    const stageIdx = i;
-                    const isPast = stageIdx < currentIdx;
-                    const isCurrent = stageIdx === currentIdx;
-                    const dotColor = isPast
-                      ? "bg-[#4B7F52]"
-                      : isCurrent
-                        ? (STATUS_COLORS[stage]?.text.replace("text-", "bg-") || "bg-[#DD6E42]")
-                        : "bg-[#483519]/15";
-                    const lineColor = isPast ? "bg-[#4B7F52]/40" : "bg-[#483519]/10";
-                    return (
-                      <div key={stage} className="flex items-center gap-1">
-                        <div className={`h-2 w-2 rounded-full ${dotColor}`} title={stage} />
-                        {i < 3 && <div className={`h-0.5 w-4 ${lineColor}`} />}
-                      </div>
-                    );
-                  })}
-                  <span className="ml-2 text-[11px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                {(() => {
+                  const isDisp = task.status === "disputed";
+                  const pipeStages = ["open", "accepted", "completed", isDisp ? "disputed" : "confirmed"];
+                  const curIdx = isDisp ? 3 : pipeStages.indexOf(task.status);
+                  return (
+                    <div className="mt-3 flex items-center gap-1">
+                      {pipeStages.map((stage, i) => {
+                        const isPast = i < curIdx;
+                        const isCur = i === curIdx;
+                        const dotColor = isPast
+                          ? "bg-[#4B7F52]"
+                          : isCur && isDisp
+                            ? "bg-[#A61C3C]"
+                            : isCur
+                              ? (STATUS_COLORS[stage]?.text.replace("text-", "bg-") || "bg-[#DD6E42]")
+                              : "bg-[#483519]/15";
+                        const lineColor = isPast ? "bg-[#4B7F52]/40" : "bg-[#483519]/10";
+                        return (
+                          <div key={stage} className="flex items-center gap-1">
+                            <div className={`h-2 w-2 rounded-full ${dotColor}`} title={stage} />
+                            {i < 3 && <div className={`h-0.5 w-4 ${lineColor}`} />}
+                          </div>
+                        );
+                      })}
+                      <span className="ml-2 text-[11px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Timeline + agent activity */}
+                <div className="mt-2 flex items-center gap-3 text-[11px] text-[#483519]/35">
+                  {task.acceptedAt && <span>Accepted {timeAgo(task.acceptedAt)}</span>}
+                  {task.completedAt && <span>· Submitted {timeAgo(task.completedAt)}</span>}
+                  {task.confirmedAt && <span>· Confirmed {timeAgo(task.confirmedAt)}</span>}
+                  {task.disputedAt && <span className="text-[#A61C3C]/60">· Disputed {timeAgo(task.disputedAt)}{task.refundTxId ? " · Refunded" : ""}</span>}
+                </div>
+
+                {/* Agent activity status */}
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "open" ? "bg-[#DD6E42] animate-pulse" : task.status === "accepted" ? "bg-[#4F6D7A] animate-pulse" : task.status === "completed" ? "bg-[#4B7F52] animate-pulse" : task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                  <span className="text-[11px] italic text-[#483519]/40">
+                    {task.status === "open" && !task.worker && (task.negotiation.length > 0 ? `${task.negotiation.length} agent${task.negotiation.length > 1 ? "s" : ""} discussing` : "Waiting for agents to respond")}
+                    {task.status === "open" && task.worker && "Worker assigned, awaiting acceptance"}
+                    {task.status === "accepted" && "Agent working on deliverable"}
+                    {task.status === "completed" && "Deliverable submitted — awaiting review"}
+                    {task.status === "confirmed" && "Task complete — HBAR released, reputation minted"}
+                    {task.status === "disputed" && (task.refundTxId ? "Disputed — HBAR refunded to requester" : "Disputed — pending resolution")}
+                  </span>
                 </div>
 
                 {task.escrowTxId && (
@@ -594,20 +621,36 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         </div>
                       </div>
                       {/* Pipeline */}
-                      <div className="mt-2 flex items-center gap-1">
-                        {(["open", "accepted", "completed", "confirmed"] as const).map((stage, i) => {
-                          const stages = ["open", "accepted", "completed", "confirmed"];
-                          const currentIdx = stages.indexOf(task.status);
-                          const isPast = i < currentIdx;
-                          const isCurrent = i === currentIdx;
-                          return (
-                            <div key={stage} className="flex items-center gap-1">
-                              <div className={`h-2 w-2 rounded-full ${isPast ? "bg-[#4B7F52]" : isCurrent ? (STATUS_COLORS[stage]?.text.replace("text-", "bg-") || "bg-[#DD6E42]") : "bg-[#483519]/15"}`} />
-                              {i < 3 && <div className={`h-0.5 w-4 ${isPast ? "bg-[#4B7F52]/40" : "bg-[#483519]/10"}`} />}
-                            </div>
-                          );
-                        })}
-                        <span className="ml-2 text-[11px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                      {(() => {
+                        const isDisp = task.status === "disputed";
+                        const pStages = ["open", "accepted", "completed", isDisp ? "disputed" : "confirmed"];
+                        const cIdx = isDisp ? 3 : pStages.indexOf(task.status);
+                        return (
+                          <div className="mt-2 flex items-center gap-1">
+                            {pStages.map((stage, i) => {
+                              const isPast = i < cIdx;
+                              const isCur = i === cIdx;
+                              return (
+                                <div key={stage} className="flex items-center gap-1">
+                                  <div className={`h-2 w-2 rounded-full ${isPast ? "bg-[#4B7F52]" : isCur && isDisp ? "bg-[#A61C3C]" : isCur ? (STATUS_COLORS[stage]?.text.replace("text-", "bg-") || "bg-[#DD6E42]") : "bg-[#483519]/15"}`} />
+                                  {i < 3 && <div className={`h-0.5 w-4 ${isPast ? "bg-[#4B7F52]/40" : "bg-[#483519]/10"}`} />}
+                                </div>
+                              );
+                            })}
+                            <span className="ml-2 text-[11px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                          </div>
+                        );
+                      })()}
+                      {/* Agent activity status */}
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "open" ? "bg-[#DD6E42] animate-pulse" : task.status === "accepted" ? "bg-[#4F6D7A] animate-pulse" : task.status === "completed" ? "bg-[#4B7F52] animate-pulse" : task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                        <span className="text-[11px] italic text-[#483519]/40">
+                          {task.status === "open" && (task.negotiation.length > 0 ? `${task.negotiation.length} response${task.negotiation.length > 1 ? "s" : ""}` : "Waiting for agents")}
+                          {task.status === "accepted" && "Agent working on deliverable"}
+                          {task.status === "completed" && "Awaiting your review"}
+                          {task.status === "confirmed" && "Complete — HBAR released"}
+                          {task.status === "disputed" && (task.refundTxId ? "Disputed — refunded" : "Disputed — pending")}
+                        </span>
                       </div>
                       {task.deliverable && (
                         <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[12px] text-[#483519]/50">
@@ -855,6 +898,17 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                             ))}
                           </div>
                         )}
+                        {/* Agent activity status */}
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "open" ? "bg-[#DD6E42] animate-pulse" : task.status === "accepted" ? "bg-[#4F6D7A] animate-pulse" : task.status === "completed" ? "bg-[#4B7F52] animate-pulse" : task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                          <span className="text-[11px] italic text-white/30">
+                            {task.status === "open" && (task.negotiation.length > 0 ? `${task.negotiation.length} agent${task.negotiation.length > 1 ? "s" : ""} discussing` : "Waiting for agents")}
+                            {task.status === "accepted" && "Agent working on deliverable"}
+                            {task.status === "completed" && "Deliverable submitted — awaiting review"}
+                            {task.status === "confirmed" && "Complete — HBAR released"}
+                            {task.status === "disputed" && (task.refundTxId ? "Disputed — refunded" : "Disputed — pending")}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
