@@ -155,6 +155,38 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [proposeMsg, setProposeMsg] = useState("");
   const [showProposeForm, setShowProposeForm] = useState(false);
   const [negotiateLoading, setNegotiateLoading] = useState(false);
+  // Task reviews (read-only)
+  const [taskReviews, setTaskReviews] = useState<{ reviewer: string; rating: number; review: string; tags: string[] }[]>([]);
+
+  // Fetch reviews for selected task
+  useEffect(() => {
+    if (!selectedTask || (selectedTask.status !== "confirmed" && selectedTask.status !== "disputed")) {
+      setTaskReviews([]);
+      return;
+    }
+    let cancelled = false;
+    async function fetchTaskReviews() {
+      try {
+        // Fetch reviews for both parties and filter by contextId
+        const parties = [selectedTask!.requester, selectedTask!.worker].filter(Boolean);
+        const allReviews: { reviewer: string; rating: number; review: string; tags: string[] }[] = [];
+        for (const party of parties) {
+          const res = await fetch(`/api/spark/reviews?agent=${party}`);
+          const data = await res.json();
+          if (data.success && data.reviews) {
+            for (const r of data.reviews) {
+              if (r.contextId === selectedTask!.taskSeqNo) {
+                allReviews.push({ reviewer: r.reviewer, rating: r.rating, review: r.review, tags: r.tags || [] });
+              }
+            }
+          }
+        }
+        if (!cancelled) setTaskReviews(allReviews);
+      } catch { /* ignore */ }
+    }
+    fetchTaskReviews();
+    return () => { cancelled = true; };
+  }, [selectedTask]);
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -1467,6 +1499,30 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     </div>
                   )}
 
+                  {/* Reviews (read-only) */}
+                  {taskReviews.length > 0 && (
+                    <div className="mt-3 border-t border-white/8 pt-4">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Reviews</h4>
+                      <div className="mt-3 space-y-2">
+                        {taskReviews.map((r, i) => (
+                          <div key={i} className="rounded-lg bg-white/5 px-4 py-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[12px] font-semibold text-white/50">{agentName(r.reviewer, agents)}</span>
+                              <span className="font-mono text-[12px] font-bold text-[#DD6E42]">{r.rating}/100</span>
+                            </div>
+                            <p className="mt-1 text-xs leading-relaxed text-white/50">{r.review}</p>
+                            {r.tags.length > 0 && (
+                              <div className="mt-1.5 flex gap-1">
+                                {r.tags.map((tag) => (
+                                  <span key={tag} className="rounded-full bg-[#4B7F52]/15 px-1.5 py-0.5 text-[11px] text-[#4B7F52]">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
