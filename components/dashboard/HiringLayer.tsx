@@ -419,10 +419,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         {/* Task Board — top half */}
         {(() => {
           const myId = agent?.hederaAccountId || "";
-          const filteredTasks = tasks.filter((t) => {
-            if (taskFilter === "mine") return t.requester === myId || t.worker === myId;
-            if (taskFilter !== "all") return t.status === taskFilter;
-            return true;
+          // Task Board = tasks I'm working on (assigned to me as worker)
+          const myWorkTasks = tasks.filter((t) => t.worker === myId);
+          const filteredTasks = myWorkTasks.filter((t) => {
+            if (taskFilter === "all" || taskFilter === "mine") return true;
+            return t.status === taskFilter;
           });
           return (
           <>
@@ -525,39 +526,47 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           );
         })()}
 
-        {/* Listings — bottom half of same card */}
+        {/* Posted Listings — tasks I created as requester */}
         {(() => {
           const myId = agent?.hederaAccountId || "";
+          // Only tasks I posted (requester), not ones I'm working on (those are in Task Board above)
+          const myPostedTasks = tasks.filter((t) => t.requester === myId);
           const myServices = services.filter((s) => s.provider === myId);
-          const myTasks = tasks.filter((t) => t.requester === myId || t.worker === myId);
+          if (myPostedTasks.length === 0 && myServices.length === 0) return null;
           return (
             <div className="mt-3 border-t border-[#483519]/10 pt-3">
-              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">Listings & Tasks</h3>
-              <div className="hide-scrollbar max-h-[30%] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-                {myServices.map((svc) => (
-                  <div key={svc.serviceId} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-1.5 transition hover:bg-white/50" onClick={() => setSelectedService(svc)}>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-[#4B7F52]/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#4B7F52]">service</span>
-                      <span className="text-xs text-[#483519]">{svc.serviceName}</span>
-                    </div>
-                    <span className="font-mono text-[10px] text-[#483519]/40">{svc.priceHbar} HBAR</span>
-                  </div>
-                ))}
-                {myTasks.map((t) => {
-                  const tsc = STATUS_COLORS[t.status] || STATUS_COLORS.open;
+              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">Posted Listings</h3>
+              <div className="hide-scrollbar space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none", maxHeight: "40%" }}>
+                {myPostedTasks.map((task) => {
+                  const tsc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
                   return (
-                    <div key={t.taskSeqNo} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-1.5 transition hover:bg-white/50" onClick={() => setSelectedTask(t)}>
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{t.status}</span>
-                        <span className="text-xs text-[#483519]">{t.title}</span>
+                    <div key={task.taskSeqNo} className="cursor-pointer rounded-lg bg-white/30 px-4 py-3 transition hover:bg-white/40" onClick={() => setSelectedTask(task)}>
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
+                          <p className="mt-0.5 text-[10px] text-[#483519]/40">
+                            {task.worker ? `→ ${agentName(task.worker, agents)}` : "Waiting for worker"}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-[#483519]">{task.budgetHbar} HBAR</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
+                        </div>
                       </div>
-                      <span className="font-mono text-[10px] text-[#483519]/40">{t.budgetHbar} HBAR</span>
                     </div>
                   );
                 })}
-                {myServices.length === 0 && myTasks.length === 0 && (
-                  <p className="text-[10px] text-[#483519]/25">No listings or tasks yet.</p>
-                )}
+                {myServices.map((svc) => (
+                  <div key={svc.serviceId} className="cursor-pointer rounded-lg bg-white/30 px-4 py-3 transition hover:bg-white/40" onClick={() => setSelectedService(svc)}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
+                        <p className="mt-0.5 text-[10px] text-[#483519]/40">Job listing</p>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-[#483519]">{svc.priceHbar} HBAR</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -709,10 +718,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       {/* Full Task Board Modal */}
       {showTasksModal && (() => {
         const myId = agent?.hederaAccountId || "";
-        const filtered = tasks.filter((t) => {
-          if (taskFilter === "mine") return t.requester === myId || t.worker === myId;
-          if (taskFilter !== "all") return t.status === taskFilter;
-          return true;
+        // Task Board modal = tasks I'm working on as worker
+        const myWorkTasks = tasks.filter((t) => t.worker === myId);
+        const filtered = myWorkTasks.filter((t) => {
+          if (taskFilter === "all" || taskFilter === "mine") return true;
+          return t.status === taskFilter;
         });
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowTasksModal(false)}>
