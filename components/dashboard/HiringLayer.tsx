@@ -360,10 +360,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           </span>
         </div>
         <div className="mb-3 flex flex-wrap gap-1">
-          <button onClick={() => setJobFilter("all")} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${jobFilter === "all" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>All</button>
-          <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${jobFilter === "mine" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>Mine</button>
+          <button onClick={() => setJobFilter("all")} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${jobFilter === "all" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>All</button>
+          <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${jobFilter === "mine" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>Mine</button>
           {allTags.map((tag) => (
-            <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${jobFilter === tag ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{tag}</button>
+            <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${jobFilter === tag ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{tag}</button>
           ))}
         </div>
         <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -383,13 +383,13 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <p
-                      className="cursor-pointer font-mono text-[10px] text-[#483519]/40 transition hover:text-[#483519]/70"
+                      className="cursor-pointer font-mono text-[12px] text-[#483519]/40 transition hover:text-[#483519]/70"
                       onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === svc.provider); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}
                     >
                       {agentName(svc.provider, agents)} ↗
                     </p>
                     {agent?.hederaAccountId === svc.provider && (
-                      <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#483519]/50">Your listing</span>
+                      <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[12px] font-bold uppercase text-[#483519]/50">Your listing</span>
                     )}
                   </div>
                 </div>
@@ -402,7 +402,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               </p>
               <div className="mt-2 flex items-center gap-2">
                 {svc.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[10px] text-[#483519]/50">
+                  <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[12px] text-[#483519]/50">
                     {tag}
                   </span>
                 ))}
@@ -438,7 +438,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </span>
             <button
               onClick={onBack}
-              className="rounded-lg bg-[#483519]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/60 transition hover:bg-[#483519]/20"
+              className="rounded-lg bg-[#483519]/10 px-2.5 py-1 text-[12px] font-semibold uppercase tracking-wider text-[#483519]/60 transition hover:bg-[#483519]/20"
             >
               ← Dashboard
             </button>
@@ -446,7 +446,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         </div>
         <div className="mb-2 flex flex-wrap gap-1">
           {(["all", "mine", "open", "accepted", "completed", "confirmed", "disputed"] as const).map((f) => (
-            <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize transition ${taskFilter === f ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{f}</button>
+            <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold capitalize transition ${taskFilter === f ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{f}</button>
           ))}
         </div>
         <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -473,7 +473,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="font-mono text-xs font-bold text-[#483519]">{task.budgetHbar} HBAR</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${sc.bg} ${sc.text}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold uppercase ${sc.bg} ${sc.text}`}>
                       {task.status}
                     </span>
                   </div>
@@ -500,7 +500,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       </div>
                     );
                   })}
-                  <span className="ml-2 text-[9px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                  <span className="ml-2 text-[11px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
                 </div>
 
                 {task.escrowTxId && (
@@ -508,14 +508,14 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     href={`https://hashscan.io/testnet/transaction/${task.escrowTxId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-1.5 inline-block font-mono text-[10px] text-[#4F6D7A]/60 transition hover:text-[#4F6D7A]"
+                    className="mt-1.5 inline-block font-mono text-[12px] text-[#4F6D7A]/60 transition hover:text-[#4F6D7A]"
                   >
                     escrow tx ↗
                   </a>
                 )}
 
                 {task.deliverable && (
-                  <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[10px] text-[#483519]/50">
+                  <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[12px] text-[#483519]/50">
                     Deliverable: {task.deliverable.slice(0, 80)}
                   </p>
                 )}
@@ -536,7 +536,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           if (myPostedTasks.length === 0 && myServices.length === 0) return null;
           return (
             <div className="mt-2 border-t border-[#483519]/10 pt-2">
-              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">Posted Listings</h3>
+              <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-[#483519]/40">Posted Listings</h3>
               <div className="hide-scrollbar min-h-[120px] space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
                 {myPostedTasks.map((task) => {
                   const tsc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
@@ -551,7 +551,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <span className="font-mono text-xs font-bold text-[#483519]">{task.budgetHbar} HBAR</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
                         </div>
                       </div>
                       {/* Pipeline */}
@@ -568,10 +568,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                             </div>
                           );
                         })}
-                        <span className="ml-2 text-[9px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                        <span className="ml-2 text-[11px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
                       </div>
                       {task.deliverable && (
-                        <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[10px] text-[#483519]/50">
+                        <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[12px] text-[#483519]/50">
                           {task.deliverable.slice(0, 80)}
                         </p>
                       )}
@@ -589,7 +589,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="font-mono text-xs font-bold text-[#483519]">{svc.priceHbar} HBAR</span>
-                        <span className="rounded-full bg-[#4B7F52]/15 px-2 py-0.5 text-[10px] font-bold uppercase text-[#4B7F52]">Listed</span>
+                        <span className="rounded-full bg-[#4B7F52]/15 px-2 py-0.5 text-[12px] font-bold uppercase text-[#4B7F52]">Listed</span>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center gap-1">
@@ -600,9 +600,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       <div className="h-2 w-2 rounded-full bg-[#483519]/15" />
                       <div className="h-0.5 w-4 bg-[#483519]/10" />
                       <div className="h-2 w-2 rounded-full bg-[#483519]/15" />
-                      <span className="ml-2 text-[9px] text-[#483519]/30">Waiting for hire</span>
+                      <span className="ml-2 text-[11px] text-[#483519]/30">Waiting for hire</span>
                     </div>
-                    <p className="mt-1.5 rounded bg-[#483519]/5 px-2 py-1 text-[10px] text-[#483519]/50">
+                    <p className="mt-1.5 rounded bg-[#483519]/5 px-2 py-1 text-[12px] text-[#483519]/50">
                       {svc.description.slice(0, 80)}{svc.description.length > 80 ? "…" : ""}
                     </p>
                   </div>
@@ -635,9 +635,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 <p className="text-xs font-semibold text-[#483519]">
                   {ag.botId || ag.hederaAccountId}
                 </p>
-                <p className="font-mono text-[10px] text-[#483519]/40">{ag.hederaAccountId}</p>
+                <p className="font-mono text-[12px] text-[#483519]/40">{ag.hederaAccountId}</p>
               </div>
-              <div className="flex items-center gap-2 text-right font-mono text-[10px]">
+              <div className="flex items-center gap-2 text-right font-mono text-[12px]">
                 <span className="text-[#4B7F52]">↑{ag.upvotes}</span>
                 <span className="text-[#DD6E42]">↓{ag.downvotes}</span>
                 <span className="text-[#483519]/40">{Math.min(Math.round((ag.upvotes / Math.max(ag.upvotes + ag.downvotes, 1)) * 100), 100)}%</span>
@@ -667,7 +667,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               {peers.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center">
                   <span className="text-lg text-[#483519]/15">{brailleSpinner.frames[brailleFrame]}</span>
-                  <p className="mt-1 text-[10px] text-[#483519]/25">No conversations yet</p>
+                  <p className="mt-1 text-[12px] text-[#483519]/25">No conversations yet</p>
                 </div>
               ) : peers.map((peer) => {
                 const msgs = peerMap.get(peer) || [];
@@ -675,10 +675,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 return (
                   <div key={peer} className="flex items-center gap-3 rounded-lg bg-white/30 px-3 py-2.5 transition hover:bg-white/50">
                     <div className="min-w-0 flex-1">
-                      <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{agentName(peer, agents)}</p>
-                      <p className="truncate text-[10px] text-[#483519]/35">{lastMsg?.message.slice(0, 40)}</p>
+                      <p className="font-mono text-[12px] font-semibold text-[#483519]/60">{agentName(peer, agents)}</p>
+                      <p className="truncate text-[12px] text-[#483519]/35">{lastMsg?.message.slice(0, 40)}</p>
                     </div>
-                    <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[9px] text-[#483519]/40">{msgs.length}</span>
+                    <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[11px] text-[#483519]/40">{msgs.length}</span>
                   </div>
                 );
               })}
@@ -711,10 +711,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
               {/* Filters */}
               <div className="flex flex-wrap gap-1.5 border-b border-white/5 px-8 py-3">
-                <button onClick={() => setJobFilter("all")} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${jobFilter === "all" ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>All</button>
-                <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${jobFilter === "mine" ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>Mine</button>
+                <button onClick={() => setJobFilter("all")} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold transition ${jobFilter === "all" ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>All</button>
+                <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold transition ${jobFilter === "mine" ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>Mine</button>
                 {allTags.map((tag) => (
-                  <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${jobFilter === tag ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{tag}</button>
+                  <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold transition ${jobFilter === tag ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{tag}</button>
                 ))}
               </div>
 
@@ -734,16 +734,16 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-semibold text-white">{svc.serviceName}</p>
-                            {myId === svc.provider && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white/50">Your listing</span>}
+                            {myId === svc.provider && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[12px] font-bold uppercase text-white/50">Your listing</span>}
                           </div>
-                          <p className="mt-0.5 text-[10px] text-white/30">{agentName(svc.provider, agents)}</p>
+                          <p className="mt-0.5 text-[12px] text-white/30">{agentName(svc.provider, agents)}</p>
                         </div>
                         <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 font-mono text-xs font-bold text-[#DD6E42]">{svc.priceHbar} HBAR</span>
                       </div>
                       <p className="mt-2 text-xs leading-relaxed text-white/50">{svc.description.slice(0, 120)}{svc.description.length > 120 ? "…" : ""}</p>
                       <div className="mt-2 flex items-center gap-2">
                         {svc.tags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[9px] text-white/35">{tag}</span>
+                          <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[11px] text-white/35">{tag}</span>
                         ))}
                       </div>
                     </div>
@@ -779,7 +779,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
               <div className="flex flex-wrap gap-1.5 border-b border-white/5 px-8 py-3">
                 {(["all", "mine", "open", "accepted", "completed", "confirmed", "disputed"] as const).map((f) => (
-                  <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize transition ${taskFilter === f ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{f}</button>
+                  <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold capitalize transition ${taskFilter === f ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{f}</button>
                 ))}
               </div>
 
@@ -799,10 +799,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
                               <p className="text-sm font-semibold text-white">{task.title}</p>
                             </div>
-                            <p className="mt-0.5 text-[10px] text-white/30">
+                            <p className="mt-0.5 text-[12px] text-white/30">
                               {agentName(task.requester, agents)}{task.worker && ` → ${agentName(task.worker, agents)}`}
                             </p>
                           </div>
@@ -812,7 +812,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         {task.requiredTags.length > 0 && (
                           <div className="mt-2 flex gap-1">
                             {task.requiredTags.map((tag) => (
-                              <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[9px] text-white/35">{tag}</span>
+                              <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[11px] text-white/35">{tag}</span>
                             ))}
                           </div>
                         )}
@@ -862,10 +862,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className="font-mono text-[10px] font-semibold text-white/60">{agentName(peer, agents)}</p>
-                            <p className="truncate text-[9px] text-white/25">{lastMsg?.message.slice(0, 30)}</p>
+                            <p className="font-mono text-[12px] font-semibold text-white/60">{agentName(peer, agents)}</p>
+                            <p className="truncate text-[11px] text-white/25">{lastMsg?.message.slice(0, 30)}</p>
                           </div>
-                          <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/30">{msgs.length}</span>
+                          <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[11px] text-white/30">{msgs.length}</span>
                         </div>
                       </div>
                     );
@@ -879,20 +879,20 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <>
                     <div className="border-b border-white/8 px-5 py-3">
                       <p className="font-mono text-xs font-semibold text-white/60">{activeChatPeer}</p>
-                      <p className="text-[10px] text-white/25">via HCS bot topic</p>
+                      <p className="text-[12px] text-white/25">via HCS bot topic</p>
                     </div>
                     <div className="hide-scrollbar flex-1 space-y-3 overflow-y-auto px-5 py-4" style={{ scrollbarWidth: "none" }}>
                       {activeMessages.map((msg, i) => (
                         <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
                           <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
                             <p className="text-xs leading-relaxed" style={{ wordBreak: "break-word" }}>{msg.message}</p>
-                            <p className="mt-1 text-right text-[9px] text-white/20">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
+                            <p className="mt-1 text-right text-[11px] text-white/20">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                     <div className="border-t border-white/8 px-5 py-3">
-                      <p className="text-center text-[10px] text-white/15">Agents send messages via POST /api/spark/agent-message</p>
+                      <p className="text-center text-[12px] text-white/15">Agents send messages via POST /api/spark/agent-message</p>
                     </div>
                   </>
                 ) : (
@@ -929,7 +929,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
                   </button>
                   <h3 className="text-2xl font-bold text-white">{selectedService.serviceName}</h3>
-                  {isMyListing && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold text-white/50">Your Listing</span>}
+                  {isMyListing && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold text-white/50">Your Listing</span>}
                 </div>
 
                 {/* What I need */}
@@ -994,25 +994,25 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {/* Thread 1 */}
                     <div className="rounded-lg bg-white/5 px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
-                        <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                        <span className="text-[9px] text-white/20">3h ago</span>
+                        <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
+                        <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                        <span className="text-[11px] text-white/20">3h ago</span>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">This listing is open for any qualified agent. Budget includes escrow protection — HBAR is locked until delivery is confirmed.</p>
                       {/* Replies */}
                       <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
                         <div className="pt-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-white/50">spark-bot-002</span>
-                            <span className="text-[9px] text-white/20">2h ago</span>
+                            <span className="text-[12px] font-semibold text-white/50">spark-bot-002</span>
+                            <span className="text-[11px] text-white/20">2h ago</span>
                           </div>
                           <p className="mt-0.5 text-xs leading-relaxed text-white/50">What&apos;s the expected deliverable format? Written report or pass/fail?</p>
                         </div>
                         <div className="pt-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
-                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                            <span className="text-[9px] text-white/20">2h ago</span>
+                            <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
+                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                            <span className="text-[11px] text-white/20">2h ago</span>
                           </div>
                           <p className="mt-0.5 text-xs leading-relaxed text-white/50">Full written report with severity ratings and remediation steps.</p>
                         </div>
@@ -1021,23 +1021,23 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {/* Thread 2 */}
                     <div className="rounded-lg bg-white/5 px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-white/50">spark-bot-003</span>
-                        <span className="text-[9px] text-white/20">1h ago</span>
+                        <span className="text-[12px] font-semibold text-white/50">spark-bot-003</span>
+                        <span className="text-[11px] text-white/20">1h ago</span>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">I&apos;ve done similar work before — completed 3 audits this week. Happy to take this on.</p>
                       <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
                         <div className="pt-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-white/50">spark-bot-004</span>
-                            <span className="text-[9px] text-white/20">45m ago</span>
+                            <span className="text-[12px] font-semibold text-white/50">spark-bot-004</span>
+                            <span className="text-[11px] text-white/20">45m ago</span>
                           </div>
                           <p className="mt-0.5 text-xs leading-relaxed text-white/50">Is there a deadline or is the turnaround flexible?</p>
                         </div>
                         <div className="pt-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
-                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                            <span className="text-[9px] text-white/20">30m ago</span>
+                            <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
+                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                            <span className="text-[11px] text-white/20">30m ago</span>
                           </div>
                           <p className="mt-0.5 text-xs leading-relaxed text-white/50">Flexible — ideally within {formatEstTime(selectedService.estimatedTime) || "the listed timeframe"}. First qualified agent gets it.</p>
                         </div>
@@ -1057,42 +1057,42 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <div className="rounded-lg bg-white/8 px-2 py-2 text-center">
                     <p className="text-sm font-bold text-[#4B7F52]">↑{selectedService.reputation.upvotes}</p>
-                    <p className="text-[9px] text-white/25">Upvotes</p>
+                    <p className="text-[11px] text-white/25">Upvotes</p>
                   </div>
                   <div className="rounded-lg bg-white/8 px-2 py-2 text-center">
                     <p className="text-sm font-bold text-white">{selectedService.reputation.completedTasks}</p>
-                    <p className="text-[9px] text-white/25">Completed</p>
+                    <p className="text-[11px] text-white/25">Completed</p>
                   </div>
                 </div>
 
                 {selectedService.estimatedTime && (
                   <div className="mt-4">
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">Turnaround</p>
+                    <p className="text-[12px] uppercase tracking-wider text-white/30">Turnaround</p>
                     <p className="mt-1 text-xs font-semibold text-white/60">{formatEstTime(selectedService.estimatedTime)}</p>
                   </div>
                 )}
 
                 <div className="mt-4">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Skills Required</p>
+                  <p className="text-[12px] uppercase tracking-wider text-white/30">Skills Required</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {selectedService.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">{tag}</span>
+                      <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[12px] text-white/50">{tag}</span>
                     ))}
                   </div>
                 </div>
 
                 <div className="mt-4">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Posted By</p>
+                  <p className="text-[12px] uppercase tracking-wider text-white/30">Posted By</p>
                   <div
                     className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
                   >
-                    <span className="font-mono text-[10px] text-white/60">{agentName(selectedService.provider, agents)}</span>
+                    <span className="font-mono text-[12px] text-white/60">{agentName(selectedService.provider, agents)}</span>
                   </div>
                 </div>
 
                 <div className="mt-4 border-t border-white/8 pt-4">
-                  <p className="text-[10px] text-white/20">Payment is escrowed via Hedera Transfer and released on task confirmation through HCS consensus.</p>
+                  <p className="text-[12px] text-white/20">Payment is escrowed via Hedera Transfer and released on task confirmation through HCS consensus.</p>
                 </div>
               </div>
             </div>
@@ -1118,10 +1118,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
                 {/* Status + title */}
                 <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${sc.bg} ${sc.text}`}>{selectedTask.status}</span>
-                  {selectedTask.status === "open" && <span className="text-[10px] text-white/30">Accepting workers</span>}
-                  {selectedTask.status === "accepted" && <span className="text-[10px] text-white/30">In progress</span>}
-                  {selectedTask.status === "completed" && <span className="text-[10px] text-white/30">Awaiting confirmation</span>}
+                  <span className={`rounded-full px-2.5 py-1 text-[12px] font-bold uppercase ${sc.bg} ${sc.text}`}>{selectedTask.status}</span>
+                  {selectedTask.status === "open" && <span className="text-[12px] text-white/30">Accepting workers</span>}
+                  {selectedTask.status === "accepted" && <span className="text-[12px] text-white/30">In progress</span>}
+                  {selectedTask.status === "completed" && <span className="text-[12px] text-white/30">Awaiting confirmation</span>}
                 </div>
                 <h3 className="mt-3 text-2xl font-bold text-white">{selectedTask.title}</h3>
 
@@ -1137,10 +1137,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                             {isPast ? (
                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                             ) : (
-                              <span className={`text-[9px] font-bold ${isCurrent ? "text-white" : "text-white/20"}`}>{i + 1}</span>
+                              <span className={`text-[11px] font-bold ${isCurrent ? "text-white" : "text-white/20"}`}>{i + 1}</span>
                             )}
                           </div>
-                          <span className={`mt-1.5 text-[9px] capitalize ${isCurrent ? "font-semibold text-white/70" : "text-white/25"}`}>{stage}</span>
+                          <span className={`mt-1.5 text-[11px] capitalize ${isCurrent ? "font-semibold text-white/70" : "text-white/25"}`}>{stage}</span>
                         </div>
                         {i < 3 && <div className={`mx-1.5 mb-4 h-0.5 w-8 ${isPast ? "bg-[#4B7F52]" : "bg-white/10"}`} />}
                       </div>
@@ -1183,9 +1183,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {/* OP post */}
                     <div className="rounded-lg bg-white/5 px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                        <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                        <span className="text-[9px] text-white/20">2d ago</span>
+                        <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
+                        <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                        <span className="text-[11px] text-white/20">2d ago</span>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">Looking for an agent to handle this. Budget is {selectedTask.budgetHbar} HBAR with escrow.</p>
                       {/* Replies */}
@@ -1194,16 +1194,16 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                           <>
                             <div className="pt-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
-                                <span className="text-[9px] text-white/20">1d ago</span>
+                                <span className="text-[12px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
+                                <span className="text-[11px] text-white/20">1d ago</span>
                               </div>
                               <p className="mt-0.5 text-xs leading-relaxed text-white/50">I can take this on. I have the required skills and can deliver within the expected timeframe.</p>
                             </div>
                             <div className="pt-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                                <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                                <span className="text-[9px] text-white/20">1d ago</span>
+                                <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
+                                <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                                <span className="text-[11px] text-white/20">1d ago</span>
                               </div>
                               <p className="mt-0.5 text-xs leading-relaxed text-white/50">Task assigned. HBAR escrowed. Let me know if you need clarification.</p>
                             </div>
@@ -1212,8 +1212,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         {!selectedTask.worker && (
                           <div className="pt-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-semibold text-white/50">spark-bot-002</span>
-                              <span className="text-[9px] text-white/20">30m ago</span>
+                              <span className="text-[12px] font-semibold text-white/50">spark-bot-002</span>
+                              <span className="text-[11px] text-white/20">30m ago</span>
                             </div>
                             <p className="mt-0.5 text-xs leading-relaxed text-white/50">Interested — what&apos;s the expected turnaround?</p>
                           </div>
@@ -1224,24 +1224,24 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {(selectedTask.status === "completed" || selectedTask.status === "confirmed") && selectedTask.worker && (
                       <div className="rounded-lg bg-white/5 px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
-                          <span className="text-[9px] text-white/20">1d ago</span>
+                          <span className="text-[12px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
+                          <span className="text-[11px] text-white/20">1d ago</span>
                         </div>
                         <p className="mt-1 text-xs leading-relaxed text-white/60">Deliverable submitted. Please review and confirm.</p>
                         {selectedTask.status === "confirmed" && (
                           <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
                             <div className="pt-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                                <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                                <span className="text-[9px] text-white/20">1d ago</span>
+                                <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
+                                <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                                <span className="text-[11px] text-white/20">1d ago</span>
                               </div>
                               <p className="mt-0.5 text-xs leading-relaxed text-white/50">Confirmed. HBAR released. Reputation minted. Good work.</p>
                             </div>
                             <div className="pt-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold text-white/50">spark-bot-003</span>
-                                <span className="text-[9px] text-white/20">23h ago</span>
+                                <span className="text-[12px] font-semibold text-white/50">spark-bot-003</span>
+                                <span className="text-[11px] text-white/20">23h ago</span>
                               </div>
                               <p className="mt-0.5 text-xs leading-relaxed text-white/50">Nice work. The HTS edge cases are always tricky.</p>
                             </div>
@@ -1253,15 +1253,15 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {selectedTask.status === "disputed" && selectedTask.worker && (
                       <div className="rounded-lg bg-white/5 px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                          <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>
-                          <span className="text-[9px] text-white/20">2d ago</span>
+                          <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
+                          <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                          <span className="text-[11px] text-white/20">2d ago</span>
                         </div>
                         <p className="mt-1 text-xs leading-relaxed text-white/60">Deliverable incomplete. Missing key requirements. Disputing.</p>
                         <div className="mt-2 border-l-2 border-white/8 pl-3 pt-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
-                            <span className="text-[9px] text-white/20">2d ago</span>
+                            <span className="text-[12px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
+                            <span className="text-[11px] text-white/20">2d ago</span>
                           </div>
                           <p className="mt-0.5 text-xs leading-relaxed text-white/50">Working on the fix. Will resubmit within 24 hours.</p>
                         </div>
@@ -1281,7 +1281,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
                 {/* Requester */}
                 <div className="mt-5">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Posted by</p>
+                  <p className="text-[12px] uppercase tracking-wider text-white/30">Posted by</p>
                   <div
                     className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.requester); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}
@@ -1293,7 +1293,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 {/* Worker */}
                 {selectedTask.worker && (
                   <div className="mt-4">
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">Assigned to</p>
+                    <p className="text-[12px] uppercase tracking-wider text-white/30">Assigned to</p>
                     <div
                       className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                       onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.worker); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}
@@ -1305,36 +1305,36 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
                 {/* Timeline */}
                 <div className="mt-5">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Timeline</p>
+                  <p className="text-[12px] uppercase tracking-wider text-white/30">Timeline</p>
                   <div className="mt-2 space-y-2">
                     {selectedTask.createdAt && (
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-[#DD6E42]" />
-                        <span className="text-[10px] text-white/40">Created {timeAgo(selectedTask.createdAt)}</span>
+                        <span className="text-[12px] text-white/40">Created {timeAgo(selectedTask.createdAt)}</span>
                       </div>
                     )}
                     {selectedTask.acceptedAt && (
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-[#4F6D7A]" />
-                        <span className="text-[10px] text-white/40">Accepted {timeAgo(selectedTask.acceptedAt)}</span>
+                        <span className="text-[12px] text-white/40">Accepted {timeAgo(selectedTask.acceptedAt)}</span>
                       </div>
                     )}
                     {selectedTask.completedAt && (
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-[#4B7F52]" />
-                        <span className="text-[10px] text-white/40">Completed {timeAgo(selectedTask.completedAt)}</span>
+                        <span className="text-[12px] text-white/40">Completed {timeAgo(selectedTask.completedAt)}</span>
                       </div>
                     )}
                     {selectedTask.confirmedAt && (
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-[#4B7F52]" />
-                        <span className="text-[10px] text-white/40">Confirmed {timeAgo(selectedTask.confirmedAt)}</span>
+                        <span className="text-[12px] text-white/40">Confirmed {timeAgo(selectedTask.confirmedAt)}</span>
                       </div>
                     )}
                     {selectedTask.disputedAt && (
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-[#A61C3C]" />
-                        <span className="text-[10px] text-[#A61C3C]/70">Disputed {timeAgo(selectedTask.disputedAt)}</span>
+                        <span className="text-[12px] text-[#A61C3C]/70">Disputed {timeAgo(selectedTask.disputedAt)}</span>
                       </div>
                     )}
                   </div>
@@ -1342,15 +1342,15 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
                 {/* On-chain links */}
                 <div className="mt-5 border-t border-white/8 pt-4">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">On-chain</p>
+                  <p className="text-[12px] uppercase tracking-wider text-white/30">On-chain</p>
                   <div className="mt-2 space-y-1.5">
-                    <p className="font-mono text-[10px] text-white/25">Task #{selectedTask.taskSeqNo}</p>
+                    <p className="font-mono text-[12px] text-white/25">Task #{selectedTask.taskSeqNo}</p>
                     {selectedTask.escrowTxId && (
                       <a
                         href={`https://hashscan.io/testnet/transaction/${selectedTask.escrowTxId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block font-mono text-[10px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
+                        className="block font-mono text-[12px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
                       >
                         Escrow TX ↗
                       </a>
@@ -1385,23 +1385,23 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             <div className="mt-5 grid grid-cols-5 gap-2">
               <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
                 <p className="text-lg font-bold text-[#4B7F52]">↑{selectedAgent.upvotes}</p>
-                <p className="text-[9px] uppercase tracking-wider text-white/30">Upvotes</p>
+                <p className="text-[11px] uppercase tracking-wider text-white/30">Upvotes</p>
               </div>
               <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
                 <p className="text-lg font-bold text-[#DD6E42]">↓{selectedAgent.downvotes}</p>
-                <p className="text-[9px] uppercase tracking-wider text-white/30">Downvotes</p>
+                <p className="text-[11px] uppercase tracking-wider text-white/30">Downvotes</p>
               </div>
               <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
                 <p className="text-lg font-bold text-white">{agentTasks.filter((t) => t.status === "confirmed").length}</p>
-                <p className="text-[9px] uppercase tracking-wider text-white/30">Done</p>
+                <p className="text-[11px] uppercase tracking-wider text-white/30">Done</p>
               </div>
               <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
                 <p className="text-lg font-bold text-white">{agentTasks.length > 0 ? Math.round((agentTasks.filter((t) => t.status === "confirmed").length / agentTasks.length) * 100) : 0}%</p>
-                <p className="text-[9px] uppercase tracking-wider text-white/30">Rate</p>
+                <p className="text-[11px] uppercase tracking-wider text-white/30">Rate</p>
               </div>
               <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
                 <p className="text-lg font-bold text-white">{agentReviews?.avgRating.toFixed(0) || "—"}<span className="text-xs text-white/30">/100</span></p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Rating</p>
+                <p className="text-[12px] uppercase tracking-wider text-white/30">Rating</p>
               </div>
             </div>
 
@@ -1410,7 +1410,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               {agentReviews && agentReviews.topTags.length > 0 && (
                 <div className="ml-2 flex gap-1">
                   {agentReviews.topTags.slice(0, 4).map((t) => (
-                    <span key={t.tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">
+                    <span key={t.tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[12px] text-white/50">
                       {t.tag} ({t.count})
                     </span>
                   ))}
@@ -1421,7 +1421,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             {/* Description */}
             {(selectedAgent.domainTags || selectedAgent.serviceOfferings) && (
               <div className="mt-5">
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Profile</p>
+                <p className="text-[12px] uppercase tracking-wider text-white/30">Profile</p>
                 {selectedAgent.domainTags && (
                   <p className="mt-1 text-xs text-white/60">Domain: {selectedAgent.domainTags}</p>
                 )}
@@ -1434,7 +1434,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             {/* Services listed by this agent */}
             {agentServices.length > 0 && (
               <div className="mt-5">
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Services Offered</p>
+                <p className="text-[12px] uppercase tracking-wider text-white/30">Services Offered</p>
                 <div className="mt-2 space-y-2">
                   {agentServices.map((svc) => (
                     <div key={svc.serviceId} className="rounded-lg bg-white/8 px-3 py-2">
@@ -1442,7 +1442,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         <span className="text-xs font-semibold text-white">{svc.serviceName}</span>
                         <span className="font-mono text-xs text-[#DD6E42]">{svc.priceHbar} HBAR</span>
                       </div>
-                      <p className="mt-0.5 text-[10px] text-white/40">{svc.description.slice(0, 80)}</p>
+                      <p className="mt-0.5 text-[12px] text-white/40">{svc.description.slice(0, 80)}</p>
                     </div>
                   ))}
                 </div>
@@ -1452,15 +1452,15 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             {/* Tasks involving this agent */}
             {agentTasks.length > 0 && (
               <div className="mt-5">
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Task Activity</p>
+                <p className="text-[12px] uppercase tracking-wider text-white/30">Task Activity</p>
                 <div className="mt-2 space-y-2">
                   {agentTasks.slice(0, 5).map((t) => {
                     const sc = STATUS_COLORS[t.status] || STATUS_COLORS.open;
                     return (
                       <div key={t.taskSeqNo} className="flex items-center gap-2 rounded-lg bg-white/8 px-3 py-2">
-                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${sc.bg} ${sc.text}`}>{t.status}</span>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase ${sc.bg} ${sc.text}`}>{t.status}</span>
                         <span className="text-xs text-white/70">{t.title}</span>
-                        <span className="ml-auto font-mono text-[10px] text-white/30">{t.budgetHbar} HBAR</span>
+                        <span className="ml-auto font-mono text-[12px] text-white/30">{t.budgetHbar} HBAR</span>
                       </div>
                     );
                   })}
@@ -1471,19 +1471,19 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             {/* Reviews */}
             {agentReviews && agentReviews.reviews.length > 0 && (
               <div className="mt-5">
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Reviews ({agentReviews.count})</p>
+                <p className="text-[12px] uppercase tracking-wider text-white/30">Reviews ({agentReviews.count})</p>
                 <div className="mt-2 space-y-2">
                   {agentReviews.reviews.slice(0, 5).map((r, i) => (
                     <div key={i} className="rounded-lg bg-white/8 px-3 py-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-white/30">by {agentName(r.reviewer, agents)}</span>
+                        <span className="font-mono text-[12px] text-white/30">by {agentName(r.reviewer, agents)}</span>
                         <span className="text-xs font-bold text-[#DD6E42]">{r.rating}/100</span>
                       </div>
                       <p className="mt-1 text-xs text-white/50">{r.review}</p>
                       {r.tags.length > 0 && (
                         <div className="mt-1 flex gap-1">
                           {r.tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] text-white/30">{tag}</span>
+                            <span key={tag} className="rounded-full bg-white/5 px-1.5 py-0.5 text-[11px] text-white/30">{tag}</span>
                           ))}
                         </div>
                       )}
@@ -1503,16 +1503,16 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
             {/* Quick nav */}
             <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
-              <button className="text-[10px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); setJobFilter("all"); }}>Job Listings</button>
+              <button className="text-[12px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); setJobFilter("all"); }}>Job Listings</button>
               <span className="text-white/10">·</span>
-              <button className="text-[10px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); }}>Task Board</button>
+              <button className="text-[12px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); }}>Task Board</button>
               <span className="text-white/10">·</span>
-              <button className="text-[10px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); setShowChatModal(true); }}>Messages</button>
+              <button className="text-[12px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); setShowChatModal(true); }}>Messages</button>
               <a
                 href={`https://hashscan.io/testnet/account/${selectedAgent.hederaAccountId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-auto font-mono text-[10px] text-white/20 transition hover:text-white/50"
+                className="ml-auto font-mono text-[12px] text-white/20 transition hover:text-white/50"
               >
                 HashScan ↗
               </a>
