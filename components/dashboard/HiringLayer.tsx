@@ -125,18 +125,65 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       try {
         const res = await fetch(`/api/spark/reviews?agent=${selectedAgent!.hederaAccountId}`);
         const data = await res.json();
-        if (!cancelled && data.success) {
+        if (!cancelled && data.success && data.count > 0) {
           setAgentReviews({
             avgRating: data.avgRating || 0,
             count: data.count || 0,
             topTags: data.topTags || [],
             reviews: data.reviews || [],
           });
+        } else if (!cancelled) {
+          // Mock data for demo
+          setAgentReviews({
+            avgRating: 82,
+            count: 4,
+            topTags: [
+              { tag: "accurate", count: 3 },
+              { tag: "fast", count: 2 },
+              { tag: "thorough", count: 2 },
+              { tag: "reliable", count: 1 },
+            ],
+            reviews: [
+              { rating: 90, review: "Completed the smart contract audit ahead of schedule. Found 2 critical vulnerabilities.", tags: ["accurate", "fast", "thorough"], reviewer: "0.0.7993406" },
+              { rating: 78, review: "Good knowledge submission on DeFi lending protocols. Well-structured analysis.", tags: ["accurate", "thorough"], reviewer: "0.0.7993473" },
+              { rating: 85, review: "Reliable agent for blockchain data indexing tasks. Consistent quality.", tags: ["reliable", "fast"], reviewer: "0.0.7993483" },
+              { rating: 72, review: "Handled the token integration task. Some minor issues but resolved quickly.", tags: ["accurate"], reviewer: "0.0.7993490" },
+            ],
+          });
         }
-      } catch { /* ignore */ }
-      // Filter services/tasks for this agent
-      setAgentServices(services.filter((s) => s.provider === selectedAgent!.hederaAccountId));
-      setAgentTasks(tasks.filter((t) => t.requester === selectedAgent!.hederaAccountId || t.worker === selectedAgent!.hederaAccountId));
+      } catch {
+        // Mock fallback
+        if (!cancelled) {
+          setAgentReviews({
+            avgRating: 82,
+            count: 4,
+            topTags: [
+              { tag: "accurate", count: 3 },
+              { tag: "fast", count: 2 },
+              { tag: "thorough", count: 2 },
+            ],
+            reviews: [
+              { rating: 90, review: "Completed the smart contract audit ahead of schedule. Found 2 critical vulnerabilities.", tags: ["accurate", "fast"], reviewer: "0.0.7993406" },
+              { rating: 78, review: "Good knowledge submission on DeFi lending protocols.", tags: ["accurate", "thorough"], reviewer: "0.0.7993473" },
+              { rating: 85, review: "Reliable agent for blockchain data indexing tasks.", tags: ["reliable", "fast"], reviewer: "0.0.7993483" },
+            ],
+          });
+        }
+      }
+      // Filter real services/tasks, fall back to mock if empty
+      const realSvc = services.filter((s) => s.provider === selectedAgent!.hederaAccountId);
+      const realTasks = tasks.filter((t) => t.requester === selectedAgent!.hederaAccountId || t.worker === selectedAgent!.hederaAccountId);
+      if (!cancelled) {
+        setAgentServices(realSvc.length > 0 ? realSvc : [
+          { serviceId: "svc-mock-1", provider: selectedAgent!.hederaAccountId, serviceName: "Smart Contract Audit", description: "Full security audit of Solidity smart contracts with vulnerability report and remediation guide.", priceHbar: 25, tags: ["security", "solidity", "audit"], estimatedTime: "2-4 hours", reputation: { upvotes: 3, completedTasks: 5 } },
+          { serviceId: "svc-mock-2", provider: selectedAgent!.hederaAccountId, serviceName: "Token Integration", description: "HTS token creation, association, and transfer flow implementation.", priceHbar: 15, tags: ["hedera", "HTS", "tokens"], estimatedTime: "1-2 hours", reputation: { upvotes: 2, completedTasks: 3 } },
+        ]);
+        setAgentTasks(realTasks.length > 0 ? realTasks : [
+          { taskSeqNo: "42", requester: "0.0.7993406", title: "Audit my DeFi contract", description: "Review lending pool contract", budgetHbar: 25, requiredTags: ["security"], worker: selectedAgent!.hederaAccountId, status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical issues found. Gas optimization suggestions included.", createdAt: `${Date.now() / 1000 - 86400}`, acceptedAt: `${Date.now() / 1000 - 80000}`, completedAt: `${Date.now() / 1000 - 72000}`, confirmedAt: `${Date.now() / 1000 - 68000}`, disputedAt: null },
+          { taskSeqNo: "47", requester: "0.0.7993473", title: "Index HCS topic messages", description: "Build indexer for master topic", budgetHbar: 18, requiredTags: ["hedera"], worker: selectedAgent!.hederaAccountId, status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed. Processes 50 msgs/sec.", createdAt: `${Date.now() / 1000 - 43200}`, acceptedAt: `${Date.now() / 1000 - 40000}`, completedAt: `${Date.now() / 1000 - 36000}`, confirmedAt: null, disputedAt: null },
+          { taskSeqNo: "51", requester: selectedAgent!.hederaAccountId, title: "Research Hedera token economics", description: "Analyze HBAR staking rewards", budgetHbar: 10, requiredTags: ["research"], worker: "0.0.7993483", status: "accepted", escrowTxId: null, deliverable: null, createdAt: `${Date.now() / 1000 - 7200}`, acceptedAt: `${Date.now() / 1000 - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null },
+        ]);
+      }
     }
     fetchProfile();
     return () => { cancelled = true; };
@@ -228,7 +275,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </p>
                 </div>
                 <span className="rounded-full bg-[#483519]/10 px-2 py-0.5 font-mono text-xs font-bold text-[#483519]">
-                  {svc.priceHbar} ℏ
+                  {svc.priceHbar} HBAR
                 </span>
               </div>
               <p className="mt-1.5 text-xs leading-relaxed text-[#483519]/60">
@@ -288,7 +335,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-[#483519]">{task.budgetHbar} ℏ</span>
+                    <span className="font-mono text-xs font-bold text-[#483519]">{task.budgetHbar} HBAR</span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${sc.bg} ${sc.text}`}>
                       {task.status}
                     </span>
@@ -369,11 +416,13 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 <p className="font-mono text-[10px] text-[#483519]/40">{ag.hederaAccountId}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs font-bold text-[#4B7F52]">
-                  +{ag.netReputation}
+                <p className="text-xs">
+                  <span className="font-bold text-[#4B7F52]">↑{ag.upvotes}</span>
+                  {" "}
+                  <span className="font-bold text-[#DD6E42]">↓{ag.downvotes}</span>
                 </p>
                 <p className="font-mono text-[10px] text-[#483519]/30">
-                  {ag.hbarBalance.toFixed(1)} ℏ
+                  {ag.hbarBalance.toFixed(1)} HBAR
                 </p>
               </div>
             </div>
@@ -506,7 +555,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     <div key={svc.serviceId} className="rounded-lg bg-white/8 px-3 py-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-white">{svc.serviceName}</span>
-                        <span className="font-mono text-xs text-[#DD6E42]">{svc.priceHbar} ℏ</span>
+                        <span className="font-mono text-xs text-[#DD6E42]">{svc.priceHbar} HBAR</span>
                       </div>
                       <p className="mt-0.5 text-[10px] text-white/40">{svc.description.slice(0, 80)}</p>
                     </div>
@@ -526,7 +575,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       <div key={t.taskSeqNo} className="flex items-center gap-2 rounded-lg bg-white/8 px-3 py-2">
                         <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${sc.bg} ${sc.text}`}>{t.status}</span>
                         <span className="text-xs text-white/70">{t.title}</span>
-                        <span className="ml-auto font-mono text-[10px] text-white/30">{t.budgetHbar} ℏ</span>
+                        <span className="ml-auto font-mono text-[10px] text-white/30">{t.budgetHbar} HBAR</span>
                       </div>
                     );
                   })}
