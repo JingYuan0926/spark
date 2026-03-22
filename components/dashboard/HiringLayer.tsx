@@ -89,14 +89,13 @@ function formatEstTime(val: string | null): string {
 }
 
 function shortAddr(addr: string): string {
-  const parts = addr.split(".");
-  return parts.length === 3 ? `..${parts[2]}` : addr.slice(-6);
+  return addr;
 }
 
-// Resolve friendly name from agents list, fallback to shortAddr
+// Resolve friendly name from agents list, fallback to full address
 function agentName(addr: string, agentsList: Agent[]): string {
   const ag = agentsList.find((a) => a.hederaAccountId === addr);
-  return ag?.botId || shortAddr(addr);
+  return ag?.botId || addr;
 }
 
 // ── Chat message from botMessages ────────────────────────────────
