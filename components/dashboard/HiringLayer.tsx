@@ -128,6 +128,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showChatModal, setShowChatModal] = useState(false);
   const [activeChatPeer, setActiveChatPeer] = useState<string | null>(null);
+  const [jobFilter, setJobFilter] = useState<string>("all");
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -213,10 +214,16 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
   // Mock data to supplement real API data
   const MOCK_SERVICES: Service[] = [
-    { serviceId: "svc-m1", provider: "0.0.7993406", serviceName: "Smart Contract Audit", description: "Full security audit of Solidity and HTS smart contracts. Includes vulnerability report, gas optimization suggestions, and remediation guide.", priceHbar: 25, tags: ["security", "solidity", "audit"], estimatedTime: "2-4 hours", reputation: { upvotes: 5, completedTasks: 8 } },
-    { serviceId: "svc-m2", provider: "0.0.7993473", serviceName: "HCS Topic Indexer", description: "Build a custom indexer for any HCS topic. Real-time message parsing, filtering, and structured data output via REST API.", priceHbar: 18, tags: ["hedera", "HCS", "indexing"], estimatedTime: "1-2 hours", reputation: { upvotes: 3, completedTasks: 4 } },
-    { serviceId: "svc-m3", provider: "0.0.7993483", serviceName: "Token Economics Analysis", description: "Deep analysis of tokenomics models, staking reward structures, and supply/demand dynamics for Hedera-based tokens.", priceHbar: 12, tags: ["research", "tokenomics", "DeFi"], estimatedTime: "3-5 hours", reputation: { upvotes: 2, completedTasks: 3 } },
-    { serviceId: "svc-m4", provider: "0.0.7993490", serviceName: "NFT Metadata Generator", description: "AI-powered metadata generation for NFT collections on Hedera. Supports HIP-412 standard with IPFS pinning.", priceHbar: 8, tags: ["NFT", "metadata", "AI"], estimatedTime: "30 min", reputation: { upvotes: 1, completedTasks: 2 } },
+    { serviceId: "svc-m1", provider: "0.0.7993406", serviceName: "Smart Contract Security Audit", description: "Need a full security audit of our Solidity lending pool contract. Must check for reentrancy, access control, and flash loan vulnerabilities. Deliver a structured report with severity levels.", priceHbar: 25, tags: ["security", "audit"], estimatedTime: "2-4 hours", reputation: { upvotes: 5, completedTasks: 8 } },
+    { serviceId: "svc-m2", provider: "0.0.7993473", serviceName: "Build HCS Topic Indexer", description: "Need a real-time indexer for our HCS master topic. Should parse all message types, support pagination, and output structured JSON via REST API.", priceHbar: 18, tags: ["backend", "hedera"], estimatedTime: "1-2 hours", reputation: { upvotes: 3, completedTasks: 4 } },
+    { serviceId: "svc-m3", provider: "0.0.7993483", serviceName: "Token Economics Research", description: "Looking for deep analysis of HBAR staking reward rates compared to other L1s. Need 12-month yield projections and risk assessment.", priceHbar: 12, tags: ["research", "DeFi"], estimatedTime: "3-5 hours", reputation: { upvotes: 2, completedTasks: 3 } },
+    { serviceId: "svc-m4", provider: "0.0.7993490", serviceName: "AI Chatbot Integration", description: "Need an AI agent that can answer questions about our DeFi protocol. Should integrate with our knowledge base and handle user queries via HCS messaging.", priceHbar: 20, tags: ["AI", "chatbot"], estimatedTime: "4-6 hours", reputation: { upvotes: 4, completedTasks: 6 } },
+    { serviceId: "svc-m5", provider: "0.0.7993406", serviceName: "Dashboard UI Design", description: "Need a clean dashboard design for our agent monitoring platform. Must show real-time status, activity feeds, and reputation metrics. Earth tone palette preferred.", priceHbar: 15, tags: ["frontend", "UI/UX"], estimatedTime: "3-4 hours", reputation: { upvotes: 2, completedTasks: 3 } },
+    { serviceId: "svc-m6", provider: "0.0.7993473", serviceName: "NFT Collection Metadata", description: "Generate HIP-412 compliant metadata for a 500-piece generative art collection. Need JSON files with traits, rarity scores, and IPFS pinning.", priceHbar: 10, tags: ["NFT", "metadata"], estimatedTime: "1 hour", reputation: { upvotes: 1, completedTasks: 2 } },
+    { serviceId: "svc-m7", provider: "0.0.7993483", serviceName: "API Load Testing", description: "Need comprehensive load testing for our Hedera mirror node API wrapper. Test with 1000+ concurrent requests and provide bottleneck analysis.", priceHbar: 8, tags: ["backend", "testing"], estimatedTime: "2 hours", reputation: { upvotes: 3, completedTasks: 5 } },
+    { serviceId: "svc-m8", provider: "0.0.7993490", serviceName: "Scam Detection Model", description: "Build a classifier that detects potential scam tokens on Hedera based on contract patterns, liquidity behavior, and holder distribution.", priceHbar: 30, tags: ["AI", "security"], estimatedTime: "6-8 hours", reputation: { upvotes: 6, completedTasks: 4 } },
+    { serviceId: "svc-m9", provider: "0.0.7993406", serviceName: "Landing Page Development", description: "Need a responsive landing page for our agent marketplace. Dark theme, animated stats counters, mobile-friendly. Next.js + Tailwind preferred.", priceHbar: 22, tags: ["frontend", "UI/UX"], estimatedTime: "4-5 hours", reputation: { upvotes: 3, completedTasks: 7 } },
+    { serviceId: "svc-m10", provider: "0.0.7993473", serviceName: "Knowledge Base Curation", description: "Curate and organize blockchain knowledge across 5 categories (scam awareness, DeFi, legal, trends, skills). Need 50+ verified entries.", priceHbar: 14, tags: ["research", "content"], estimatedTime: "5-6 hours", reputation: { upvotes: 2, completedTasks: 2 } },
   ];
 
   const now = Date.now() / 1000;
@@ -298,23 +305,39 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4">
-      {/* Top-left: Open Bounties / Hiring Posts */}
+      {/* Top-left: Job Listings */}
+      {(() => {
+        const allTags = Array.from(new Set(services.flatMap((s) => s.tags)));
+        const myId = agent?.hederaAccountId || "";
+        const filtered = services.filter((s) => {
+          if (jobFilter === "mine") return s.provider === myId;
+          if (jobFilter !== "all") return s.tags.includes(jobFilter);
+          return true;
+        });
+        return (
       <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#D4C5A9] p-5">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
-            Bounties
+            Job Listings
           </h2>
           <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
-            {services.length}
+            {filtered.length}
           </span>
         </div>
+        <div className="mb-3 flex flex-wrap gap-1">
+          <button onClick={() => setJobFilter("all")} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${jobFilter === "all" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>All</button>
+          <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${jobFilter === "mine" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>Mine</button>
+          {allTags.map((tag) => (
+            <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${jobFilter === tag ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{tag}</button>
+          ))}
+        </div>
         <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-          {services.length === 0 && (
+          {filtered.length === 0 && (
             <p className="pt-8 text-center text-xs text-[#483519]/30">
-              No services listed yet. Agents list services via the API.
+              {jobFilter === "mine" ? "You haven't posted any listings yet." : "No listings match this filter."}
             </p>
           )}
-          {services.map((svc) => (
+          {filtered.map((svc) => (
             <div
               key={svc.serviceId}
               className="cursor-pointer rounded-lg bg-white/40 px-4 py-3 transition hover:bg-white/60"
@@ -358,6 +381,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           ))}
         </div>
       </div>
+        );
+      })()}
 
       {/* Right column: Task Board (top) + My Listings (bottom) */}
       <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5">
@@ -510,24 +535,21 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           )}
           {agents.map((ag) => (
             <div key={ag.hederaAccountId} onClick={() => { setAgentReviews(null); setSelectedAgent(ag); }} className="flex cursor-pointer items-center gap-3 rounded-lg bg-white/30 px-4 py-2.5 transition hover:bg-white/50">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#483519]/10 text-[10px] font-bold text-[#483519]/60">
-                {(ag.botId || "?")[0].toUpperCase()}
-              </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-[#483519]">
                   {ag.botId || ag.hederaAccountId}
                 </p>
                 <p className="font-mono text-[10px] text-[#483519]/40">{ag.hederaAccountId}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs">
-                  <span className="font-bold text-[#4B7F52]">↑{ag.upvotes}</span>
-                  {" "}
-                  <span className="font-bold text-[#DD6E42]">↓{ag.downvotes}</span>
-                </p>
-                <p className="font-mono text-[10px] text-[#483519]/30">
-                  {ag.hbarBalance.toFixed(1)} HBAR
-                </p>
+              <div className="flex items-center gap-3 text-right">
+                <div>
+                  <p className="text-xs font-bold text-[#4B7F52]">↑{ag.upvotes} ↓{ag.downvotes}</p>
+                  <p className="text-[9px] text-[#483519]/30">reputation</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#483519]/70">{ag.netReputation > 0 ? Math.min(Math.round((ag.upvotes / Math.max(ag.upvotes + ag.downvotes, 1)) * 100), 100) : 0}%</p>
+                  <p className="text-[9px] text-[#483519]/30">completion</p>
+                </div>
               </div>
             </div>
           ))}
@@ -561,9 +583,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 const lastMsg = msgs[msgs.length - 1];
                 return (
                   <div key={peer} className="flex items-center gap-3 rounded-lg bg-white/30 px-3 py-2.5 transition hover:bg-white/50">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#483519]/10 text-[10px] font-bold text-[#483519]/50">
-                      {peer.split(".").pop()?.[0] || "?"}
-                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{shortAddr(peer)}</p>
                       <p className="truncate text-[10px] text-[#483519]/35">{lastMsg?.message.slice(0, 40)}</p>
@@ -611,10 +630,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         className={`cursor-pointer border-b border-white/5 px-4 py-3 transition ${isActive ? "bg-white/10" : "hover:bg-white/5"}`}
                         onClick={() => setActiveChatPeer(peer)}
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/50">
-                            {peer.split(".").pop()?.[0] || "?"}
-                          </div>
+                        <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-mono text-[10px] font-semibold text-white/60">{shortAddr(peer)}</p>
                             <p className="truncate text-[9px] text-white/25">{lastMsg?.message.slice(0, 30)}</p>
@@ -814,7 +830,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
                   >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[9px] font-bold text-white/50">P</div>
                     <span className="font-mono text-[10px] text-white/60">{shortAddr(selectedService.provider)}</span>
                   </div>
                 </div>
@@ -939,7 +954,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.requester); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}
                   >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[9px] font-bold text-white/50">R</div>
                     <span className="font-mono text-xs text-white/60">{selectedTask.requester}</span>
                   </div>
                 </div>
@@ -952,7 +966,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                       onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.worker); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}
                     >
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4B7F52]/30 text-[9px] font-bold text-white/50">W</div>
                       <span className="font-mono text-xs text-white/60">{selectedTask.worker}</span>
                     </div>
                   </div>
@@ -1031,14 +1044,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 text-lg font-bold text-white">
-                {(selectedAgent.botId || "?")[0].toUpperCase()}
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">{selectedAgent.botId || selectedAgent.hederaAccountId}</h3>
-                <p className="font-mono text-xs text-white/40">{selectedAgent.hederaAccountId}</p>
-              </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">{selectedAgent.botId || selectedAgent.hederaAccountId}</h3>
+              <p className="font-mono text-xs text-white/40">{selectedAgent.hederaAccountId}</p>
             </div>
 
             {/* Stats row */}
