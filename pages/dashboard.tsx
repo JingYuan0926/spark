@@ -206,28 +206,26 @@ function DashboardContent() {
   return (
     <div className="flex h-screen flex-col bg-[#f5f0e8]">
       <Navbar onSignOut={() => { signOut(); router.push("/dashboard"); }}>
-        <div className="flex items-center gap-1 rounded-lg bg-[#483519]/8 p-0.5">
-          <button
-            onClick={() => setView("dashboard")}
-            className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
-              view === "dashboard"
-                ? "bg-[#483519] text-white"
-                : "text-[#483519]/50 hover:text-[#483519]"
-            }`}
-          >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setView("hiring")}
-            className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
-              view === "hiring"
-                ? "bg-[#483519] text-white"
-                : "text-[#483519]/50 hover:text-[#483519]"
-            }`}
-          >
-            Hiring
-          </button>
-        </div>
+        <button
+          onClick={() => setView("dashboard")}
+          className={`px-4 py-1 text-sm font-semibold transition ${
+            view === "dashboard"
+              ? "text-[#483519]"
+              : "text-[#483519]/40 hover:text-[#483519]"
+          }`}
+        >
+          Dashboard
+        </button>
+        <button
+          onClick={() => setView("hiring")}
+          className={`px-4 py-1 text-sm font-semibold transition ${
+            view === "hiring"
+              ? "text-[#483519]"
+              : "text-[#483519]/40 hover:text-[#483519]"
+          }`}
+        >
+          Hiring
+        </button>
       </Navbar>
 
       {view === "dashboard" ? (

@@ -164,7 +164,7 @@ function PremiumModal({
       <div
         className="relative w-full max-w-[700px] max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
-        style={{ fontFamily: "monospace" }}
+        style={{ fontFamily: "'Space Mono', monospace" }}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -301,7 +301,7 @@ function PayoutHistoryModal({
       <div
         className="relative w-full max-w-[700px] max-h-[80vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
-        style={{ fontFamily: "monospace" }}
+        style={{ fontFamily: "'Space Mono', monospace" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-2">

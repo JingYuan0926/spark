@@ -426,7 +426,7 @@ function ModalGlobe({
         ctx.fill();
 
         // Text
-        ctx.font = "bold 10px sans-serif";
+        ctx.font = "bold 10px 'Space Grotesk', sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "rgba(255,255,255,0.9)";
         ctx.fillText("View Gated", moonCx, moonCy + 10);

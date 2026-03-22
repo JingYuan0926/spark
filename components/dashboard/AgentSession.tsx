@@ -113,7 +113,7 @@ function drawPlazaFloor(ctx: CanvasRenderingContext2D, size: number) {
 
   // Label
   ctx.fillStyle = rgba(C.walnut, 0.15);
-  ctx.font = `600 ${Math.max(8, size * 0.022)}px sans-serif`;
+  ctx.font = `600 ${Math.max(8, size * 0.022)}px "Space Grotesk", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillText("PUBLIC SPACE", size / 2, 12);
@@ -141,7 +141,7 @@ function drawSpeechBubble(
   unit: number,
 ) {
   const fontSize = Math.max(9, unit * 0.024);
-  ctx.font = `600 ${fontSize}px sans-serif`;
+  ctx.font = `600 ${fontSize}px "Space Grotesk", sans-serif`;
   const textW = ctx.measureText(label).width;
   const padX = fontSize * 0.7, padY = fontSize * 0.5;
   const bubW = textW + padX * 2, bubH = fontSize + padY * 2;
@@ -602,7 +602,7 @@ export function AgentSession() {
 
         // Show name label below agent
         ctx.fillStyle = rgba(C.walnut, 0.5);
-        ctx.font = `500 ${Math.max(7, size * 0.018)}px sans-serif`;
+        ctx.font = `500 ${Math.max(7, size * 0.018)}px "Space Grotesk", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.fillText(ag.name, px, py + size * 0.04);
@@ -616,7 +616,7 @@ export function AgentSession() {
       // Empty state
       if (agents.length === 0) {
         ctx.fillStyle = rgba(C.walnut, 0.2);
-        ctx.font = `500 ${Math.max(10, size * 0.025)}px sans-serif`;
+        ctx.font = `500 ${Math.max(10, size * 0.025)}px "Space Grotesk", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("Waiting for agents...", size / 2, size / 2);
