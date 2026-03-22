@@ -534,9 +534,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           const myServices = services.filter((s) => s.provider === myId);
           if (myPostedTasks.length === 0 && myServices.length === 0) return null;
           return (
-            <div className="mt-3 border-t border-[#483519]/10 pt-3">
+            <div className="mt-2 border-t border-[#483519]/10 pt-2">
               <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">Posted Listings</h3>
-              <div className="hide-scrollbar space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none", maxHeight: "40%" }}>
+              <div className="hide-scrollbar min-h-[120px] space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
                 {myPostedTasks.map((task) => {
                   const tsc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
                   return (
@@ -544,7 +544,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       <div className="flex items-start justify-between">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
-                          <p className="mt-0.5 text-[10px] text-[#483519]/40">
+                          <p className="mt-0.5 text-xs text-[#483519]/50">
                             {task.worker ? `→ ${agentName(task.worker, agents)}` : "Waiting for worker"}
                           </p>
                         </div>
@@ -553,6 +553,27 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
                         </div>
                       </div>
+                      {/* Pipeline */}
+                      <div className="mt-2 flex items-center gap-1">
+                        {(["open", "accepted", "completed", "confirmed"] as const).map((stage, i) => {
+                          const stages = ["open", "accepted", "completed", "confirmed"];
+                          const currentIdx = stages.indexOf(task.status);
+                          const isPast = i < currentIdx;
+                          const isCurrent = i === currentIdx;
+                          return (
+                            <div key={stage} className="flex items-center gap-1">
+                              <div className={`h-2 w-2 rounded-full ${isPast ? "bg-[#4B7F52]" : isCurrent ? (STATUS_COLORS[stage]?.text.replace("text-", "bg-") || "bg-[#DD6E42]") : "bg-[#483519]/15"}`} />
+                              {i < 3 && <div className={`h-0.5 w-4 ${isPast ? "bg-[#4B7F52]/40" : "bg-[#483519]/10"}`} />}
+                            </div>
+                          );
+                        })}
+                        <span className="ml-2 text-[9px] text-[#483519]/30">{timeAgo(task.createdAt)}</span>
+                      </div>
+                      {task.deliverable && (
+                        <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[10px] text-[#483519]/50">
+                          {task.deliverable.slice(0, 80)}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -561,9 +582,14 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
-                        <p className="mt-0.5 text-[10px] text-[#483519]/40">Job listing</p>
+                        <p className="mt-0.5 text-xs text-[#483519]/50">{svc.description.slice(0, 60)}{svc.description.length > 60 ? "…" : ""}</p>
                       </div>
                       <span className="font-mono text-xs font-bold text-[#483519]">{svc.priceHbar} HBAR</span>
+                    </div>
+                    <div className="mt-2 flex gap-1">
+                      {svc.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[10px] text-[#483519]/40">{tag}</span>
+                      ))}
                     </div>
                   </div>
                 ))}
