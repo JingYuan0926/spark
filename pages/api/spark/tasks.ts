@@ -54,6 +54,16 @@ async function fetchAllTopicMessages(
 const VALID_STATUSES = ["open", "accepted", "completed", "confirmed", "disputed", "all"] as const;
 type TaskStatus = (typeof VALID_STATUSES)[number];
 
+interface NegotiationEntry {
+  type: "comment" | "price_proposal" | "price_response";
+  author: string;
+  message: string;
+  proposedPrice?: number;
+  accepted?: boolean;
+  seqNo: string;
+  timestamp: string;
+}
+
 interface TaskEntry {
   taskSeqNo: string;
   requester: string;
@@ -71,6 +81,8 @@ interface TaskEntry {
   completedAt: string | null;
   confirmedAt: string | null;
   disputedAt: string | null;
+  negotiation: NegotiationEntry[];
+  refundTxId: string | null;
 }
 
 export default async function handler(
@@ -126,6 +138,8 @@ export default async function handler(
           completedAt: null,
           confirmedAt: null,
           disputedAt: null,
+          negotiation: [],
+          refundTxId: null,
         });
       }
 
@@ -161,13 +175,61 @@ export default async function handler(
         }
       }
 
-      // task_disputed: transition to disputed
+      // task_disputed: transition to disputed + capture refundTxId
       if (action === "task_disputed") {
         const seqNo = String(decoded.taskSeqNo);
         const task = taskMap.get(seqNo);
         if (task && task.status === "completed") {
           task.status = "disputed";
           task.disputedAt = (decoded.timestamp as string) || consensusTimestamp;
+          task.refundTxId = (decoded.refundTxId as string) || null;
+        }
+      }
+
+      // task_comment: collect negotiation comments
+      if (action === "task_comment") {
+        const seqNo = String(decoded.taskSeqNo);
+        const task = taskMap.get(seqNo);
+        if (task) {
+          task.negotiation.push({
+            type: "comment",
+            author: decoded.author as string,
+            message: decoded.message as string,
+            seqNo: String(sequenceNumber),
+            timestamp: (decoded.timestamp as string) || consensusTimestamp,
+          });
+        }
+      }
+
+      // task_price_proposal: collect price proposals
+      if (action === "task_price_proposal") {
+        const seqNo = String(decoded.taskSeqNo);
+        const task = taskMap.get(seqNo);
+        if (task) {
+          task.negotiation.push({
+            type: "price_proposal",
+            author: decoded.worker as string,
+            message: decoded.message as string,
+            proposedPrice: decoded.proposedPrice as number,
+            seqNo: String(sequenceNumber),
+            timestamp: (decoded.timestamp as string) || consensusTimestamp,
+          });
+        }
+      }
+
+      // task_price_response: collect price responses
+      if (action === "task_price_response") {
+        const seqNo = String(decoded.taskSeqNo);
+        const task = taskMap.get(seqNo);
+        if (task) {
+          task.negotiation.push({
+            type: "price_response",
+            author: decoded.requester as string,
+            message: decoded.message as string,
+            accepted: decoded.accepted as boolean,
+            seqNo: String(sequenceNumber),
+            timestamp: (decoded.timestamp as string) || consensusTimestamp,
+          });
         }
       }
     }
