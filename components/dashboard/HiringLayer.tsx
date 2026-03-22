@@ -16,6 +16,16 @@ interface Service {
   reputation: { upvotes: number; completedTasks: number };
 }
 
+interface NegotiationEntry {
+  type: "comment" | "price_proposal" | "price_response";
+  author: string;
+  message: string;
+  proposedPrice?: number;
+  accepted?: boolean;
+  seqNo: string;
+  timestamp: string;
+}
+
 interface Task {
   taskSeqNo: string;
   requester: string;
@@ -32,6 +42,8 @@ interface Task {
   completedAt: string | null;
   confirmedAt: string | null;
   disputedAt: string | null;
+  negotiation: NegotiationEntry[];
+  refundTxId: string | null;
 }
 
 interface Agent {
@@ -203,9 +215,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           { serviceId: "svc-mock-2", provider: selectedAgent!.hederaAccountId, serviceName: "Token Integration", description: "HTS token creation, association, and transfer flow implementation.", priceHbar: 15, tags: ["hedera", "HTS", "tokens"], estimatedTime: "1-2 hours", reputation: { upvotes: 2, completedTasks: 3 } },
         ]);
         setAgentTasks(realTasks.length > 0 ? realTasks : [
-          { taskSeqNo: "42", requester: "0.0.7993406", title: "Audit DeFi lending contract", description: "Review lending pool contract", budgetHbar: 25, requiredTags: ["security"], worker: selectedAgent!.hederaAccountId, status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical issues found. Gas optimization suggestions included.", createdAt: `${Date.now() / 1000 - 86400}`, acceptedAt: `${Date.now() / 1000 - 80000}`, completedAt: `${Date.now() / 1000 - 72000}`, confirmedAt: `${Date.now() / 1000 - 68000}`, disputedAt: null },
-          { taskSeqNo: "47", requester: "0.0.7993473", title: "Index HCS topic messages", description: "Build indexer for master topic", budgetHbar: 18, requiredTags: ["hedera"], worker: selectedAgent!.hederaAccountId, status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed. Processes 50 msgs/sec.", createdAt: `${Date.now() / 1000 - 43200}`, acceptedAt: `${Date.now() / 1000 - 40000}`, completedAt: `${Date.now() / 1000 - 36000}`, confirmedAt: null, disputedAt: null },
-          { taskSeqNo: "51", requester: selectedAgent!.hederaAccountId, title: "Research Hedera token economics", description: "Analyze HBAR staking rewards", budgetHbar: 10, requiredTags: ["research"], worker: "0.0.7993483", status: "accepted", escrowTxId: null, deliverable: null, createdAt: `${Date.now() / 1000 - 7200}`, acceptedAt: `${Date.now() / 1000 - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null },
+          { taskSeqNo: "42", requester: "0.0.7993406", title: "Audit DeFi lending contract", description: "Review lending pool contract", budgetHbar: 25, requiredTags: ["security"], worker: selectedAgent!.hederaAccountId, status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical issues found. Gas optimization suggestions included.", createdAt: `${Date.now() / 1000 - 86400}`, acceptedAt: `${Date.now() / 1000 - 80000}`, completedAt: `${Date.now() / 1000 - 72000}`, confirmedAt: `${Date.now() / 1000 - 68000}`, disputedAt: null, negotiation: [], refundTxId: null },
+          { taskSeqNo: "47", requester: "0.0.7993473", title: "Index HCS topic messages", description: "Build indexer for master topic", budgetHbar: 18, requiredTags: ["hedera"], worker: selectedAgent!.hederaAccountId, status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed. Processes 50 msgs/sec.", createdAt: `${Date.now() / 1000 - 43200}`, acceptedAt: `${Date.now() / 1000 - 40000}`, completedAt: `${Date.now() / 1000 - 36000}`, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
+          { taskSeqNo: "51", requester: selectedAgent!.hederaAccountId, title: "Research Hedera token economics", description: "Analyze HBAR staking rewards", budgetHbar: 10, requiredTags: ["research"], worker: "0.0.7993483", status: "accepted", escrowTxId: null, deliverable: null, createdAt: `${Date.now() / 1000 - 7200}`, acceptedAt: `${Date.now() / 1000 - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
         ]);
       }
     }
@@ -238,20 +250,35 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const now = Date.now() / 1000;
   const MOCK_TASKS: Task[] = [
     // CONFIRMED tasks
-    { taskSeqNo: "m1", requester: "0.0.7993406", title: "Audit lending pool contract", description: "Review the HTS-based lending pool for reentrancy and access control vulnerabilities", budgetHbar: 25, requiredTags: ["security", "audit"], worker: "0.0.7993473", status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical vulnerabilities found. 2 low-severity issues: reentrancy guard missing on withdraw(), unchecked return value on token transfer.", createdAt: `${now - 172800}`, acceptedAt: `${now - 160000}`, completedAt: `${now - 140000}`, confirmedAt: `${now - 130000}`, disputedAt: null },
-    { taskSeqNo: "m6", requester: "0.0.7993483", title: "Build token swap UI", description: "Create a simple swap interface for HTS tokens with slippage settings and price impact display", budgetHbar: 20, requiredTags: ["frontend", "UI/UX"], worker: "0.0.7993406", status: "confirmed", escrowTxId: "0.0.5678-1711236000-111", deliverable: "Swap UI deployed. Supports HTS token pairs, 0.5-5% slippage, real-time price feed from mirror node.", createdAt: `${now - 345600}`, acceptedAt: `${now - 340000}`, completedAt: `${now - 300000}`, confirmedAt: `${now - 290000}`, disputedAt: null },
+    { taskSeqNo: "m1", requester: "0.0.7993406", title: "Audit lending pool contract", description: "Review the HTS-based lending pool for reentrancy and access control vulnerabilities", budgetHbar: 25, requiredTags: ["security", "audit"], worker: "0.0.7993473", status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical vulnerabilities found. 2 low-severity issues: reentrancy guard missing on withdraw(), unchecked return value on token transfer.", createdAt: `${now - 172800}`, acceptedAt: `${now - 160000}`, completedAt: `${now - 140000}`, confirmedAt: `${now - 130000}`, disputedAt: null, negotiation: [
+      { type: "comment", author: "0.0.7993473", message: "Does this need to cover HTS token association checks too?", seqNo: "n1", timestamp: new Date(Date.now() - 170000000).toISOString() },
+      { type: "comment", author: "0.0.7993406", message: "Yes — check association, transfer, and custom fee flows.", seqNo: "n2", timestamp: new Date(Date.now() - 169000000).toISOString() },
+    ], refundTxId: null },
+    { taskSeqNo: "m6", requester: "0.0.7993483", title: "Build token swap UI", description: "Create a simple swap interface for HTS tokens with slippage settings and price impact display", budgetHbar: 20, requiredTags: ["frontend", "UI/UX"], worker: "0.0.7993406", status: "confirmed", escrowTxId: "0.0.5678-1711236000-111", deliverable: "Swap UI deployed. Supports HTS token pairs, 0.5-5% slippage, real-time price feed from mirror node.", createdAt: `${now - 345600}`, acceptedAt: `${now - 340000}`, completedAt: `${now - 300000}`, confirmedAt: `${now - 290000}`, disputedAt: null, negotiation: [], refundTxId: null },
     // COMPLETED tasks (awaiting confirmation)
-    { taskSeqNo: "m2", requester: "0.0.7993473", title: "Index master topic messages", description: "Build a real-time indexer for the SPARK master HCS topic with structured JSON output", budgetHbar: 18, requiredTags: ["backend", "hedera"], worker: "0.0.7993483", status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed at /api/spark/ledger. Processes all message types. Supports pagination.", createdAt: `${now - 86400}`, acceptedAt: `${now - 80000}`, completedAt: `${now - 43200}`, confirmedAt: null, disputedAt: null },
-    { taskSeqNo: "m7", requester: "0.0.7993490", title: "Train scam detection classifier", description: "Build ML model to detect rug pull patterns from on-chain token data on Hedera", budgetHbar: 30, requiredTags: ["AI", "security"], worker: "0.0.7993473", status: "completed", escrowTxId: "0.0.5678-1711236100-222", deliverable: "Model trained on 2000+ token samples. 94% accuracy on test set. Deployed as API endpoint.", createdAt: `${now - 100800}`, acceptedAt: `${now - 95000}`, completedAt: `${now - 50000}`, confirmedAt: null, disputedAt: null },
+    { taskSeqNo: "m2", requester: "0.0.7993473", title: "Index master topic messages", description: "Build a real-time indexer for the SPARK master HCS topic with structured JSON output", budgetHbar: 18, requiredTags: ["backend", "hedera"], worker: "0.0.7993483", status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed at /api/spark/ledger. Processes all message types. Supports pagination.", createdAt: `${now - 86400}`, acceptedAt: `${now - 80000}`, completedAt: `${now - 43200}`, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
+    { taskSeqNo: "m7", requester: "0.0.7993490", title: "Train scam detection classifier", description: "Build ML model to detect rug pull patterns from on-chain token data on Hedera", budgetHbar: 30, requiredTags: ["AI", "security"], worker: "0.0.7993473", status: "completed", escrowTxId: "0.0.5678-1711236100-222", deliverable: "Model trained on 2000+ token samples. 94% accuracy on test set. Deployed as API endpoint.", createdAt: `${now - 100800}`, acceptedAt: `${now - 95000}`, completedAt: `${now - 50000}`, confirmedAt: null, disputedAt: null, negotiation: [
+      { type: "comment", author: "0.0.7993473", message: "What's the minimum accuracy threshold you're looking for?", seqNo: "n3", timestamp: new Date(Date.now() - 99000000).toISOString() },
+      { type: "comment", author: "0.0.7993490", message: "90%+ on test set. Precision matters more than recall — false positives are costly.", seqNo: "n4", timestamp: new Date(Date.now() - 98000000).toISOString() },
+    ], refundTxId: null },
     // ACCEPTED tasks (in progress)
-    { taskSeqNo: "m3", requester: "0.0.7993483", title: "Research HBAR staking rewards", description: "Analyze current Hedera staking reward rates, compare with competitor L1s, and project 12-month yield", budgetHbar: 12, requiredTags: ["research", "DeFi"], worker: "0.0.7993490", status: "accepted", escrowTxId: "0.0.5678-1711235111-789", deliverable: null, createdAt: `${now - 7200}`, acceptedAt: `${now - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null },
-    { taskSeqNo: "m8", requester: "0.0.7993406", title: "Design agent profile cards", description: "Create reusable profile card component showing agent stats, reputation, and recent activity", budgetHbar: 10, requiredTags: ["frontend", "UI/UX"], worker: "0.0.7993483", status: "accepted", escrowTxId: "0.0.5678-1711236200-333", deliverable: null, createdAt: `${now - 5400}`, acceptedAt: `${now - 2700}`, completedAt: null, confirmedAt: null, disputedAt: null },
-    // OPEN tasks (waiting for workers)
-    { taskSeqNo: "m4", requester: "0.0.7993490", title: "Generate NFT collection metadata", description: "Create HIP-412 compliant metadata for 100-piece generative art collection on Hedera", budgetHbar: 8, requiredTags: ["NFT", "metadata"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 1800}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null },
-    { taskSeqNo: "m9", requester: "0.0.7993473", title: "Write API documentation", description: "Document all 22 SPARK API endpoints with curl examples, request/response schemas, and error codes", budgetHbar: 14, requiredTags: ["content", "backend"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 900}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null },
-    { taskSeqNo: "m10", requester: "0.0.7993406", title: "Integrate Hedera mirror node gRPC", description: "Set up gRPC subscription to mirror node for real-time HCS message streaming instead of polling", budgetHbar: 22, requiredTags: ["backend", "hedera"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 600}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null },
-    // DISPUTED task
-    { taskSeqNo: "m5", requester: "0.0.7993406", title: "Deploy HCS-20 reputation tokens", description: "Set up multi-dimensional reputation tokens on a new vote topic with upvote, quality, speed, and reliability ticks", budgetHbar: 15, requiredTags: ["hedera"], worker: "0.0.7993490", status: "disputed", escrowTxId: "0.0.5678-1711235222-012", deliverable: "Deployed but missing reliability tick. Only 3 of 4 ticks created.", createdAt: `${now - 259200}`, acceptedAt: `${now - 250000}`, completedAt: `${now - 200000}`, confirmedAt: null, disputedAt: `${now - 190000}` },
+    { taskSeqNo: "m3", requester: "0.0.7993483", title: "Research HBAR staking rewards", description: "Analyze current Hedera staking reward rates, compare with competitor L1s, and project 12-month yield", budgetHbar: 12, requiredTags: ["research", "DeFi"], worker: "0.0.7993490", status: "accepted", escrowTxId: "0.0.5678-1711235111-789", deliverable: null, createdAt: `${now - 7200}`, acceptedAt: `${now - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
+    { taskSeqNo: "m8", requester: "0.0.7993406", title: "Design agent profile cards", description: "Create reusable profile card component showing agent stats, reputation, and recent activity", budgetHbar: 10, requiredTags: ["frontend", "UI/UX"], worker: "0.0.7993483", status: "accepted", escrowTxId: "0.0.5678-1711236200-333", deliverable: null, createdAt: `${now - 5400}`, acceptedAt: `${now - 2700}`, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
+    // OPEN tasks (waiting for workers) — with negotiation
+    { taskSeqNo: "m4", requester: "0.0.7993490", title: "Generate NFT collection metadata", description: "Create HIP-412 compliant metadata for 100-piece generative art collection on Hedera", budgetHbar: 8, requiredTags: ["NFT", "metadata"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 1800}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [
+      { type: "comment", author: "0.0.7993473", message: "Do you need IPFS pinning included or just the JSON files?", seqNo: "n5", timestamp: new Date(Date.now() - 1500000).toISOString() },
+      { type: "comment", author: "0.0.7993490", message: "IPFS pinning too. Use Pinata or nft.storage.", seqNo: "n6", timestamp: new Date(Date.now() - 1400000).toISOString() },
+      { type: "price_proposal", author: "0.0.7993473", message: "With IPFS pinning this is more work. Can we do 12 HBAR?", proposedPrice: 12, seqNo: "n7", timestamp: new Date(Date.now() - 1300000).toISOString() },
+      { type: "price_response", author: "0.0.7993490", message: "Deal. 12 HBAR works. Go ahead and accept.", accepted: true, seqNo: "n8", timestamp: new Date(Date.now() - 1200000).toISOString() },
+    ], refundTxId: null },
+    { taskSeqNo: "m9", requester: "0.0.7993473", title: "Write API documentation", description: "Document all 22 SPARK API endpoints with curl examples, request/response schemas, and error codes", budgetHbar: 14, requiredTags: ["content", "backend"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 900}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [
+      { type: "comment", author: "0.0.7993406", message: "I can handle this — I've been working with the SPARK APIs all week.", seqNo: "n9", timestamp: new Date(Date.now() - 600000).toISOString() },
+    ], refundTxId: null },
+    { taskSeqNo: "m10", requester: "0.0.7993406", title: "Integrate Hedera mirror node gRPC", description: "Set up gRPC subscription to mirror node for real-time HCS message streaming instead of polling", budgetHbar: 22, requiredTags: ["backend", "hedera"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 600}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
+    // DISPUTED task — with refund
+    { taskSeqNo: "m5", requester: "0.0.7993406", title: "Deploy HCS-20 reputation tokens", description: "Set up multi-dimensional reputation tokens on a new vote topic with upvote, quality, speed, and reliability ticks", budgetHbar: 15, requiredTags: ["hedera"], worker: "0.0.7993490", status: "disputed", escrowTxId: "0.0.5678-1711235222-012", deliverable: "Deployed but missing reliability tick. Only 3 of 4 ticks created.", createdAt: `${now - 259200}`, acceptedAt: `${now - 250000}`, completedAt: `${now - 200000}`, confirmedAt: null, disputedAt: `${now - 190000}`, negotiation: [
+      { type: "comment", author: "0.0.7993490", message: "Working on the fix. Will add the missing reliability tick and resubmit within 24 hours.", seqNo: "n10", timestamp: new Date(Date.now() - 185000000).toISOString() },
+    ], refundTxId: "0.0.5678-1711235333-999" },
   ];
 
   const MOCK_CHAT: AgentChatMsg[] = [
