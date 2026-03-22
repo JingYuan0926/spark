@@ -1614,107 +1614,166 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* Agent Status — what the bot is doing */}
+                {/* Agent Status — detailed execution log */}
                 <div className="mt-5 border-t border-white/8 pt-4">
                   <p className="text-[12px] uppercase tracking-wider text-white/30">Agent Status</p>
-                  <div className="mt-3 space-y-2.5">
-                    {/* Task created */}
+                  <div className="mt-3 space-y-2">
+                    {/* Phase 1: Task posted */}
                     <div className="flex items-start gap-2">
                       <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
-                      <div>
-                        <p className="text-[12px] text-white/50">Task Created</p>
-                        <p className="text-[11px] text-white/20">{timeAgo(selectedTask.createdAt)}</p>
-                      </div>
+                      <p className="text-[12px] text-white/50">Task published to HCS master topic</p>
                     </div>
-                    {/* Escrow */}
                     {selectedTask.escrowTxId && (
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">HBAR Escrowed</p>
-                          <p className="text-[11px] text-white/20">{selectedTask.budgetHbar} HBAR locked</p>
-                        </div>
+                        <p className="text-[12px] text-white/50">Escrowed {selectedTask.budgetHbar} HBAR to operator</p>
                       </div>
                     )}
-                    {/* Negotiation */}
-                    {selectedTask.negotiation.length > 0 && (
+
+                    {/* Phase 2: Discovery & negotiation */}
+                    {selectedTask.status === "open" && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Broadcasting to agent network</p>
+                        </div>
+                        {selectedTask.negotiation.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                            <p className="text-[12px] text-white/50">{selectedTask.negotiation.length} response{selectedTask.negotiation.length > 1 ? "s" : ""} received from agents</p>
+                          </div>
+                        )}
+                        {selectedTask.negotiation.some((n) => n.type === "price_proposal") && (
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                            <p className="text-[12px] text-white/50">Price negotiation in progress</p>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                          <p className="text-[12px] text-white/50">Scanning for matching agents...</p>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Phase 3: Accepted — detailed work steps */}
+                    {selectedTask.negotiation.length > 0 && selectedTask.status !== "open" && (
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Negotiating</p>
-                          <p className="text-[11px] text-white/20">{selectedTask.negotiation.length} message{selectedTask.negotiation.length > 1 ? "s" : ""} exchanged</p>
-                        </div>
+                        <p className="text-[12px] text-white/50">Negotiation completed · {selectedTask.negotiation.length} messages</p>
                       </div>
                     )}
-                    {/* Worker accepted */}
                     {selectedTask.acceptedAt && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Worker Accepted</p>
-                          <p className="text-[11px] text-white/20">{agentName(selectedTask.worker || "", agents)} assigned</p>
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">{agentName(selectedTask.worker || "", agents)} accepted the task</p>
                         </div>
-                      </div>
+                      </>
                     )}
-                    {/* In progress */}
                     {selectedTask.status === "accepted" && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Working on Deliverable</p>
-                          <p className="text-[11px] text-white/20">Agent is processing the task...</p>
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Reading task requirements</p>
                         </div>
-                      </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Planning execution strategy</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                          <p className="text-[12px] text-white/50">Executing task deliverable...</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-white/15">⣿</span>
+                          <p className="text-[12px] text-white/20">Validating output quality</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-white/15">⣿</span>
+                          <p className="text-[12px] text-white/20">Submitting deliverable to HCS</p>
+                        </div>
+                      </>
                     )}
-                    {/* Submitted */}
+
+                    {/* Phase 4: Completed — awaiting review */}
                     {selectedTask.completedAt && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Deliverable Submitted</p>
-                          <p className="text-[11px] text-white/20">{timeAgo(selectedTask.completedAt)}</p>
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Reading task requirements</p>
                         </div>
-                      </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Planning execution strategy</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Executing task deliverable</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Validating output quality</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Deliverable submitted to HCS</p>
+                        </div>
+                      </>
                     )}
-                    {/* Awaiting review */}
                     {selectedTask.status === "completed" && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Awaiting Review</p>
-                          <p className="text-[11px] text-white/20">Requester reviewing deliverable...</p>
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                          <p className="text-[12px] text-white/50">Waiting for requester to review...</p>
                         </div>
-                      </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-white/15">⣿</span>
+                          <p className="text-[12px] text-white/20">Release escrow on confirmation</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-white/15">⣿</span>
+                          <p className="text-[12px] text-white/20">Mint reputation tokens</p>
+                        </div>
+                      </>
                     )}
-                    {/* Confirmed */}
+
+                    {/* Phase 5: Confirmed */}
                     {selectedTask.confirmedAt && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Confirmed & Paid</p>
-                          <p className="text-[11px] text-white/20">{selectedTask.budgetHbar} HBAR released · Rep minted</p>
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Requester confirmed delivery</p>
                         </div>
-                      </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">{selectedTask.budgetHbar} HBAR released to {agentName(selectedTask.worker || "", agents)}</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Reputation tokens minted (HCS-20)</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                          <p className="text-[12px] text-white/50">Task complete</p>
+                        </div>
+                      </>
                     )}
+
                     {/* Disputed */}
                     {selectedTask.disputedAt && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#A61C3C]">⣿</span>
-                        <div>
-                          <p className="text-[12px] text-[#A61C3C]/70">Disputed</p>
-                          <p className="text-[11px] text-white/20">{selectedTask.refundTxId ? `${selectedTask.budgetHbar} HBAR refunded` : "Pending resolution"}</p>
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 text-[11px] text-[#A61C3C]">⣿</span>
+                          <p className="text-[12px] text-[#A61C3C]/70">Requester disputed delivery</p>
                         </div>
-                      </div>
-                    )}
-                    {/* Waiting for agents */}
-                    {selectedTask.status === "open" && (
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
-                        <div>
-                          <p className="text-[12px] text-white/50">Listening for Agents</p>
-                          <p className="text-[11px] text-white/20">Waiting for workers to accept...</p>
-                        </div>
-                      </div>
+                        {selectedTask.refundTxId && (
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 text-[11px] text-[#A61C3C]">⣿</span>
+                            <p className="text-[12px] text-[#A61C3C]/70">{selectedTask.budgetHbar} HBAR refunded to requester</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
