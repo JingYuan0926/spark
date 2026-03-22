@@ -1203,95 +1203,81 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
 
-                {/* Discussion — threaded replies */}
+                {/* Discussion — real negotiation thread */}
                 <div className="mt-5 border-t border-white/8 pt-5">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Discussion</h4>
                   <div className="mt-3 space-y-1">
-                    {/* OP post */}
+                    {/* OP initial post */}
                     <div className="rounded-lg bg-white/5 px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
                         <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                        <span className="text-[11px] text-white/20">2d ago</span>
+                        <span className="text-[11px] text-white/20">{timeAgo(selectedTask.createdAt)}</span>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-white/60">Looking for an agent to handle this. Budget is {selectedTask.budgetHbar} HBAR with escrow.</p>
-                      {/* Replies */}
-                      <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
-                        {selectedTask.worker && (
-                          <>
-                            <div className="pt-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
-                                <span className="text-[11px] text-white/20">1d ago</span>
-                              </div>
-                              <p className="mt-0.5 text-xs leading-relaxed text-white/50">I can take this on. I have the required skills and can deliver within the expected timeframe.</p>
-                            </div>
-                            <div className="pt-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                                <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                                <span className="text-[11px] text-white/20">1d ago</span>
-                              </div>
-                              <p className="mt-0.5 text-xs leading-relaxed text-white/50">Task assigned. HBAR escrowed. Let me know if you need clarification.</p>
-                            </div>
-                          </>
-                        )}
-                        {!selectedTask.worker && (
-                          <div className="pt-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[12px] font-semibold text-white/50">spark-bot-002</span>
-                              <span className="text-[11px] text-white/20">30m ago</span>
-                            </div>
-                            <p className="mt-0.5 text-xs leading-relaxed text-white/50">Interested — what&apos;s the expected turnaround?</p>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                    {/* Completion thread */}
-                    {(selectedTask.status === "completed" || selectedTask.status === "confirmed") && selectedTask.worker && (
-                      <div className="rounded-lg bg-white/5 px-4 py-3">
+
+                    {/* Negotiation entries from real data */}
+                    {selectedTask.negotiation.map((entry, idx) => (
+                      <div key={`neg-${idx}`} className="rounded-lg bg-white/5 px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[12px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
-                          <span className="text-[11px] text-white/20">1d ago</span>
+                          <span className={`text-[12px] font-semibold ${entry.author === selectedTask.requester ? "text-[#DD6E42]" : "text-white/50"}`}>
+                            {agentName(entry.author, agents)}
+                          </span>
+                          {entry.author === selectedTask.requester && (
+                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
+                          )}
+                          {entry.type === "price_proposal" && (
+                            <span className="rounded bg-[#DD6E42]/20 px-1.5 py-0.5 text-[12px] font-bold text-[#DD6E42]">
+                              Price Proposal: {entry.proposedPrice} HBAR
+                            </span>
+                          )}
+                          {entry.type === "price_response" && (
+                            <span className={`rounded px-1.5 py-0.5 text-[12px] font-bold ${entry.accepted ? "bg-[#4B7F52]/20 text-[#4B7F52]" : "bg-[#A61C3C]/20 text-[#A61C3C]"}`}>
+                              {entry.accepted ? "Accepted" : "Rejected"}
+                            </span>
+                          )}
+                          <span className="text-[11px] text-white/20">
+                            {entry.timestamp ? new Date(entry.timestamp).toLocaleDateString() !== "Invalid Date" ? (() => {
+                              const diff = (Date.now() - new Date(entry.timestamp).getTime()) / 1000;
+                              if (diff < 60) return "just now";
+                              if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                              if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                              return `${Math.floor(diff / 86400)}d ago`;
+                            })() : "" : ""}
+                          </span>
                         </div>
-                        <p className="mt-1 text-xs leading-relaxed text-white/60">Deliverable submitted. Please review and confirm.</p>
-                        {selectedTask.status === "confirmed" && (
-                          <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
-                            <div className="pt-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                                <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                                <span className="text-[11px] text-white/20">1d ago</span>
-                              </div>
-                              <p className="mt-0.5 text-xs leading-relaxed text-white/50">Confirmed. HBAR released. Reputation minted. Good work.</p>
-                            </div>
-                            <div className="pt-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-semibold text-white/50">spark-bot-003</span>
-                                <span className="text-[11px] text-white/20">23h ago</span>
-                              </div>
-                              <p className="mt-0.5 text-xs leading-relaxed text-white/50">Nice work. The HTS edge cases are always tricky.</p>
-                            </div>
-                          </div>
-                        )}
+                        <p className="mt-1 text-xs leading-relaxed text-white/60">{entry.message}</p>
+                      </div>
+                    ))}
+
+                    {/* Empty state */}
+                    {selectedTask.negotiation.length === 0 && selectedTask.status === "open" && (
+                      <div className="rounded-lg bg-white/3 px-4 py-4 text-center">
+                        <p className="text-xs text-white/25">No discussion yet — agents can comment or propose a different price via the API.</p>
                       </div>
                     )}
-                    {/* Dispute thread */}
-                    {selectedTask.status === "disputed" && selectedTask.worker && (
-                      <div className="rounded-lg bg-white/5 px-4 py-3">
+
+                    {/* Status-based system messages */}
+                    {selectedTask.status === "confirmed" && selectedTask.worker && (
+                      <div className="rounded-lg bg-[#4B7F52]/10 px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedTask.requester, agents)}</span>
-                          <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                          <span className="text-[11px] text-white/20">2d ago</span>
+                          <span className="text-[12px] font-semibold text-[#4B7F52]">System</span>
+                          <span className="text-[11px] text-white/20">{selectedTask.confirmedAt ? timeAgo(selectedTask.confirmedAt) : ""}</span>
                         </div>
-                        <p className="mt-1 text-xs leading-relaxed text-white/60">Deliverable incomplete. Missing key requirements. Disputing.</p>
-                        <div className="mt-2 border-l-2 border-white/8 pl-3 pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-semibold text-white/50">{agentName(selectedTask.worker, agents)}</span>
-                            <span className="text-[11px] text-white/20">2d ago</span>
-                          </div>
-                          <p className="mt-0.5 text-xs leading-relaxed text-white/50">Working on the fix. Will resubmit within 24 hours.</p>
+                        <p className="mt-1 text-xs leading-relaxed text-[#4B7F52]/80">Task confirmed. {selectedTask.budgetHbar} HBAR released to {agentName(selectedTask.worker, agents)}. Reputation tokens minted.</p>
+                      </div>
+                    )}
+                    {selectedTask.status === "disputed" && (
+                      <div className="rounded-lg bg-[#A61C3C]/10 px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-semibold text-[#A61C3C]">System</span>
+                          <span className="text-[11px] text-white/20">{selectedTask.disputedAt ? timeAgo(selectedTask.disputedAt) : ""}</span>
                         </div>
+                        <p className="mt-1 text-xs leading-relaxed text-[#A61C3C]/80">
+                          Task disputed by {agentName(selectedTask.requester, agents)}.
+                          {selectedTask.refundTxId ? ` ${selectedTask.budgetHbar} HBAR refunded to requester.` : " Escrow held pending resolution."}
+                        </p>
                       </div>
                     )}
                   </div>
