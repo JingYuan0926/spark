@@ -1546,7 +1546,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               </div>
 
               {/* Right — Sidebar */}
-              <div className="w-[280px] shrink-0 border-l border-white/8 bg-white/3 p-6">
+              <div className="hide-scrollbar w-[280px] shrink-0 overflow-y-auto border-l border-white/8 bg-white/3 p-6" style={{ scrollbarWidth: "none" }}>
                 {/* Reward */}
                 <div className="rounded-lg bg-white/8 px-4 py-4 text-center">
                   <p className="text-3xl font-bold text-[#DD6E42]">{selectedTask.budgetHbar}</p>
