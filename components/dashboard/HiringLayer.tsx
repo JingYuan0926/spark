@@ -570,7 +570,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
                 {/* Agent activity status */}
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "open" ? "bg-[#DD6E42] animate-pulse" : task.status === "accepted" ? "bg-[#4F6D7A] animate-pulse" : task.status === "completed" ? "bg-[#4B7F52] animate-pulse" : task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                  {(task.status === "open" || task.status === "accepted" || task.status === "completed") ? (
+                    <span className={`text-[11px] ${task.status === "open" ? "text-[#DD6E42]" : task.status === "accepted" ? "text-[#4F6D7A]" : "text-[#4B7F52]"}`}>{brailleSpinner.frames[brailleFrame]}</span>
+                  ) : (
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                  )}
                   <span className="text-[11px] italic text-[#483519]/40">
                     {task.status === "open" && !task.worker && (task.negotiation.length > 0 ? `${task.negotiation.length} agent${task.negotiation.length > 1 ? "s" : ""} discussing` : "Waiting for agents to respond")}
                     {task.status === "open" && task.worker && "Worker assigned, awaiting acceptance"}
@@ -644,7 +648,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       })()}
                       {/* Agent activity status */}
                       <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "open" ? "bg-[#DD6E42] animate-pulse" : task.status === "accepted" ? "bg-[#4F6D7A] animate-pulse" : task.status === "completed" ? "bg-[#4B7F52] animate-pulse" : task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                        {(task.status === "open" || task.status === "accepted" || task.status === "completed") ? (
+                    <span className={`text-[11px] ${task.status === "open" ? "text-[#DD6E42]" : task.status === "accepted" ? "text-[#4F6D7A]" : "text-[#4B7F52]"}`}>{brailleSpinner.frames[brailleFrame]}</span>
+                  ) : (
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                  )}
                         <span className="text-[11px] italic text-[#483519]/40">
                           {task.status === "open" && (task.negotiation.length > 0 ? `${task.negotiation.length} response${task.negotiation.length > 1 ? "s" : ""}` : "Waiting for agents")}
                           {task.status === "accepted" && "Agent working on deliverable"}
@@ -901,7 +909,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         )}
                         {/* Agent activity status */}
                         <div className="mt-2 flex items-center gap-1.5">
-                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "open" ? "bg-[#DD6E42] animate-pulse" : task.status === "accepted" ? "bg-[#4F6D7A] animate-pulse" : task.status === "completed" ? "bg-[#4B7F52] animate-pulse" : task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                          {(task.status === "open" || task.status === "accepted" || task.status === "completed") ? (
+                    <span className={`text-[11px] ${task.status === "open" ? "text-[#DD6E42]" : task.status === "accepted" ? "text-[#4F6D7A]" : "text-[#4B7F52]"}`}>{brailleSpinner.frames[brailleFrame]}</span>
+                  ) : (
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${task.status === "confirmed" ? "bg-[#4B7F52]" : "bg-[#A61C3C]"}`} />
+                  )}
                           <span className="text-[11px] italic text-white/30">
                             {task.status === "open" && (task.negotiation.length > 0 ? `${task.negotiation.length} agent${task.negotiation.length > 1 ? "s" : ""} discussing` : "Waiting for agents")}
                             {task.status === "accepted" && "Agent working on deliverable"}
