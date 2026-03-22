@@ -109,9 +109,38 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [brailleFrame, setBrailleFrame] = useState(0);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [agentReviews, setAgentReviews] = useState<{ avgRating: number; count: number; topTags: { tag: string; count: number }[]; reviews: { rating: number; review: string; tags: string[]; reviewer: string }[] } | null>(null);
+  const [agentServices, setAgentServices] = useState<Service[]>([]);
+  const [agentTasks, setAgentTasks] = useState<Task[]>([]);
 
   // Parse agent-to-agent messages from botMessages
   const chatMessages = agent?.botMessages ? parseAgentMessages(agent.botMessages as Record<string, unknown>[]) : [];
+
+  // Fetch profile data when agent selected
+  useEffect(() => {
+    if (!selectedAgent) return;
+    let cancelled = false;
+    async function fetchProfile() {
+      try {
+        const res = await fetch(`/api/spark/reviews?agent=${selectedAgent!.hederaAccountId}`);
+        const data = await res.json();
+        if (!cancelled && data.success) {
+          setAgentReviews({
+            avgRating: data.avgRating || 0,
+            count: data.count || 0,
+            topTags: data.topTags || [],
+            reviews: data.reviews || [],
+          });
+        }
+      } catch { /* ignore */ }
+      // Filter services/tasks for this agent
+      setAgentServices(services.filter((s) => s.provider === selectedAgent!.hederaAccountId));
+      setAgentTasks(tasks.filter((t) => t.requester === selectedAgent!.hederaAccountId || t.worker === selectedAgent!.hederaAccountId));
+    }
+    fetchProfile();
+    return () => { cancelled = true; };
+  }, [selectedAgent, services, tasks]);
 
   // Braille spinner
   useEffect(() => {
@@ -329,7 +358,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </p>
           )}
           {agents.map((ag) => (
-            <div key={ag.hederaAccountId} className="flex items-center gap-3 rounded-lg bg-white/30 px-4 py-2.5 transition hover:bg-white/40">
+            <div key={ag.hederaAccountId} onClick={() => { setAgentReviews(null); setSelectedAgent(ag); }} className="flex cursor-pointer items-center gap-3 rounded-lg bg-white/30 px-4 py-2.5 transition hover:bg-white/50">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#483519]/10 text-[10px] font-bold text-[#483519]/60">
                 {(ag.botId || "?")[0].toUpperCase()}
               </div>
@@ -400,6 +429,158 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           )}
         </div>
       </div>
+
+      {/* Agent Profile Modal */}
+      {selectedAgent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedAgent(null)}>
+          <div
+            className="relative max-h-[85vh] w-full max-w-[600px] overflow-y-auto rounded-2xl bg-[#483519]/90 p-8 backdrop-blur-md"
+            onClick={(e) => e.stopPropagation()}
+            style={{ scrollbarWidth: "none" }}
+          >
+            <button onClick={() => setSelectedAgent(null)} className="absolute top-4 right-4 text-white/50 transition hover:text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 text-lg font-bold text-white">
+                {(selectedAgent.botId || "?")[0].toUpperCase()}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">{selectedAgent.botId || selectedAgent.hederaAccountId}</h3>
+                <p className="font-mono text-xs text-white/40">{selectedAgent.hederaAccountId}</p>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-[#4B7F52]">+{selectedAgent.netReputation}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Reputation</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-white">{selectedAgent.hbarBalance.toFixed(1)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-white">{agentReviews?.avgRating.toFixed(0) || "—"}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Rating</p>
+              </div>
+            </div>
+
+            {/* Reputation breakdown */}
+            <div className="mt-4 flex items-center gap-2">
+              <span className="text-xs text-[#4B7F52]">↑{selectedAgent.upvotes}</span>
+              <span className="text-xs text-[#DD6E42]">↓{selectedAgent.downvotes}</span>
+              {agentReviews && agentReviews.topTags.length > 0 && (
+                <div className="ml-2 flex gap-1">
+                  {agentReviews.topTags.slice(0, 4).map((t) => (
+                    <span key={t.tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">
+                      {t.tag} ({t.count})
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Description */}
+            {(selectedAgent.domainTags || selectedAgent.serviceOfferings) && (
+              <div className="mt-5">
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Profile</p>
+                {selectedAgent.domainTags && (
+                  <p className="mt-1 text-xs text-white/60">Domain: {selectedAgent.domainTags}</p>
+                )}
+                {selectedAgent.serviceOfferings && (
+                  <p className="mt-1 text-xs text-white/60">Services: {selectedAgent.serviceOfferings}</p>
+                )}
+              </div>
+            )}
+
+            {/* Services listed by this agent */}
+            {agentServices.length > 0 && (
+              <div className="mt-5">
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Services Offered</p>
+                <div className="mt-2 space-y-2">
+                  {agentServices.map((svc) => (
+                    <div key={svc.serviceId} className="rounded-lg bg-white/8 px-3 py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-white">{svc.serviceName}</span>
+                        <span className="font-mono text-xs text-[#DD6E42]">{svc.priceHbar} ℏ</span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] text-white/40">{svc.description.slice(0, 80)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tasks involving this agent */}
+            {agentTasks.length > 0 && (
+              <div className="mt-5">
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Task Activity</p>
+                <div className="mt-2 space-y-2">
+                  {agentTasks.slice(0, 5).map((t) => {
+                    const sc = STATUS_COLORS[t.status] || STATUS_COLORS.open;
+                    return (
+                      <div key={t.taskSeqNo} className="flex items-center gap-2 rounded-lg bg-white/8 px-3 py-2">
+                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${sc.bg} ${sc.text}`}>{t.status}</span>
+                        <span className="text-xs text-white/70">{t.title}</span>
+                        <span className="ml-auto font-mono text-[10px] text-white/30">{t.budgetHbar} ℏ</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Reviews */}
+            {agentReviews && agentReviews.reviews.length > 0 && (
+              <div className="mt-5">
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Reviews ({agentReviews.count})</p>
+                <div className="mt-2 space-y-2">
+                  {agentReviews.reviews.slice(0, 5).map((r, i) => (
+                    <div key={i} className="rounded-lg bg-white/8 px-3 py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] text-white/30">by {shortAddr(r.reviewer)}</span>
+                        <span className="text-xs font-bold text-[#DD6E42]">{r.rating}/100</span>
+                      </div>
+                      <p className="mt-1 text-xs text-white/50">{r.review}</p>
+                      {r.tags.length > 0 && (
+                        <div className="mt-1 flex gap-1">
+                          {r.tags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] text-white/30">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Loading state for reviews */}
+            {!agentReviews && (
+              <div className="mt-5 flex items-center gap-2 text-white/30">
+                <span className="text-sm">{brailleSpinner.frames[brailleFrame]}</span>
+                <span className="text-xs">Loading reviews...</span>
+              </div>
+            )}
+
+            {/* HashScan link */}
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <a
+                href={`https://hashscan.io/testnet/account/${selectedAgent.hederaAccountId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[10px] text-white/30 transition hover:text-white/60"
+              >
+                View on HashScan ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
