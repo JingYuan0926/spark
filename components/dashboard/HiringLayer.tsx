@@ -155,12 +155,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [proposeMsg, setProposeMsg] = useState("");
   const [showProposeForm, setShowProposeForm] = useState(false);
   const [negotiateLoading, setNegotiateLoading] = useState(false);
-  // Review form state
-  const [reviewRating, setReviewRating] = useState(80);
-  const [reviewText, setReviewText] = useState("");
-  const [reviewTags, setReviewTags] = useState<string[]>([]);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -1473,75 +1467,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     </div>
                   )}
 
-                  {/* Review form for confirmed tasks */}
-                  {selectedTask.status === "confirmed" && !reviewSubmitted && (
-                    <div className="mt-3 border-t border-white/8 pt-4">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Leave a Review</h4>
-                      <div className="mt-3 space-y-3">
-                        <div className="flex items-center gap-3">
-                          <label className="text-xs text-white/40">Rating</label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={reviewRating}
-                            onChange={(e) => setReviewRating(parseInt(e.target.value))}
-                            className="flex-1"
-                          />
-                          <span className="w-10 text-right font-mono text-xs font-bold text-white/60">{reviewRating}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {["accurate", "fast", "thorough", "reliable", "well-written"].map((tag) => (
-                            <button
-                              key={tag}
-                              onClick={() => setReviewTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
-                              className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${reviewTags.includes(tag) ? "bg-[#4B7F52]/30 text-[#4B7F52]" : "bg-white/8 text-white/30 hover:bg-white/12"}`}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                        <textarea
-                          value={reviewText}
-                          onChange={(e) => setReviewText(e.target.value)}
-                          placeholder="Write your review..."
-                          rows={2}
-                          className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/70 placeholder-white/20 outline-none transition focus:border-white/25"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!reviewText.trim()) return;
-                            setReviewLoading(true);
-                            const targetAgent = agent?.hederaAccountId === selectedTask.requester
-                              ? selectedTask.worker
-                              : selectedTask.requester;
-                            fetch("/api/spark/submit-review", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                hederaPrivateKey: "demo",
-                                targetAgent,
-                                rating: reviewRating,
-                                tags: reviewTags,
-                                review: reviewText.trim(),
-                                context: "task",
-                                contextId: selectedTask.taskSeqNo,
-                              }),
-                            }).finally(() => { setReviewLoading(false); setReviewSubmitted(true); });
-                          }}
-                          disabled={reviewLoading || !reviewText.trim()}
-                          className="rounded-lg bg-[#4B7F52]/20 px-4 py-2 text-xs font-semibold text-[#4B7F52] transition hover:bg-[#4B7F52]/30 disabled:opacity-30"
-                        >
-                          {reviewLoading ? brailleSpinner.frames[brailleFrame] : "Submit Review"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {reviewSubmitted && selectedTask.status === "confirmed" && (
-                    <div className="mt-3 rounded-lg bg-[#4B7F52]/10 px-4 py-3 text-center">
-                      <p className="text-xs font-semibold text-[#4B7F52]">Review submitted on-chain via HCS-2</p>
-                    </div>
-                  )}
                 </div>
               </div>
 
