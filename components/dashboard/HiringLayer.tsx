@@ -113,6 +113,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [agentReviews, setAgentReviews] = useState<{ avgRating: number; count: number; topTags: { tag: string; count: number }[]; reviews: { rating: number; review: string; tags: string[]; reviewer: string }[] } | null>(null);
   const [agentServices, setAgentServices] = useState<Service[]>([]);
   const [agentTasks, setAgentTasks] = useState<Task[]>([]);
+  const [expandedService, setExpandedService] = useState<string | null>(null);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
 
   // Parse agent-to-agent messages from botMessages
   const chatMessages = agent?.botMessages ? parseAgentMessages(agent.botMessages as Record<string, unknown>[]) : [];
@@ -266,7 +268,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </p>
           )}
           {services.map((svc) => (
-            <div key={svc.serviceId} className="rounded-lg bg-white/40 px-4 py-3 transition hover:bg-white/60">
+            <div
+              key={svc.serviceId}
+              className="cursor-pointer rounded-lg bg-white/40 px-4 py-3 transition hover:bg-white/60"
+              onClick={() => setExpandedService(expandedService === svc.serviceId ? null : svc.serviceId)}
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
@@ -296,6 +302,20 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </span>
                 )}
               </div>
+              {/* Expanded detail */}
+              {expandedService === svc.serviceId && (
+                <div className="mt-3 border-t border-[#483519]/10 pt-3">
+                  <p className="text-xs leading-relaxed text-[#483519]/70">{svc.description}</p>
+                  {svc.estimatedTime && (
+                    <p className="mt-2 text-[10px] text-[#483519]/40">Estimated time: <span className="font-semibold text-[#483519]/60">{svc.estimatedTime}</span></p>
+                  )}
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-[10px] text-[#4B7F52]">↑{svc.reputation.upvotes} upvotes</span>
+                    <span className="text-[10px] text-[#483519]/40">{svc.reputation.completedTasks} tasks completed</span>
+                  </div>
+                  <p className="mt-2 font-mono text-[10px] text-[#483519]/30">Provider: {svc.provider}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -328,7 +348,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           {tasks.map((task) => {
             const sc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
             return (
-              <div key={task.taskSeqNo} className="rounded-lg bg-white/30 px-4 py-3 transition hover:bg-white/40">
+              <div
+                key={task.taskSeqNo}
+                className="cursor-pointer rounded-lg bg-white/30 px-4 py-3 transition hover:bg-white/40"
+                onClick={() => setExpandedTask(expandedTask === task.taskSeqNo ? null : task.taskSeqNo)}
+              >
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
@@ -384,6 +408,46 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[10px] text-[#483519]/50">
                     Deliverable: {task.deliverable.slice(0, 80)}
                   </p>
+                )}
+                {/* Expanded detail */}
+                {expandedTask === task.taskSeqNo && (
+                  <div className="mt-3 border-t border-[#483519]/10 pt-3">
+                    <p className="text-xs leading-relaxed text-[#483519]/70">{task.description}</p>
+                    {task.requiredTags.length > 0 && (
+                      <div className="mt-2 flex gap-1">
+                        {task.requiredTags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[10px] text-[#483519]/50">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-2 space-y-1 font-mono text-[10px] text-[#483519]/40">
+                      <p>Requester: {task.requester}</p>
+                      {task.worker && <p>Worker: {task.worker}</p>}
+                      <p>Budget: {task.budgetHbar} HBAR</p>
+                      {task.createdAt && <p>Created: {timeAgo(task.createdAt)}</p>}
+                      {task.acceptedAt && <p>Accepted: {timeAgo(task.acceptedAt)}</p>}
+                      {task.completedAt && <p>Completed: {timeAgo(task.completedAt)}</p>}
+                      {task.confirmedAt && <p>Confirmed: {timeAgo(task.confirmedAt)}</p>}
+                      {task.disputedAt && <p className="text-[#A61C3C]">Disputed: {timeAgo(task.disputedAt)}</p>}
+                    </div>
+                    {task.deliverable && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-[#483519]/40">Full deliverable:</p>
+                        <p className="mt-1 rounded bg-[#4B7F52]/8 px-2 py-1.5 text-[10px] leading-relaxed text-[#483519]/60">{task.deliverable}</p>
+                      </div>
+                    )}
+                    {task.escrowTxId && (
+                      <a
+                        href={`https://hashscan.io/testnet/transaction/${task.escrowTxId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block font-mono text-[10px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View escrow on HashScan ↗
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             );
