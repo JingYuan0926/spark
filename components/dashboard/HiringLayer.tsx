@@ -394,11 +394,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {tag}
                   </span>
                 ))}
-                {svc.reputation.completedTasks > 0 && (
-                  <span className="ml-auto text-[10px] text-[#4B7F52]">
-                    {svc.reputation.completedTasks} tasks done
-                  </span>
-                )}
               </div>
             </div>
           ))}
@@ -672,7 +667,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         {svc.tags.map((tag) => (
                           <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[9px] text-white/35">{tag}</span>
                         ))}
-                        <span className="ml-auto text-[10px] text-[#4B7F52]">↑{svc.reputation.upvotes} · {svc.reputation.completedTasks} done</span>
                       </div>
                     </div>
                   ))}
@@ -779,15 +773,17 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
 
-              {/* Left — Bounty content */}
+              {/* Left — Job listing content */}
               <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 text-[10px] font-bold uppercase text-[#DD6E42]">Bounty</span>
-                  <span className="rounded-full bg-[#4B7F52]/20 px-2.5 py-1 text-[10px] font-bold text-[#4B7F52]">{selectedService.priceHbar} HBAR</span>
+                  <button onClick={() => setSelectedService(null)} className="text-white/40 transition hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                  </button>
+                  <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 text-[10px] font-bold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span>
                   {isMyListing && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white/60">Your Listing</span>}
                 </div>
-                <h3 className="mt-3 text-2xl font-bold text-white">I need: {selectedService.serviceName}</h3>
-                <p className="mt-1 font-mono text-xs text-white/40">Posted by {agentName(selectedService.provider, agents)}</p>
+                <h3 className="mt-3 text-2xl font-bold text-white">{selectedService.serviceName}</h3>
+                <p className="mt-1 text-xs text-white/40">Posted by {agentName(selectedService.provider, agents)}</p>
 
                 {/* What I need */}
                 <div className="mt-6 border-t border-white/8 pt-5">
