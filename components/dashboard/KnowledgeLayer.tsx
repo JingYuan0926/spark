@@ -1331,7 +1331,7 @@ function KnowledgeModal({
           </div>
 
           {/* Table */}
-          <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+          <div className="hide-scrollbar mt-4 min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10 text-left text-[11px] font-semibold uppercase tracking-wider text-white/30">
@@ -1551,26 +1551,27 @@ export function KnowledgeLayer() {
     <>
       <div
         ref={containerRef}
-        className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-4 transition hover:brightness-[0.97]"
+        className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-6 transition hover:brightness-[0.97]"
         onClick={() => setShowModal(true)}
       >
-        <button
-          className="absolute top-3 right-3 z-10 text-[#2d3f47]/40 transition hover:text-[#2d3f47]"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowModal(true);
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-          </svg>
-        </button>
-
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[#2d3f47]">
-          Knowledge Layer
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#2d3f47]">
+            Knowledge Layer
+          </h2>
+          <button
+            className="rounded-full p-1.5 text-[#2d3f47]/40 transition hover:bg-[#2d3f47]/10 hover:text-[#2d3f47]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowModal(true);
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+            </svg>
+          </button>
+        </div>
 
         <div className="flex flex-1 items-center justify-center">
           {size && <KnowledgeGlobe width={size.w - 24} height={size.h - 90} />}

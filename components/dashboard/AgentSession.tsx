@@ -186,25 +186,59 @@ function timeAgo(consensusTimestamp: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  topics_initialized: "Platform Init",
+  agent_registered: "Agent Registered",
+  hcs11_profile: "HCS-11 Profile Set",
+  service_listed: "Service Listed",
+  task_created: "Task Created",
+  task_accepted: "Task Accepted",
+  task_completed: "Task Completed",
+  task_confirmed: "Task Confirmed",
+  task_disputed: "Task Disputed",
+  task_comment: "Task Comment",
+  task_price_proposal: "Price Proposed",
+  task_price_response: "Price Response",
+  knowledge_submitted: "Knowledge Submitted",
+  vote_cast: "Knowledge Voted",
+  heartbeat: "Heartbeat Sent",
+  review: "Review",
+};
+
 function parseActivity(msg: Record<string, unknown>, seqNo: number): ActivityEntry {
-  const type = (msg.type as string) || "unknown";
-  const bot = (msg.botId as string) || (msg.bot_id as string) || "unknown";
+  const action = (msg.action as string) || (msg.type as string) || "unknown";
+  const type = ACTION_LABELS[action] || action;
+  const bot = (msg.botId as string)
+    || (msg.hederaAccountId as string)
+    || (msg.requester as string)
+    || (msg.author as string)
+    || (msg.worker as string)
+    || (msg.reviewer as string)
+    || "system";
   const time = msg._consensusAt ? timeAgo(msg._consensusAt as string) : "";
   let detail = "";
 
-  if (type === "agent_registered") {
-    const evmAddr = (msg.evmAddress as string) || "";
-    detail = `EVM: ${evmAddr ? evmAddr.slice(0, 20) + "..." : "—"}`;
-  } else if (type === "knowledge_submitted") {
-    const cat = (msg.category as string) || "";
-    const hash = (msg.dataHash as string) || (msg.data_hash as string) || "";
-    detail = `Topic: ${cat} | Hash: ${hash ? hash.slice(0, 20) + "..." : "—"}`;
-  } else if (type === "vote_cast") {
+  if (action === "agent_registered") {
+    detail = (msg.hederaAccountId as string) || "";
+  } else if (action === "hcs11_profile") {
+    detail = (msg.hederaAccountId as string) || "";
+  } else if (action === "service_listed") {
+    detail = (msg.serviceName as string) || "";
+  } else if (action === "task_created" || action === "task_accepted" || action === "task_completed" || action === "task_confirmed" || action === "task_disputed") {
+    detail = (msg.title as string) || "";
+  } else if (action === "task_comment" || action === "task_price_proposal") {
+    detail = (msg.message as string) || "";
+    if (detail.length > 50) detail = detail.slice(0, 50) + "...";
+  } else if (action === "knowledge_submitted") {
+    detail = (msg.category as string) || "";
+  } else if (action === "vote_cast") {
     const vote = (msg.vote as string) || "";
-    const target = (msg.targetBot as string) || (msg.target_bot as string) || "";
+    const target = (msg.targetBot as string) || "";
     detail = `${vote} on ${target}`;
+  } else if (action === "review" || (msg.p === "hcs-2" && msg.type === "review")) {
+    detail = (msg.targetAgent as string) || "";
   } else {
-    detail = JSON.stringify(msg).slice(0, 60);
+    detail = "";
   }
 
   return { id: `#${seqNo}`, type, bot, time, detail };
@@ -676,15 +710,15 @@ export function AgentSession() {
             </span>
           </div>
 
-          <div className="divide-y divide-[#483519]/5 overflow-y-auto" style={{ maxHeight: "calc(100% - 60px)" }}>
+          <div className="hide-scrollbar divide-y divide-[#483519]/5 overflow-y-auto" style={{ maxHeight: "calc(100% - 60px)", scrollbarWidth: "none" }}>
             {visibleActivity.map((a) => (
               <div key={a.id} className="flex items-start gap-3 px-4 py-2">
                 <span className="mt-0.5 font-mono text-xs text-[#483519]/40">{a.id}</span>
                 <span className={`mt-0.5 font-mono text-xs font-semibold ${TYPE_COLORS[a.type] || "text-[#483519]/70"}`}>
                   {a.type}
                 </span>
-                <span className="text-xs text-[#483519]/60">
-                  bot: <span className="font-semibold text-[#483519]/80">{a.bot}</span>
+                <span className="text-xs font-semibold text-[#483519]/70">
+                  {a.bot}
                 </span>
                 <span className="ml-auto shrink-0 text-xs text-[#483519]/30">{a.time}</span>
               </div>
