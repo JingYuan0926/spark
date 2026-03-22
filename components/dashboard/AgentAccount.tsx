@@ -606,6 +606,7 @@ function AgentAccountModal({ onClose }: { onClose: () => void }) {
 export function AgentAccount() {
   const { agent, setAgent } = useAgent();
   const [showModal, setShowModal] = useState(false);
+  const [showMoneyModal, setShowMoneyModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -649,18 +650,15 @@ export function AgentAccount() {
           </button>
         </div>
 
-        <div className="mt-5 space-y-4">
-          {/* Agent ID + status icons */}
-          <div className="flex items-center gap-3">
+        <div className="mt-4 space-y-3">
+          {/* Agent name + address below */}
+          <div>
             <span className="text-2xl font-bold text-[#7a3a1f]">{displayName}</span>
-            <span className="font-mono text-sm text-[#7a3a1f]/70">{agent.hederaAccountId}</span>
-            <span className="text-[#4B7F52]" title="Loaded">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-            </span>
+            <p className="mt-0.5 font-mono text-xs text-[#7a3a1f]/50">{agent.hederaAccountId}</p>
           </div>
 
-          {/* Token balances */}
-          <div className="flex gap-6 text-lg">
+          {/* Token balances + money icon */}
+          <div className="flex items-center gap-4 text-lg">
             <div className="flex items-center gap-2">
               <img src="/tokens/usdc.png" alt="USDC" className="h-6 w-6 rounded-full" />
               <span className="font-bold text-[#7a3a1f]">{usdcBalance.toLocaleString()}</span>
@@ -671,6 +669,13 @@ export function AgentAccount() {
               <span className="font-bold text-[#7a3a1f]">{hbar}</span>
               <span className="text-[#7a3a1f]/60">HBAR</span>
             </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMoneyModal(true); }}
+              className="ml-auto rounded-full p-1.5 text-[#7a3a1f]/50 transition hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
+              title="Money spent & earned"
+            >
+              <DollarIcon size={18} />
+            </button>
           </div>
 
           {/* Domain & Services */}
@@ -688,6 +693,48 @@ export function AgentAccount() {
       </div>
 
       {showModal && <AgentAccountModal onClose={() => setShowModal(false)} />}
+
+      {/* Money Spent & Earned Modal */}
+      {showMoneyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowMoneyModal(false)}>
+          <div className="relative w-full max-w-[420px] rounded-2xl bg-[#483519]/95 p-6 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowMoneyModal(false)} className="absolute top-4 right-4 text-white/50 transition hover:text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+            <h3 className="text-lg font-bold text-white">Money Overview</h3>
+            <p className="mt-1 font-mono text-xs text-white/30">{agent.hederaAccountId}</p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-white/8 p-4 text-center">
+                <p className="text-2xl font-bold text-[#4B7F52]">{hbar}</p>
+                <p className="mt-1 text-xs text-white/40">HBAR Balance</p>
+              </div>
+              <div className="rounded-lg bg-white/8 p-4 text-center">
+                <p className="text-2xl font-bold text-[#4F6D7A]">{usdcBalance.toLocaleString()}</p>
+                <p className="mt-1 text-xs text-white/40">USDC Balance</p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-white/30">Activity</h4>
+              <div className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-2.5">
+                <span className="text-xs text-white/50">Tasks Escrowed (spent)</span>
+                <span className="font-mono text-xs font-bold text-[#DD6E42]">— HBAR</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-2.5">
+                <span className="text-xs text-white/50">Tasks Earned (received)</span>
+                <span className="font-mono text-xs font-bold text-[#4B7F52]">— HBAR</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-2.5">
+                <span className="text-xs text-white/50">Refunds Received</span>
+                <span className="font-mono text-xs font-bold text-white/50">— HBAR</span>
+              </div>
+            </div>
+
+            <p className="mt-4 text-center text-[11px] text-white/20">Balances fetched from Hedera Mirror Node</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1551,7 +1551,7 @@ export function KnowledgeLayer() {
     <>
       <div
         ref={containerRef}
-        className="relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-6 transition hover:brightness-[0.97]"
+        className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#B1BEC4] p-6 transition hover:brightness-[0.97]"
         onClick={() => setShowModal(true)}
       >
         <div className="flex items-center justify-between">
