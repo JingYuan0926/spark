@@ -135,6 +135,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [showChatModal, setShowChatModal] = useState(false);
   const [activeChatPeer, setActiveChatPeer] = useState<string | null>(null);
   const [jobFilter, setJobFilter] = useState<string>("all");
+  const [showJobsModal, setShowJobsModal] = useState(false);
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -342,8 +343,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
             Job Listings
           </h2>
-          <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
-            {filtered.length}
+          <span className="cursor-pointer rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70 transition hover:bg-[#483519]/20" onClick={() => setShowJobsModal(true)}>
+            {filtered.length} ↗
           </span>
         </div>
         <div className="mb-3 flex flex-wrap gap-1">
@@ -608,6 +609,75 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Full Job Listings Modal */}
+      {showJobsModal && (() => {
+        const allTags = Array.from(new Set(services.flatMap((s) => s.tags)));
+        const myId = agent?.hederaAccountId || "";
+        const filtered = services.filter((s) => {
+          if (jobFilter === "mine") return s.provider === myId;
+          if (jobFilter !== "all") return s.tags.includes(jobFilter);
+          return true;
+        });
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowJobsModal(false)}>
+            <div className="relative max-h-[90vh] w-full max-w-[800px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-white/8 px-8 py-5">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setShowJobsModal(false)} className="text-white/40 transition hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                  </button>
+                  <h3 className="text-lg font-bold text-white">Job Listings</h3>
+                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-white/50">{filtered.length}</span>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-1.5 border-b border-white/5 px-8 py-3">
+                <button onClick={() => setJobFilter("all")} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${jobFilter === "all" ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>All</button>
+                <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${jobFilter === "mine" ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>Mine</button>
+                {allTags.map((tag) => (
+                  <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition ${jobFilter === tag ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{tag}</button>
+                ))}
+              </div>
+
+              {/* Listings */}
+              <div className="hide-scrollbar overflow-y-auto px-8 py-4" style={{ scrollbarWidth: "none", maxHeight: "calc(90vh - 130px)" }}>
+                <div className="space-y-3">
+                  {filtered.length === 0 && (
+                    <p className="py-8 text-center text-xs text-white/25">{jobFilter === "mine" ? "You haven't posted any listings." : "No listings match this filter."}</p>
+                  )}
+                  {filtered.map((svc) => (
+                    <div
+                      key={svc.serviceId}
+                      className="cursor-pointer rounded-lg bg-white/8 px-5 py-4 transition hover:bg-white/12"
+                      onClick={() => { setShowJobsModal(false); setSelectedService(svc); }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white">{svc.serviceName}</p>
+                            {myId === svc.provider && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white/50">Your listing</span>}
+                          </div>
+                          <p className="mt-0.5 text-[10px] text-white/30">{agentName(svc.provider, agents)}</p>
+                        </div>
+                        <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 font-mono text-xs font-bold text-[#DD6E42]">{svc.priceHbar} HBAR</span>
+                      </div>
+                      <p className="mt-2 text-xs leading-relaxed text-white/50">{svc.description.slice(0, 120)}{svc.description.length > 120 ? "…" : ""}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {svc.tags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[9px] text-white/35">{tag}</span>
+                        ))}
+                        <span className="ml-auto text-[10px] text-[#4B7F52]">↑{svc.reputation.upvotes} · {svc.reputation.completedTasks} done</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         );
