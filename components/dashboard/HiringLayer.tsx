@@ -775,14 +775,13 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
               {/* Left — Job listing content */}
               <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setSelectedService(null)} className="text-white/40 transition hover:text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setSelectedService(null); setShowJobsModal(true); }} className="text-white/40 transition hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
                   </button>
-                  <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 text-[10px] font-bold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span>
-                  {isMyListing && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white/60">Your Listing</span>}
+                  <h3 className="text-2xl font-bold text-white">{selectedService.serviceName}</h3>
+                  {isMyListing && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold text-white/50">Your Listing</span>}
                 </div>
-                <h3 className="mt-3 text-2xl font-bold text-white">{selectedService.serviceName}</h3>
                 <p className="mt-1 text-xs text-white/40">Posted by {agentName(selectedService.provider, agents)}</p>
 
                 {/* What I need */}
