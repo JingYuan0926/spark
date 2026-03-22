@@ -113,8 +113,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [agentReviews, setAgentReviews] = useState<{ avgRating: number; count: number; topTags: { tag: string; count: number }[]; reviews: { rating: number; review: string; tags: string[]; reviewer: string }[] } | null>(null);
   const [agentServices, setAgentServices] = useState<Service[]>([]);
   const [agentTasks, setAgentTasks] = useState<Task[]>([]);
-  const [expandedService, setExpandedService] = useState<string | null>(null);
-  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Parse agent-to-agent messages from botMessages
   const chatMessages = agent?.botMessages ? parseAgentMessages(agent.botMessages as Record<string, unknown>[]) : [];
@@ -271,7 +271,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             <div
               key={svc.serviceId}
               className="cursor-pointer rounded-lg bg-white/40 px-4 py-3 transition hover:bg-white/60"
-              onClick={() => setExpandedService(expandedService === svc.serviceId ? null : svc.serviceId)}
+              onClick={() => setSelectedService(svc)}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -302,20 +302,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </span>
                 )}
               </div>
-              {/* Expanded detail */}
-              {expandedService === svc.serviceId && (
-                <div className="mt-3 border-t border-[#483519]/10 pt-3">
-                  <p className="text-xs leading-relaxed text-[#483519]/70">{svc.description}</p>
-                  {svc.estimatedTime && (
-                    <p className="mt-2 text-[10px] text-[#483519]/40">Estimated time: <span className="font-semibold text-[#483519]/60">{svc.estimatedTime}</span></p>
-                  )}
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[10px] text-[#4B7F52]">↑{svc.reputation.upvotes} upvotes</span>
-                    <span className="text-[10px] text-[#483519]/40">{svc.reputation.completedTasks} tasks completed</span>
-                  </div>
-                  <p className="mt-2 font-mono text-[10px] text-[#483519]/30">Provider: {svc.provider}</p>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -351,7 +337,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               <div
                 key={task.taskSeqNo}
                 className="cursor-pointer rounded-lg bg-white/30 px-4 py-3 transition hover:bg-white/40"
-                onClick={() => setExpandedTask(expandedTask === task.taskSeqNo ? null : task.taskSeqNo)}
+                onClick={() => setSelectedTask(task)}
               >
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
@@ -408,46 +394,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[10px] text-[#483519]/50">
                     Deliverable: {task.deliverable.slice(0, 80)}
                   </p>
-                )}
-                {/* Expanded detail */}
-                {expandedTask === task.taskSeqNo && (
-                  <div className="mt-3 border-t border-[#483519]/10 pt-3">
-                    <p className="text-xs leading-relaxed text-[#483519]/70">{task.description}</p>
-                    {task.requiredTags.length > 0 && (
-                      <div className="mt-2 flex gap-1">
-                        {task.requiredTags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[10px] text-[#483519]/50">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="mt-2 space-y-1 font-mono text-[10px] text-[#483519]/40">
-                      <p>Requester: {task.requester}</p>
-                      {task.worker && <p>Worker: {task.worker}</p>}
-                      <p>Budget: {task.budgetHbar} HBAR</p>
-                      {task.createdAt && <p>Created: {timeAgo(task.createdAt)}</p>}
-                      {task.acceptedAt && <p>Accepted: {timeAgo(task.acceptedAt)}</p>}
-                      {task.completedAt && <p>Completed: {timeAgo(task.completedAt)}</p>}
-                      {task.confirmedAt && <p>Confirmed: {timeAgo(task.confirmedAt)}</p>}
-                      {task.disputedAt && <p className="text-[#A61C3C]">Disputed: {timeAgo(task.disputedAt)}</p>}
-                    </div>
-                    {task.deliverable && (
-                      <div className="mt-2">
-                        <p className="text-[10px] text-[#483519]/40">Full deliverable:</p>
-                        <p className="mt-1 rounded bg-[#4B7F52]/8 px-2 py-1.5 text-[10px] leading-relaxed text-[#483519]/60">{task.deliverable}</p>
-                      </div>
-                    )}
-                    {task.escrowTxId && (
-                      <a
-                        href={`https://hashscan.io/testnet/transaction/${task.escrowTxId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 inline-block font-mono text-[10px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View escrow on HashScan ↗
-                      </a>
-                    )}
-                  </div>
                 )}
               </div>
             );
@@ -545,6 +491,146 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           )}
         </div>
       </div>
+
+      {/* Service Detail Modal */}
+      {selectedService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedService(null)}>
+          <div className="relative w-full max-w-[500px] rounded-2xl bg-[#483519]/90 p-8 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setSelectedService(null)} className="absolute top-4 right-4 text-white/50 transition hover:text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+            <h3 className="text-lg font-bold text-white">{selectedService.serviceName}</h3>
+            <p className="mt-1 font-mono text-xs text-white/40">by {selectedService.provider}</p>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-[#DD6E42]">{selectedService.priceHbar}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-[#4B7F52]">↑{selectedService.reputation.upvotes}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Upvotes</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-white">{selectedService.reputation.completedTasks}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Tasks Done</p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-[10px] uppercase tracking-wider text-white/30">Description</p>
+              <p className="mt-1 text-sm leading-relaxed text-white/70">{selectedService.description}</p>
+            </div>
+
+            {selectedService.estimatedTime && (
+              <p className="mt-3 text-xs text-white/40">Estimated time: <span className="font-semibold text-white/60">{selectedService.estimatedTime}</span></p>
+            )}
+
+            {selectedService.tags.length > 0 && (
+              <div className="mt-3 flex gap-1.5">
+                {selectedService.tags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">{tag}</span>
+                ))}
+              </div>
+            )}
+
+            <button
+              className="mt-4 text-xs text-white/40 transition hover:text-white/70"
+              onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
+            >
+              View provider profile ↗
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedTask(null)}>
+          <div className="relative w-full max-w-[550px] rounded-2xl bg-[#483519]/90 p-8 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setSelectedTask(null)} className="absolute top-4 right-4 text-white/50 transition hover:text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+            <div className="flex items-start justify-between">
+              <h3 className="text-lg font-bold text-white">{selectedTask.title}</h3>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${(STATUS_COLORS[selectedTask.status] || STATUS_COLORS.open).bg} ${(STATUS_COLORS[selectedTask.status] || STATUS_COLORS.open).text}`}>
+                {selectedTask.status}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-[#DD6E42]">{selectedTask.budgetHbar}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR Budget</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-white">{selectedTask.status.toUpperCase()}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Status</p>
+              </div>
+            </div>
+
+            {/* Lifecycle pipeline */}
+            <div className="mt-5 flex items-center justify-center gap-2">
+              {(["open", "accepted", "completed", "confirmed"] as const).map((stage, i) => {
+                const stages = ["open", "accepted", "completed", "confirmed"];
+                const currentIdx = stages.indexOf(selectedTask.status);
+                const isPast = i < currentIdx;
+                const isCurrent = i === currentIdx;
+                return (
+                  <div key={stage} className="flex items-center gap-2">
+                    <div className="flex flex-col items-center">
+                      <div className={`h-3 w-3 rounded-full ${isPast ? "bg-[#4B7F52]" : isCurrent ? "bg-[#DD6E42]" : "bg-white/15"}`} />
+                      <span className="mt-1 text-[9px] text-white/30">{stage}</span>
+                    </div>
+                    {i < 3 && <div className={`mb-3 h-0.5 w-6 ${isPast ? "bg-[#4B7F52]/40" : "bg-white/10"}`} />}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-5">
+              <p className="text-[10px] uppercase tracking-wider text-white/30">Description</p>
+              <p className="mt-1 text-sm leading-relaxed text-white/70">{selectedTask.description}</p>
+            </div>
+
+            {selectedTask.requiredTags.length > 0 && (
+              <div className="mt-3 flex gap-1.5">
+                {selectedTask.requiredTags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">{tag}</span>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 space-y-1.5 font-mono text-xs text-white/40">
+              <p>Requester: <span className="cursor-pointer text-white/60 hover:text-white" onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.requester); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}>{selectedTask.requester}</span></p>
+              {selectedTask.worker && <p>Worker: <span className="cursor-pointer text-white/60 hover:text-white" onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.worker); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}>{selectedTask.worker}</span></p>}
+              {selectedTask.createdAt && <p>Created: {timeAgo(selectedTask.createdAt)}</p>}
+              {selectedTask.acceptedAt && <p>Accepted: {timeAgo(selectedTask.acceptedAt)}</p>}
+              {selectedTask.completedAt && <p>Completed: {timeAgo(selectedTask.completedAt)}</p>}
+              {selectedTask.confirmedAt && <p>Confirmed: {timeAgo(selectedTask.confirmedAt)}</p>}
+              {selectedTask.disputedAt && <p className="text-[#A61C3C]">Disputed: {timeAgo(selectedTask.disputedAt)}</p>}
+            </div>
+
+            {selectedTask.deliverable && (
+              <div className="mt-4">
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Deliverable</p>
+                <p className="mt-1 rounded-lg bg-[#4B7F52]/15 px-3 py-2 text-xs leading-relaxed text-white/60">{selectedTask.deliverable}</p>
+              </div>
+            )}
+
+            {selectedTask.escrowTxId && (
+              <a
+                href={`https://hashscan.io/testnet/transaction/${selectedTask.escrowTxId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-block font-mono text-[10px] text-white/30 transition hover:text-white/60"
+              >
+                View escrow on HashScan ↗
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Agent Profile Modal */}
       {selectedAgent && (
