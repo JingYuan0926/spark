@@ -81,6 +81,12 @@ function shortAddr(addr: string): string {
   return parts.length === 3 ? `..${parts[2]}` : addr.slice(-6);
 }
 
+// Resolve friendly name from agents list, fallback to shortAddr
+function agentName(addr: string, agentsList: Agent[]): string {
+  const ag = agentsList.find((a) => a.hederaAccountId === addr);
+  return ag?.botId || shortAddr(addr);
+}
+
 // ── Chat message from botMessages ────────────────────────────────
 interface AgentChatMsg {
   direction: "in" | "out";
@@ -351,7 +357,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       className="cursor-pointer font-mono text-[10px] text-[#483519]/40 transition hover:text-[#483519]/70"
                       onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === svc.provider); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}
                     >
-                      {shortAddr(svc.provider)} ↗
+                      {agentName(svc.provider, agents)} ↗
                     </p>
                     {agent?.hederaAccountId === svc.provider && (
                       <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#483519]/50">Your listing</span>
@@ -421,8 +427,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
                     <p className="mt-0.5 text-xs text-[#483519]/50">
-                      by <span className="cursor-pointer transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.requester); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{shortAddr(task.requester)}</span>
-                      {task.worker && <> → <span className="cursor-pointer font-semibold transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.worker); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{shortAddr(task.worker)}</span></>}
+                      by <span className="cursor-pointer transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.requester); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{agentName(task.requester, agents)}</span>
+                      {task.worker && <> → <span className="cursor-pointer font-semibold transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.worker); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{agentName(task.worker!, agents)}</span></>}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -541,15 +547,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 </p>
                 <p className="font-mono text-[10px] text-[#483519]/40">{ag.hederaAccountId}</p>
               </div>
-              <div className="flex items-center gap-3 text-right">
-                <div>
-                  <p className="text-xs font-bold text-[#4B7F52]">↑{ag.upvotes} ↓{ag.downvotes}</p>
-                  <p className="text-[9px] text-[#483519]/30">reputation</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-[#483519]/70">{ag.netReputation > 0 ? Math.min(Math.round((ag.upvotes / Math.max(ag.upvotes + ag.downvotes, 1)) * 100), 100) : 0}%</p>
-                  <p className="text-[9px] text-[#483519]/30">completion</p>
-                </div>
+              <div className="flex items-center gap-2 text-right font-mono text-[10px]">
+                <span className="text-[#4B7F52]">↑{ag.upvotes}</span>
+                <span className="text-[#DD6E42]">↓{ag.downvotes}</span>
+                <span className="text-[#483519]/40">{Math.min(Math.round((ag.upvotes / Math.max(ag.upvotes + ag.downvotes, 1)) * 100), 100)}%</span>
               </div>
             </div>
           ))}
@@ -584,7 +585,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 return (
                   <div key={peer} className="flex items-center gap-3 rounded-lg bg-white/30 px-3 py-2.5 transition hover:bg-white/50">
                     <div className="min-w-0 flex-1">
-                      <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{shortAddr(peer)}</p>
+                      <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{agentName(peer, agents)}</p>
                       <p className="truncate text-[10px] text-[#483519]/35">{lastMsg?.message.slice(0, 40)}</p>
                     </div>
                     <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[9px] text-[#483519]/40">{msgs.length}</span>
@@ -632,7 +633,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <p className="font-mono text-[10px] font-semibold text-white/60">{shortAddr(peer)}</p>
+                            <p className="font-mono text-[10px] font-semibold text-white/60">{agentName(peer, agents)}</p>
                             <p className="truncate text-[9px] text-white/25">{lastMsg?.message.slice(0, 30)}</p>
                           </div>
                           <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/30">{msgs.length}</span>
@@ -656,7 +657,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
                           <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
                             <p className="text-xs leading-relaxed" style={{ wordBreak: "break-word" }}>{msg.message}</p>
-                            <p className="mt-1 text-right text-[9px] text-white/20">{msg.direction === "out" ? "You" : shortAddr(msg.peer)}</p>
+                            <p className="mt-1 text-right text-[9px] text-white/20">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
                           </div>
                         </div>
                       ))}
@@ -700,7 +701,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   {isMyListing && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white/60">Your Listing</span>}
                 </div>
                 <h3 className="mt-3 text-2xl font-bold text-white">I need: {selectedService.serviceName}</h3>
-                <p className="mt-1 font-mono text-xs text-white/40">Posted by {shortAddr(selectedService.provider)}</p>
+                <p className="mt-1 font-mono text-xs text-white/40">Posted by {agentName(selectedService.provider, agents)}</p>
 
                 {/* What I need */}
                 <div className="mt-6 border-t border-white/8 pt-5">
@@ -765,7 +766,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       {providerChat.map((msg, i) => (
                         <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
                           <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
-                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : shortAddr(msg.peer)}</p>
+                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
                             <p className="text-xs leading-relaxed">{msg.message}</p>
                           </div>
                         </div>
@@ -775,13 +776,13 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     <div className="mt-3 space-y-2">
                       <div className="flex justify-start">
                         <div className="max-w-[80%] rounded-xl bg-white/8 px-3 py-2 text-white/70">
-                          <p className="text-[10px] font-semibold text-white/30">{shortAddr(selectedService.provider)}</p>
+                          <p className="text-[10px] font-semibold text-white/30">{agentName(selectedService.provider, agents)}</p>
                           <p className="text-xs leading-relaxed">This service is available for immediate hire. Send a task via the API and I&apos;ll accept within minutes.</p>
                         </div>
                       </div>
                       <div className="flex justify-start">
                         <div className="max-w-[80%] rounded-xl bg-white/8 px-3 py-2 text-white/70">
-                          <p className="text-[10px] font-semibold text-white/30">{shortAddr(selectedService.provider)}</p>
+                          <p className="text-[10px] font-semibold text-white/30">{agentName(selectedService.provider, agents)}</p>
                           <p className="text-xs leading-relaxed">For custom requirements outside the listed scope, message me first so we can agree on budget and timeline.</p>
                         </div>
                       </div>
@@ -830,7 +831,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
                   >
-                    <span className="font-mono text-[10px] text-white/60">{shortAddr(selectedService.provider)}</span>
+                    <span className="font-mono text-[10px] text-white/60">{agentName(selectedService.provider, agents)}</span>
                   </div>
                 </div>
 
@@ -927,7 +928,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       {taskChat.map((msg, i) => (
                         <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
                           <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
-                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : shortAddr(msg.peer)}</p>
+                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
                             <p className="text-xs leading-relaxed">{msg.message}</p>
                           </div>
                         </div>
@@ -1050,18 +1051,22 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </div>
 
             {/* Stats row */}
-            <div className="mt-5 grid grid-cols-4 gap-3">
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+            <div className="mt-5 grid grid-cols-5 gap-2">
+              <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
                 <p className="text-lg font-bold text-[#4B7F52]">↑{selectedAgent.upvotes}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Upvotes</p>
+                <p className="text-[9px] uppercase tracking-wider text-white/30">Upvotes</p>
               </div>
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+              <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
                 <p className="text-lg font-bold text-[#DD6E42]">↓{selectedAgent.downvotes}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Downvotes</p>
+                <p className="text-[9px] uppercase tracking-wider text-white/30">Downvotes</p>
               </div>
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-white">{selectedAgent.hbarBalance.toFixed(1)}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR</p>
+              <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
+                <p className="text-lg font-bold text-white">{agentTasks.length}</p>
+                <p className="text-[9px] uppercase tracking-wider text-white/30">Tasks</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-2 py-2.5 text-center">
+                <p className="text-lg font-bold text-white">{Math.min(Math.round((selectedAgent.upvotes / Math.max(selectedAgent.upvotes + selectedAgent.downvotes, 1)) * 100), 100)}%</p>
+                <p className="text-[9px] uppercase tracking-wider text-white/30">Rate</p>
               </div>
               <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
                 <p className="text-lg font-bold text-white">{agentReviews?.avgRating.toFixed(0) || "—"}<span className="text-xs text-white/30">/100</span></p>
@@ -1140,7 +1145,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   {agentReviews.reviews.slice(0, 5).map((r, i) => (
                     <div key={i} className="rounded-lg bg-white/8 px-3 py-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-white/30">by {shortAddr(r.reviewer)}</span>
+                        <span className="font-mono text-[10px] text-white/30">by {agentName(r.reviewer, agents)}</span>
                         <span className="text-xs font-bold text-[#DD6E42]">{r.rating}/100</span>
                       </div>
                       <p className="mt-1 text-xs text-white/50">{r.review}</p>
@@ -1165,15 +1170,20 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               </div>
             )}
 
-            {/* HashScan link */}
-            <div className="mt-5 border-t border-white/10 pt-4">
+            {/* Quick nav */}
+            <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
+              <button className="text-[10px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); setJobFilter("all"); }}>Job Listings</button>
+              <span className="text-white/10">·</span>
+              <button className="text-[10px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); }}>Task Board</button>
+              <span className="text-white/10">·</span>
+              <button className="text-[10px] font-semibold text-white/30 transition hover:text-white/60" onClick={() => { setSelectedAgent(null); setShowChatModal(true); }}>Messages</button>
               <a
                 href={`https://hashscan.io/testnet/account/${selectedAgent.hederaAccountId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-[10px] text-white/30 transition hover:text-white/60"
+                className="ml-auto font-mono text-[10px] text-white/20 transition hover:text-white/50"
               >
-                View on HashScan ↗
+                HashScan ↗
               </a>
             </div>
           </div>
