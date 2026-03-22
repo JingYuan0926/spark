@@ -1232,7 +1232,16 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   {selectedTask.status === "confirmed" && <span className="text-[12px] text-white/30">HBAR released</span>}
                   {selectedTask.status === "disputed" && <span className="text-[12px] text-white/30">{selectedTask.refundTxId ? "HBAR refunded" : "Pending resolution"}</span>}
                 </div>
-                <h3 className="mt-3 text-2xl font-bold text-white">{selectedTask.title}</h3>
+                <div className="mt-3 flex items-center gap-3">
+                  <h3 className="text-2xl font-bold text-white">{selectedTask.title}</h3>
+                  <span className="font-mono text-[11px] text-white/20">#{selectedTask.taskSeqNo}</span>
+                  {selectedTask.escrowTxId && (
+                    <a href={`https://hashscan.io/testnet/transaction/${selectedTask.escrowTxId}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-[#4F6D7A]/60 transition hover:text-[#4F6D7A]">escrow ↗</a>
+                  )}
+                  {selectedTask.refundTxId && (
+                    <a href={`https://hashscan.io/testnet/transaction/${selectedTask.refundTxId}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] text-[#A61C3C]/60 transition hover:text-[#A61C3C]">refund ↗</a>
+                  )}
+                </div>
 
                 {/* Lifecycle pipeline */}
                 <div className="mt-6 flex items-center gap-0">
@@ -1605,30 +1614,107 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* On-chain links */}
+                {/* Agent Status — what the bot is doing */}
                 <div className="mt-5 border-t border-white/8 pt-4">
-                  <p className="text-[12px] uppercase tracking-wider text-white/30">On-chain</p>
-                  <div className="mt-2 space-y-1.5">
-                    <p className="font-mono text-[12px] text-white/25">Task #{selectedTask.taskSeqNo}</p>
+                  <p className="text-[12px] uppercase tracking-wider text-white/30">Agent Status</p>
+                  <div className="mt-3 space-y-2.5">
+                    {/* Task created */}
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                      <div>
+                        <p className="text-[12px] text-white/50">Task Created</p>
+                        <p className="text-[11px] text-white/20">{timeAgo(selectedTask.createdAt)}</p>
+                      </div>
+                    </div>
+                    {/* Escrow */}
                     {selectedTask.escrowTxId && (
-                      <a
-                        href={`https://hashscan.io/testnet/transaction/${selectedTask.escrowTxId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-mono text-[12px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
-                      >
-                        Escrow TX ↗
-                      </a>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">HBAR Escrowed</p>
+                          <p className="text-[11px] text-white/20">{selectedTask.budgetHbar} HBAR locked</p>
+                        </div>
+                      </div>
                     )}
-                    {selectedTask.refundTxId && (
-                      <a
-                        href={`https://hashscan.io/testnet/transaction/${selectedTask.refundTxId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block font-mono text-[12px] text-[#A61C3C] transition hover:text-[#A61C3C]/80"
-                      >
-                        Refund TX ↗
-                      </a>
+                    {/* Negotiation */}
+                    {selectedTask.negotiation.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Negotiating</p>
+                          <p className="text-[11px] text-white/20">{selectedTask.negotiation.length} message{selectedTask.negotiation.length > 1 ? "s" : ""} exchanged</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Worker accepted */}
+                    {selectedTask.acceptedAt && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Worker Accepted</p>
+                          <p className="text-[11px] text-white/20">{agentName(selectedTask.worker || "", agents)} assigned</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* In progress */}
+                    {selectedTask.status === "accepted" && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Working on Deliverable</p>
+                          <p className="text-[11px] text-white/20">Agent is processing the task...</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Submitted */}
+                    {selectedTask.completedAt && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Deliverable Submitted</p>
+                          <p className="text-[11px] text-white/20">{timeAgo(selectedTask.completedAt)}</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Awaiting review */}
+                    {selectedTask.status === "completed" && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Awaiting Review</p>
+                          <p className="text-[11px] text-white/20">Requester reviewing deliverable...</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Confirmed */}
+                    {selectedTask.confirmedAt && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#4B7F52]">⣿</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Confirmed & Paid</p>
+                          <p className="text-[11px] text-white/20">{selectedTask.budgetHbar} HBAR released · Rep minted</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Disputed */}
+                    {selectedTask.disputedAt && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#A61C3C]">⣿</span>
+                        <div>
+                          <p className="text-[12px] text-[#A61C3C]/70">Disputed</p>
+                          <p className="text-[11px] text-white/20">{selectedTask.refundTxId ? `${selectedTask.budgetHbar} HBAR refunded` : "Pending resolution"}</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Waiting for agents */}
+                    {selectedTask.status === "open" && (
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-[11px] text-[#DD6E42]">{brailleSpinner.frames[brailleFrame]}</span>
+                        <div>
+                          <p className="text-[12px] text-white/50">Listening for Agents</p>
+                          <p className="text-[11px] text-white/20">Waiting for workers to accept...</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
