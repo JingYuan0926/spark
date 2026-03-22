@@ -5,6 +5,7 @@ import { AgentStatus } from "@/components/dashboard/AgentStatus";
 import { AgentSession } from "@/components/dashboard/AgentSession";
 import { KnowledgeLayer } from "@/components/dashboard/KnowledgeLayer";
 import { AgentAccount } from "@/components/dashboard/AgentAccount";
+import { HiringLayer } from "@/components/dashboard/HiringLayer";
 import { AgentProvider, useAgent, AgentData } from "@/components/AgentContext";
 
 const POLL_INTERVAL = 3_000; // 3 seconds — matches HCS consensus latency
@@ -176,6 +177,7 @@ function DashboardContent() {
   const { agent, setAgent, signOut } = useAgent();
   const router = useRouter();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [view, setView] = useState<"dashboard" | "hiring">("dashboard");
 
   // Poll for updates
   const refreshAgent = useCallback(async () => {
@@ -203,14 +205,43 @@ function DashboardContent() {
 
   return (
     <div className="flex h-screen flex-col bg-[#f5f0e8]">
-      <Navbar onSignOut={() => { signOut(); router.push("/dashboard"); }} />
+      <Navbar onSignOut={() => { signOut(); router.push("/dashboard"); }}>
+        <div className="flex items-center gap-1 rounded-lg bg-[#483519]/8 p-0.5">
+          <button
+            onClick={() => setView("dashboard")}
+            className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+              view === "dashboard"
+                ? "bg-[#483519] text-white"
+                : "text-[#483519]/50 hover:text-[#483519]"
+            }`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setView("hiring")}
+            className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+              view === "hiring"
+                ? "bg-[#483519] text-white"
+                : "text-[#483519]/50 hover:text-[#483519]"
+            }`}
+          >
+            Hiring
+          </button>
+        </div>
+      </Navbar>
 
-      <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-6 px-[2.5%] pt-[3vh] pb-[3vh]">
-        <AgentStatus />
-        <AgentSession />
-        <KnowledgeLayer />
-        <AgentAccount />
-      </div>
+      {view === "dashboard" ? (
+        <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-6 px-[2.5%] pt-[3vh] pb-[3vh]">
+          <AgentStatus />
+          <AgentSession />
+          <KnowledgeLayer />
+          <AgentAccount />
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col px-[2.5%] pt-[3vh] pb-[3vh]">
+          <HiringLayer onBack={() => setView("dashboard")} />
+        </div>
+      )}
     </div>
   );
 }
