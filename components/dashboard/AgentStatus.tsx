@@ -26,6 +26,8 @@ const ACTION_LABELS: Record<string, string> = {
   config_stored: "Config Stored on HCS",
   agent_config: "Agent Config Saved",
   hcs11_profile: "HCS-11 Profile Set",
+  agent_message: "Message Received",
+  i_sent_message: "Message Sent",
 };
 
 function formatTimeAgo(timestamp: string): string {
