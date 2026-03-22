@@ -782,7 +782,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <h3 className="text-2xl font-bold text-white">{selectedService.serviceName}</h3>
                   {isMyListing && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold text-white/50">Your Listing</span>}
                 </div>
-                <p className="mt-1 text-xs text-white/40">Posted by {agentName(selectedService.provider, agents)}</p>
 
                 {/* What I need */}
                 <div className="mt-6 border-t border-white/8 pt-5">
