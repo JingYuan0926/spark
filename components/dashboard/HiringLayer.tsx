@@ -290,19 +290,25 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       if (!cancelled) setLoading(false);
     }
     fetchAll();
-    // Poll services every 10s, tasks every 5s
+    // Poll services every 10s, tasks every 5s — merge with mock
     const taskPoll = setInterval(async () => {
       try {
         const res = await fetch("/api/spark/tasks?status=all");
         const data = await res.json();
-        if (!cancelled && data.success) setTasks(data.tasks || []);
+        if (!cancelled && data.success) {
+          const ids = new Set((data.tasks || []).map((t: Task) => t.taskSeqNo));
+          setTasks([...(data.tasks || []), ...MOCK_TASKS.filter((m) => !ids.has(m.taskSeqNo))]);
+        }
       } catch { /* ignore */ }
     }, 5000);
     const svcPoll = setInterval(async () => {
       try {
         const res = await fetch("/api/spark/discover-services");
         const data = await res.json();
-        if (!cancelled && data.success) setServices(data.services || []);
+        if (!cancelled && data.success) {
+          const ids = new Set((data.services || []).map((s: Service) => s.serviceId));
+          setServices([...(data.services || []), ...MOCK_SERVICES.filter((m) => !ids.has(m.serviceId))]);
+        }
       } catch { /* ignore */ }
     }, 10000);
     return () => { cancelled = true; clearInterval(taskPoll); clearInterval(svcPoll); };
@@ -310,11 +316,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <span className="text-2xl text-[#483519]/40">
+      <div className="flex h-full flex-col items-center justify-center">
+        <span className="text-5xl text-[#483519]/30">
           {brailleSpinner.frames[brailleFrame]}
         </span>
-        <span className="ml-3 text-sm text-[#483519]/40">Loading marketplace...</span>
+        <span className="mt-4 text-lg font-semibold text-[#483519]/40">Loading Hiring Dashboard</span>
       </div>
     );
   }
