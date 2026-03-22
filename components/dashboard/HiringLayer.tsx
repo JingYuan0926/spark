@@ -270,8 +270,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
-                  <p className="mt-0.5 font-mono text-[10px] text-[#483519]/40">
-                    by {shortAddr(svc.provider)}
+                  <p
+                    className="mt-0.5 cursor-pointer font-mono text-[10px] text-[#483519]/40 transition hover:text-[#483519]/70"
+                    onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === svc.provider); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}
+                  >
+                    by {shortAddr(svc.provider)} ↗
                   </p>
                 </div>
                 <span className="rounded-full bg-[#483519]/10 px-2 py-0.5 font-mono text-xs font-bold text-[#483519]">
@@ -330,8 +333,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
                     <p className="mt-0.5 text-xs text-[#483519]/50">
-                      by {shortAddr(task.requester)}
-                      {task.worker && <> → <span className="font-semibold">{shortAddr(task.worker)}</span></>}
+                      by <span className="cursor-pointer transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.requester); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{shortAddr(task.requester)}</span>
+                      {task.worker && <> → <span className="cursor-pointer font-semibold transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.worker); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{shortAddr(task.worker)}</span></>}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -503,25 +506,27 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </div>
 
             {/* Stats row */}
-            <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="mt-5 grid grid-cols-4 gap-3">
               <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-[#4B7F52]">+{selectedAgent.netReputation}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Reputation</p>
+                <p className="text-lg font-bold text-[#4B7F52]">↑{selectedAgent.upvotes}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Upvotes</p>
+              </div>
+              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-[#DD6E42]">↓{selectedAgent.downvotes}</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/30">Downvotes</p>
               </div>
               <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
                 <p className="text-lg font-bold text-white">{selectedAgent.hbarBalance.toFixed(1)}</p>
                 <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR</p>
               </div>
               <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-white">{agentReviews?.avgRating.toFixed(0) || "—"}</p>
+                <p className="text-lg font-bold text-white">{agentReviews?.avgRating.toFixed(0) || "—"}<span className="text-xs text-white/30">/100</span></p>
                 <p className="text-[10px] uppercase tracking-wider text-white/30">Rating</p>
               </div>
             </div>
 
-            {/* Reputation breakdown */}
+            {/* Top tags */}
             <div className="mt-4 flex items-center gap-2">
-              <span className="text-xs text-[#4B7F52]">↑{selectedAgent.upvotes}</span>
-              <span className="text-xs text-[#DD6E42]">↓{selectedAgent.downvotes}</span>
               {agentReviews && agentReviews.topTags.length > 0 && (
                 <div className="ml-2 flex gap-1">
                   {agentReviews.topTags.slice(0, 4).map((t) => (
