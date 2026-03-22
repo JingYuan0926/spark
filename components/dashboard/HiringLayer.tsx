@@ -578,93 +578,195 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {/* Task Detail Modal */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedTask(null)}>
-          <div className="relative w-full max-w-[550px] rounded-2xl bg-[#483519]/90 p-8 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setSelectedTask(null)} className="absolute top-4 right-4 text-white/50 transition hover:text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            </button>
-            <div className="flex items-start justify-between">
-              <h3 className="text-lg font-bold text-white">{selectedTask.title}</h3>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${(STATUS_COLORS[selectedTask.status] || STATUS_COLORS.open).bg} ${(STATUS_COLORS[selectedTask.status] || STATUS_COLORS.open).text}`}>
-                {selectedTask.status}
-              </span>
-            </div>
+      {/* Task Detail Modal — Superteam Earn style */}
+      {selectedTask && (() => {
+        const sc = STATUS_COLORS[selectedTask.status] || STATUS_COLORS.open;
+        const stages = ["open", "accepted", "completed", "confirmed"];
+        const currentIdx = stages.indexOf(selectedTask.status);
+        // Find relevant chat messages for this task's participants
+        const taskChat = chatMessages.filter((m) => m.peer === selectedTask.requester || m.peer === selectedTask.worker);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedTask(null)}>
+            <div className="relative flex max-h-[90vh] w-full max-w-[900px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setSelectedTask(null)} className="absolute top-4 right-4 z-10 text-white/50 transition hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-[#DD6E42]">{selectedTask.budgetHbar}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR Budget</p>
-              </div>
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-white">{selectedTask.status.toUpperCase()}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Status</p>
-              </div>
-            </div>
+              {/* Left — Main content */}
+              <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
+                {/* Status + title */}
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${sc.bg} ${sc.text}`}>{selectedTask.status}</span>
+                  {selectedTask.status === "open" && <span className="text-[10px] text-white/30">Accepting workers</span>}
+                  {selectedTask.status === "accepted" && <span className="text-[10px] text-white/30">In progress</span>}
+                  {selectedTask.status === "completed" && <span className="text-[10px] text-white/30">Awaiting confirmation</span>}
+                </div>
+                <h3 className="mt-3 text-2xl font-bold text-white">{selectedTask.title}</h3>
 
-            {/* Lifecycle pipeline */}
-            <div className="mt-5 flex items-center justify-center gap-2">
-              {(["open", "accepted", "completed", "confirmed"] as const).map((stage, i) => {
-                const stages = ["open", "accepted", "completed", "confirmed"];
-                const currentIdx = stages.indexOf(selectedTask.status);
-                const isPast = i < currentIdx;
-                const isCurrent = i === currentIdx;
-                return (
-                  <div key={stage} className="flex items-center gap-2">
-                    <div className="flex flex-col items-center">
-                      <div className={`h-3 w-3 rounded-full ${isPast ? "bg-[#4B7F52]" : isCurrent ? "bg-[#DD6E42]" : "bg-white/15"}`} />
-                      <span className="mt-1 text-[9px] text-white/30">{stage}</span>
+                {/* Lifecycle pipeline */}
+                <div className="mt-6 flex items-center gap-0">
+                  {stages.map((stage, i) => {
+                    const isPast = i < currentIdx;
+                    const isCurrent = i === currentIdx;
+                    return (
+                      <div key={stage} className="flex items-center">
+                        <div className="flex flex-col items-center">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${isPast ? "border-[#4B7F52] bg-[#4B7F52]" : isCurrent ? "border-[#DD6E42] bg-[#DD6E42]" : "border-white/15 bg-transparent"}`}>
+                            {isPast ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                            ) : (
+                              <span className={`text-[9px] font-bold ${isCurrent ? "text-white" : "text-white/20"}`}>{i + 1}</span>
+                            )}
+                          </div>
+                          <span className={`mt-1.5 text-[9px] capitalize ${isCurrent ? "font-semibold text-white/70" : "text-white/25"}`}>{stage}</span>
+                        </div>
+                        {i < 3 && <div className={`mx-1.5 mb-4 h-0.5 w-8 ${isPast ? "bg-[#4B7F52]" : "bg-white/10"}`} />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Description */}
+                <div className="mt-6 border-t border-white/8 pt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Description</h4>
+                  <p className="mt-2 text-sm leading-relaxed text-white/70">{selectedTask.description}</p>
+                </div>
+
+                {/* Required skills */}
+                {selectedTask.requiredTags.length > 0 && (
+                  <div className="mt-5">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Required Skills</h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedTask.requiredTags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">{tag}</span>
+                      ))}
                     </div>
-                    {i < 3 && <div className={`mb-3 h-0.5 w-6 ${isPast ? "bg-[#4B7F52]/40" : "bg-white/10"}`} />}
                   </div>
-                );
-              })}
-            </div>
+                )}
 
-            <div className="mt-5">
-              <p className="text-[10px] uppercase tracking-wider text-white/30">Description</p>
-              <p className="mt-1 text-sm leading-relaxed text-white/70">{selectedTask.description}</p>
-            </div>
+                {/* Deliverable */}
+                {selectedTask.deliverable && (
+                  <div className="mt-5">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Submission</h4>
+                    <div className="mt-2 rounded-lg bg-[#4B7F52]/12 px-4 py-3">
+                      <p className="text-xs leading-relaxed text-white/70">{selectedTask.deliverable}</p>
+                    </div>
+                  </div>
+                )}
 
-            {selectedTask.requiredTags.length > 0 && (
-              <div className="mt-3 flex gap-1.5">
-                {selectedTask.requiredTags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">{tag}</span>
-                ))}
+                {/* Activity / Chat between agents */}
+                <div className="mt-5 border-t border-white/8 pt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Agent Discussion</h4>
+                  {taskChat.length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {taskChat.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
+                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : shortAddr(msg.peer)}</p>
+                            <p className="text-xs leading-relaxed">{msg.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-white/20">No discussion yet between agents on this task.</p>
+                  )}
+                </div>
               </div>
-            )}
 
-            <div className="mt-4 space-y-1.5 font-mono text-xs text-white/40">
-              <p>Requester: <span className="cursor-pointer text-white/60 hover:text-white" onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.requester); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}>{selectedTask.requester}</span></p>
-              {selectedTask.worker && <p>Worker: <span className="cursor-pointer text-white/60 hover:text-white" onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.worker); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}>{selectedTask.worker}</span></p>}
-              {selectedTask.createdAt && <p>Created: {timeAgo(selectedTask.createdAt)}</p>}
-              {selectedTask.acceptedAt && <p>Accepted: {timeAgo(selectedTask.acceptedAt)}</p>}
-              {selectedTask.completedAt && <p>Completed: {timeAgo(selectedTask.completedAt)}</p>}
-              {selectedTask.confirmedAt && <p>Confirmed: {timeAgo(selectedTask.confirmedAt)}</p>}
-              {selectedTask.disputedAt && <p className="text-[#A61C3C]">Disputed: {timeAgo(selectedTask.disputedAt)}</p>}
-            </div>
+              {/* Right — Sidebar */}
+              <div className="w-[280px] shrink-0 border-l border-white/8 bg-white/3 p-6">
+                {/* Reward */}
+                <div className="rounded-lg bg-white/8 px-4 py-4 text-center">
+                  <p className="text-3xl font-bold text-[#DD6E42]">{selectedTask.budgetHbar}</p>
+                  <p className="mt-1 text-xs uppercase tracking-wider text-white/30">HBAR Reward</p>
+                </div>
 
-            {selectedTask.deliverable && (
-              <div className="mt-4">
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Deliverable</p>
-                <p className="mt-1 rounded-lg bg-[#4B7F52]/15 px-3 py-2 text-xs leading-relaxed text-white/60">{selectedTask.deliverable}</p>
+                {/* Requester */}
+                <div className="mt-5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">Posted by</p>
+                  <div
+                    className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
+                    onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.requester); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[9px] font-bold text-white/50">R</div>
+                    <span className="font-mono text-xs text-white/60">{selectedTask.requester}</span>
+                  </div>
+                </div>
+
+                {/* Worker */}
+                {selectedTask.worker && (
+                  <div className="mt-4">
+                    <p className="text-[10px] uppercase tracking-wider text-white/30">Assigned to</p>
+                    <div
+                      className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
+                      onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedTask.worker); if (ag) { setSelectedTask(null); setAgentReviews(null); setSelectedAgent(ag); } }}
+                    >
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#4B7F52]/30 text-[9px] font-bold text-white/50">W</div>
+                      <span className="font-mono text-xs text-white/60">{selectedTask.worker}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Timeline */}
+                <div className="mt-5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">Timeline</p>
+                  <div className="mt-2 space-y-2">
+                    {selectedTask.createdAt && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#DD6E42]" />
+                        <span className="text-[10px] text-white/40">Created {timeAgo(selectedTask.createdAt)}</span>
+                      </div>
+                    )}
+                    {selectedTask.acceptedAt && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#4F6D7A]" />
+                        <span className="text-[10px] text-white/40">Accepted {timeAgo(selectedTask.acceptedAt)}</span>
+                      </div>
+                    )}
+                    {selectedTask.completedAt && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#4B7F52]" />
+                        <span className="text-[10px] text-white/40">Completed {timeAgo(selectedTask.completedAt)}</span>
+                      </div>
+                    )}
+                    {selectedTask.confirmedAt && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#4B7F52]" />
+                        <span className="text-[10px] text-white/40">Confirmed {timeAgo(selectedTask.confirmedAt)}</span>
+                      </div>
+                    )}
+                    {selectedTask.disputedAt && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#A61C3C]" />
+                        <span className="text-[10px] text-[#A61C3C]/70">Disputed {timeAgo(selectedTask.disputedAt)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* On-chain links */}
+                <div className="mt-5 border-t border-white/8 pt-4">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">On-chain</p>
+                  <div className="mt-2 space-y-1.5">
+                    <p className="font-mono text-[10px] text-white/25">Task #{selectedTask.taskSeqNo}</p>
+                    {selectedTask.escrowTxId && (
+                      <a
+                        href={`https://hashscan.io/testnet/transaction/${selectedTask.escrowTxId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block font-mono text-[10px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
+                      >
+                        Escrow TX ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-
-            {selectedTask.escrowTxId && (
-              <a
-                href={`https://hashscan.io/testnet/transaction/${selectedTask.escrowTxId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-block font-mono text-[10px] text-white/30 transition hover:text-white/60"
-              >
-                View escrow on HashScan ↗
-              </a>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Agent Profile Modal */}
       {selectedAgent && (
