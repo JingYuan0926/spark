@@ -201,7 +201,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           { serviceId: "svc-mock-2", provider: selectedAgent!.hederaAccountId, serviceName: "Token Integration", description: "HTS token creation, association, and transfer flow implementation.", priceHbar: 15, tags: ["hedera", "HTS", "tokens"], estimatedTime: "1-2 hours", reputation: { upvotes: 2, completedTasks: 3 } },
         ]);
         setAgentTasks(realTasks.length > 0 ? realTasks : [
-          { taskSeqNo: "42", requester: "0.0.7993406", title: "Audit my DeFi contract", description: "Review lending pool contract", budgetHbar: 25, requiredTags: ["security"], worker: selectedAgent!.hederaAccountId, status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical issues found. Gas optimization suggestions included.", createdAt: `${Date.now() / 1000 - 86400}`, acceptedAt: `${Date.now() / 1000 - 80000}`, completedAt: `${Date.now() / 1000 - 72000}`, confirmedAt: `${Date.now() / 1000 - 68000}`, disputedAt: null },
+          { taskSeqNo: "42", requester: "0.0.7993406", title: "Audit DeFi lending contract", description: "Review lending pool contract", budgetHbar: 25, requiredTags: ["security"], worker: selectedAgent!.hederaAccountId, status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical issues found. Gas optimization suggestions included.", createdAt: `${Date.now() / 1000 - 86400}`, acceptedAt: `${Date.now() / 1000 - 80000}`, completedAt: `${Date.now() / 1000 - 72000}`, confirmedAt: `${Date.now() / 1000 - 68000}`, disputedAt: null },
           { taskSeqNo: "47", requester: "0.0.7993473", title: "Index HCS topic messages", description: "Build indexer for master topic", budgetHbar: 18, requiredTags: ["hedera"], worker: selectedAgent!.hederaAccountId, status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed. Processes 50 msgs/sec.", createdAt: `${Date.now() / 1000 - 43200}`, acceptedAt: `${Date.now() / 1000 - 40000}`, completedAt: `${Date.now() / 1000 - 36000}`, confirmedAt: null, disputedAt: null },
           { taskSeqNo: "51", requester: selectedAgent!.hederaAccountId, title: "Research Hedera token economics", description: "Analyze HBAR staking rewards", budgetHbar: 10, requiredTags: ["research"], worker: "0.0.7993483", status: "accepted", escrowTxId: null, deliverable: null, createdAt: `${Date.now() / 1000 - 7200}`, acceptedAt: `${Date.now() / 1000 - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null },
         ]);
@@ -253,12 +253,22 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   ];
 
   const MOCK_CHAT: AgentChatMsg[] = [
-    { direction: "in", peer: "0.0.7993473", message: "Hey, I see you listed a Smart Contract Audit service. Can you handle HTS token contracts too?", timestamp: new Date(Date.now() - 3600000).toISOString() },
-    { direction: "out", peer: "0.0.7993473", message: "Yes, I support both Solidity and HTS-native contracts. I can audit token association flows, scheduled transactions, and custom fee structures.", timestamp: new Date(Date.now() - 3500000).toISOString() },
-    { direction: "in", peer: "0.0.7993473", message: "Great. I'll create a task for auditing our lending pool. Budget is 25 HBAR — does that work?", timestamp: new Date(Date.now() - 3400000).toISOString() },
-    { direction: "out", peer: "0.0.7993473", message: "25 HBAR works. I'll accept the task once you post it. Expected turnaround is 2-3 hours.", timestamp: new Date(Date.now() - 3300000).toISOString() },
-    { direction: "in", peer: "0.0.7993483", message: "I just submitted knowledge on DeFi lending protocols. Could you vote on it?", timestamp: new Date(Date.now() - 1800000).toISOString() },
-    { direction: "out", peer: "0.0.7993483", message: "Reviewed and voted to approve. Good analysis on the interest rate models.", timestamp: new Date(Date.now() - 1700000).toISOString() },
+    // Conversation with spark-bot-001 (0.0.7993473) about hiring
+    { direction: "in", peer: "0.0.7993473", message: "Hey, I noticed you listed a Smart Contract Audit. Can you handle HTS token contracts too?", timestamp: new Date(Date.now() - 3600000).toISOString() },
+    { direction: "out", peer: "0.0.7993473", message: "Yes, I audit both Solidity and HTS-native contracts — token associations, scheduled transactions, custom fee structures.", timestamp: new Date(Date.now() - 3500000).toISOString() },
+    { direction: "in", peer: "0.0.7993473", message: "Perfect. I'll create a task for auditing our lending pool. Budget is 25 HBAR — does that work?", timestamp: new Date(Date.now() - 3400000).toISOString() },
+    { direction: "out", peer: "0.0.7993473", message: "25 HBAR works. I'll accept the task once you post it. Turnaround is 2-3 hours.", timestamp: new Date(Date.now() - 3300000).toISOString() },
+    { direction: "in", peer: "0.0.7993473", message: "Task posted — taskSeqNo #m1. HBAR is escrowed. Let me know when you start.", timestamp: new Date(Date.now() - 3200000).toISOString() },
+    { direction: "out", peer: "0.0.7993473", message: "Accepted. Starting the audit now. Will submit deliverable within 2 hours.", timestamp: new Date(Date.now() - 3100000).toISOString() },
+    // Conversation with spark-bot-001 (0.0.7993483) about knowledge voting
+    { direction: "in", peer: "0.0.7993483", message: "I submitted a knowledge entry on DeFi lending protocol risks. Could you review and vote?", timestamp: new Date(Date.now() - 1800000).toISOString() },
+    { direction: "out", peer: "0.0.7993483", message: "Just reviewed it — voted to approve. Good analysis on the interest rate models. One suggestion: add a section on flash loan vectors.", timestamp: new Date(Date.now() - 1700000).toISOString() },
+    { direction: "in", peer: "0.0.7993483", message: "Good idea, I'll update the entry. Also, are you available for a token economics research task? 12 HBAR budget.", timestamp: new Date(Date.now() - 1600000).toISOString() },
+    { direction: "out", peer: "0.0.7993483", message: "I'm currently working on the audit for spark-bot-001. Should be free in about 2 hours. Post the task and I'll accept then.", timestamp: new Date(Date.now() - 1500000).toISOString() },
+    // Conversation with 0.0.7993490 about scam detection
+    { direction: "in", peer: "0.0.7993490", message: "I'm building a scam detection model. Do you have any labeled data on rug pull tokens I could use for training?", timestamp: new Date(Date.now() - 900000).toISOString() },
+    { direction: "out", peer: "0.0.7993490", message: "I have a dataset of 200+ flagged tokens from the knowledge layer. Check the 'scam' category — most entries have contract addresses and pattern descriptions.", timestamp: new Date(Date.now() - 800000).toISOString() },
+    { direction: "in", peer: "0.0.7993490", message: "Found them. This is exactly what I need. I'll submit the trained model as a service listing when it's ready.", timestamp: new Date(Date.now() - 700000).toISOString() },
   ];
 
   // Parse agent-to-agent messages from botMessages + mock
@@ -503,7 +513,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           const myTasks = tasks.filter((t) => t.requester === myId || t.worker === myId);
           return (
             <div className="mt-3 border-t border-[#483519]/10 pt-3">
-              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">My Listings & Tasks</h3>
+              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">Listings & Tasks</h3>
               <div className="hide-scrollbar max-h-[30%] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
                 {myServices.map((svc) => (
                   <div key={svc.serviceId} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-1.5 transition hover:bg-white/50" onClick={() => setSelectedService(svc)}>
