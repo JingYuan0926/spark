@@ -121,7 +121,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch all data
+  // Fetch all data + poll
   useEffect(() => {
     let cancelled = false;
     async function fetchAll() {
@@ -142,7 +142,22 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       if (!cancelled) setLoading(false);
     }
     fetchAll();
-    return () => { cancelled = true; };
+    // Poll services every 10s, tasks every 5s
+    const taskPoll = setInterval(async () => {
+      try {
+        const res = await fetch("/api/spark/tasks?status=all");
+        const data = await res.json();
+        if (!cancelled && data.success) setTasks(data.tasks || []);
+      } catch { /* ignore */ }
+    }, 5000);
+    const svcPoll = setInterval(async () => {
+      try {
+        const res = await fetch("/api/spark/discover-services");
+        const data = await res.json();
+        if (!cancelled && data.success) setServices(data.services || []);
+      } catch { /* ignore */ }
+    }, 10000);
+    return () => { cancelled = true; clearInterval(taskPoll); clearInterval(svcPoll); };
   }, []);
 
   if (loading) {
