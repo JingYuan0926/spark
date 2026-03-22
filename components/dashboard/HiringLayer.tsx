@@ -150,6 +150,18 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [showJobsModal, setShowJobsModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [taskFilter, setTaskFilter] = useState<string>("all");
+  // Negotiation form state
+  const [commentText, setCommentText] = useState("");
+  const [proposePrice, setProposePrice] = useState("");
+  const [proposeMsg, setProposeMsg] = useState("");
+  const [showProposeForm, setShowProposeForm] = useState(false);
+  const [negotiateLoading, setNegotiateLoading] = useState(false);
+  // Review form state
+  const [reviewRating, setReviewRating] = useState(80);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewTags, setReviewTags] = useState<string[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -1130,8 +1142,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       {/* Task Detail Modal — Superteam Earn style */}
       {selectedTask && (() => {
         const sc = STATUS_COLORS[selectedTask.status] || STATUS_COLORS.open;
-        const stages = ["open", "accepted", "completed", "confirmed"];
-        const currentIdx = stages.indexOf(selectedTask.status);
+        const isDisputed = selectedTask.status === "disputed";
+        const stages = ["open", "accepted", "completed", isDisputed ? "disputed" : "confirmed"];
+        const currentIdx = isDisputed ? 3 : stages.indexOf(selectedTask.status);
         // Find relevant chat messages for this task's participants
         const taskChat = chatMessages.filter((m) => m.peer === selectedTask.requester || m.peer === selectedTask.worker);
         return (
@@ -1149,6 +1162,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   {selectedTask.status === "open" && <span className="text-[12px] text-white/30">Accepting workers</span>}
                   {selectedTask.status === "accepted" && <span className="text-[12px] text-white/30">In progress</span>}
                   {selectedTask.status === "completed" && <span className="text-[12px] text-white/30">Awaiting confirmation</span>}
+                  {selectedTask.status === "confirmed" && <span className="text-[12px] text-white/30">HBAR released</span>}
+                  {selectedTask.status === "disputed" && <span className="text-[12px] text-white/30">{selectedTask.refundTxId ? "HBAR refunded" : "Pending resolution"}</span>}
                 </div>
                 <h3 className="mt-3 text-2xl font-bold text-white">{selectedTask.title}</h3>
 
@@ -1160,7 +1175,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     return (
                       <div key={stage} className="flex items-center">
                         <div className="flex flex-col items-center">
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${isPast ? "border-[#4B7F52] bg-[#4B7F52]" : isCurrent ? "border-[#DD6E42] bg-[#DD6E42]" : "border-white/15 bg-transparent"}`}>
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${isPast ? "border-[#4B7F52] bg-[#4B7F52]" : isCurrent && isDisputed ? "border-[#A61C3C] bg-[#A61C3C]" : isCurrent ? "border-[#DD6E42] bg-[#DD6E42]" : "border-white/15 bg-transparent"}`}>
                             {isPast ? (
                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                             ) : (
@@ -1281,6 +1296,176 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       </div>
                     )}
                   </div>
+
+                  {/* Comment / Propose Price form */}
+                  {(selectedTask.status === "open" || selectedTask.status === "accepted") && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Add a comment..."
+                          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/70 placeholder-white/20 outline-none transition focus:border-white/25"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && commentText.trim()) {
+                              setNegotiateLoading(true);
+                              fetch("/api/spark/task-negotiate", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  hederaPrivateKey: "demo",
+                                  taskSeqNo: selectedTask.taskSeqNo,
+                                  action: "comment",
+                                  message: commentText.trim(),
+                                }),
+                              }).finally(() => { setNegotiateLoading(false); setCommentText(""); });
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (!commentText.trim()) return;
+                            setNegotiateLoading(true);
+                            fetch("/api/spark/task-negotiate", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                hederaPrivateKey: "demo",
+                                taskSeqNo: selectedTask.taskSeqNo,
+                                action: "comment",
+                                message: commentText.trim(),
+                              }),
+                            }).finally(() => { setNegotiateLoading(false); setCommentText(""); });
+                          }}
+                          disabled={negotiateLoading || !commentText.trim()}
+                          className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/60 transition hover:bg-white/15 disabled:opacity-30"
+                        >
+                          {negotiateLoading ? brailleSpinner.frames[brailleFrame] : "Send"}
+                        </button>
+                      </div>
+
+                      {selectedTask.status === "open" && (
+                        <>
+                          <button
+                            onClick={() => setShowProposeForm(!showProposeForm)}
+                            className="text-[12px] font-semibold text-[#DD6E42]/70 transition hover:text-[#DD6E42]"
+                          >
+                            {showProposeForm ? "Cancel price proposal" : "Propose different price"}
+                          </button>
+                          {showProposeForm && (
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                value={proposePrice}
+                                onChange={(e) => setProposePrice(e.target.value)}
+                                placeholder="HBAR"
+                                className="w-20 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/70 placeholder-white/20 outline-none transition focus:border-white/25"
+                              />
+                              <input
+                                type="text"
+                                value={proposeMsg}
+                                onChange={(e) => setProposeMsg(e.target.value)}
+                                placeholder="Why this price?"
+                                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/70 placeholder-white/20 outline-none transition focus:border-white/25"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (!proposePrice || !proposeMsg.trim()) return;
+                                  setNegotiateLoading(true);
+                                  fetch("/api/spark/task-negotiate", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      hederaPrivateKey: "demo",
+                                      taskSeqNo: selectedTask.taskSeqNo,
+                                      action: "propose_price",
+                                      proposedPrice: parseFloat(proposePrice),
+                                      message: proposeMsg.trim(),
+                                    }),
+                                  }).finally(() => { setNegotiateLoading(false); setProposePrice(""); setProposeMsg(""); setShowProposeForm(false); });
+                                }}
+                                disabled={negotiateLoading || !proposePrice || !proposeMsg.trim()}
+                                className="rounded-lg bg-[#DD6E42]/20 px-3 py-2 text-xs font-semibold text-[#DD6E42] transition hover:bg-[#DD6E42]/30 disabled:opacity-30"
+                              >
+                                Propose
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Review form for confirmed tasks */}
+                  {selectedTask.status === "confirmed" && !reviewSubmitted && (
+                    <div className="mt-3 border-t border-white/8 pt-4">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Leave a Review</h4>
+                      <div className="mt-3 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-white/40">Rating</label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={reviewRating}
+                            onChange={(e) => setReviewRating(parseInt(e.target.value))}
+                            className="flex-1"
+                          />
+                          <span className="w-10 text-right font-mono text-xs font-bold text-white/60">{reviewRating}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {["accurate", "fast", "thorough", "reliable", "well-written"].map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => setReviewTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
+                              className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${reviewTags.includes(tag) ? "bg-[#4B7F52]/30 text-[#4B7F52]" : "bg-white/8 text-white/30 hover:bg-white/12"}`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={reviewText}
+                          onChange={(e) => setReviewText(e.target.value)}
+                          placeholder="Write your review..."
+                          rows={2}
+                          className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/70 placeholder-white/20 outline-none transition focus:border-white/25"
+                        />
+                        <button
+                          onClick={() => {
+                            if (!reviewText.trim()) return;
+                            setReviewLoading(true);
+                            const targetAgent = agent?.hederaAccountId === selectedTask.requester
+                              ? selectedTask.worker
+                              : selectedTask.requester;
+                            fetch("/api/spark/submit-review", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                hederaPrivateKey: "demo",
+                                targetAgent,
+                                rating: reviewRating,
+                                tags: reviewTags,
+                                review: reviewText.trim(),
+                                context: "task",
+                                contextId: selectedTask.taskSeqNo,
+                              }),
+                            }).finally(() => { setReviewLoading(false); setReviewSubmitted(true); });
+                          }}
+                          disabled={reviewLoading || !reviewText.trim()}
+                          className="rounded-lg bg-[#4B7F52]/20 px-4 py-2 text-xs font-semibold text-[#4B7F52] transition hover:bg-[#4B7F52]/30 disabled:opacity-30"
+                        >
+                          {reviewLoading ? brailleSpinner.frames[brailleFrame] : "Submit Review"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {reviewSubmitted && selectedTask.status === "confirmed" && (
+                    <div className="mt-3 rounded-lg bg-[#4B7F52]/10 px-4 py-3 text-center">
+                      <p className="text-xs font-semibold text-[#4B7F52]">Review submitted on-chain via HCS-2</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1366,6 +1551,16 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                         className="block font-mono text-[12px] text-[#4F6D7A] transition hover:text-[#4F6D7A]/80"
                       >
                         Escrow TX ↗
+                      </a>
+                    )}
+                    {selectedTask.refundTxId && (
+                      <a
+                        href={`https://hashscan.io/testnet/transaction/${selectedTask.refundTxId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block font-mono text-[12px] text-[#A61C3C] transition hover:text-[#A61C3C]/80"
+                      >
+                        Refund TX ↗
                       </a>
                     )}
                   </div>
