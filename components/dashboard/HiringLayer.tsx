@@ -323,12 +323,17 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
-                  <p
-                    className="mt-0.5 cursor-pointer font-mono text-[10px] text-[#483519]/40 transition hover:text-[#483519]/70"
-                    onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === svc.provider); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}
-                  >
-                    by {shortAddr(svc.provider)} ↗
-                  </p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p
+                      className="cursor-pointer font-mono text-[10px] text-[#483519]/40 transition hover:text-[#483519]/70"
+                      onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === svc.provider); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}
+                    >
+                      {shortAddr(svc.provider)} ↗
+                    </p>
+                    {agent?.hederaAccountId === svc.provider && (
+                      <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#483519]/50">Your listing</span>
+                    )}
+                  </div>
                 </div>
                 <span className="rounded-full bg-[#483519]/10 px-2 py-0.5 font-mono text-xs font-bold text-[#483519]">
                   {svc.priceHbar} HBAR
@@ -655,14 +660,14 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         );
       })()}
 
-      {/* Service Detail Modal — Job listing with requirements + Q&A */}
+      {/* Service Detail Modal — "I need X done" bounty style */}
       {selectedService && (() => {
         const providerChat = chatMessages.filter((m) => m.peer === selectedService.provider);
-        // Mock Q&A for demo
+        const isMyListing = agent?.hederaAccountId === selectedService.provider;
         const mockQA = [
-          { q: "What format should the audit report be in?", a: "I deliver a structured PDF with severity levels (Critical/High/Medium/Low), affected code snippets, and remediation steps for each finding." },
-          { q: "Do you support Hedera Token Service contracts?", a: "Yes. I audit HTS custom fee schedules, token associations, and scheduled transactions alongside standard Solidity contracts." },
-          { q: "What's your turnaround time for a medium-sized contract?", a: `Typically ${formatEstTime(selectedService.estimatedTime) || "2-4 hours"}. Complex contracts with multiple integrations may take longer.` },
+          { q: "What exactly do you need done?", a: selectedService.description },
+          { q: "What skills are required?", a: `Looking for agents with experience in ${selectedService.tags.join(", ")}. Must be registered on SPARK.` },
+          { q: "How long do I have to deliver?", a: `Expected turnaround is ${formatEstTime(selectedService.estimatedTime) || "flexible"}. Discuss timeline before accepting.` },
         ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedService(null)}>
@@ -671,35 +676,32 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
 
-              {/* Left — Job listing content */}
+              {/* Left — Bounty content */}
               <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-[#4B7F52]/20 px-2.5 py-1 text-[10px] font-bold uppercase text-[#4B7F52]">Hiring</span>
-                  <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 text-[10px] font-bold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span>
+                  <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 text-[10px] font-bold uppercase text-[#DD6E42]">Bounty</span>
+                  <span className="rounded-full bg-[#4B7F52]/20 px-2.5 py-1 text-[10px] font-bold text-[#4B7F52]">{selectedService.priceHbar} HBAR</span>
+                  {isMyListing && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white/60">Your Listing</span>}
                 </div>
-                <h3 className="mt-3 text-2xl font-bold text-white">{selectedService.serviceName}</h3>
-                <p className="mt-1 font-mono text-xs text-white/40">Listed by {selectedService.provider}</p>
+                <h3 className="mt-3 text-2xl font-bold text-white">I need: {selectedService.serviceName}</h3>
+                <p className="mt-1 font-mono text-xs text-white/40">Posted by {shortAddr(selectedService.provider)}</p>
 
-                {/* About */}
+                {/* What I need */}
                 <div className="mt-6 border-t border-white/8 pt-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">About This Service</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">What I Need</h4>
                   <p className="mt-2 text-sm leading-relaxed text-white/70">{selectedService.description}</p>
                 </div>
 
-                {/* Requirements */}
+                {/* Looking for */}
                 <div className="mt-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Requirements</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Looking For</h4>
                   <ul className="mt-2 space-y-1.5">
                     {selectedService.tags.map((tag) => (
                       <li key={tag} className="flex items-center gap-2 text-xs text-white/60">
                         <span className="text-[#4B7F52]">•</span>
-                        Experience with <span className="font-semibold text-white/80">{tag}</span>
+                        Agent with <span className="font-semibold text-white/80">{tag}</span> expertise
                       </li>
                     ))}
-                    <li className="flex items-center gap-2 text-xs text-white/60">
-                      <span className="text-[#4B7F52]">•</span>
-                      Registered on SPARK with active Hedera account
-                    </li>
                     <li className="flex items-center gap-2 text-xs text-white/60">
                       <span className="text-[#4B7F52]">•</span>
                       Deliver within <span className="font-semibold text-white/80">{formatEstTime(selectedService.estimatedTime) || "agreed timeframe"}</span>
@@ -707,21 +709,21 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </ul>
                 </div>
 
-                {/* What you'll get */}
+                {/* Reward */}
                 <div className="mt-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">What You Get</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Reward</h4>
                   <ul className="mt-2 space-y-1.5">
                     <li className="flex items-center gap-2 text-xs text-white/60">
                       <span className="text-[#DD6E42]">→</span>
-                      <span className="font-semibold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span> escrowed on task creation
+                      <span className="font-semibold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span> paid on completion
                     </li>
                     <li className="flex items-center gap-2 text-xs text-white/60">
                       <span className="text-[#DD6E42]">→</span>
-                      Payment released on confirmation via HCS
+                      HBAR escrowed upfront — released on confirmation
                     </li>
                     <li className="flex items-center gap-2 text-xs text-white/60">
                       <span className="text-[#DD6E42]">→</span>
-                      Reputation tokens minted to your vote topic
+                      Reputation tokens (upvote, quality, speed) minted on delivery
                     </li>
                   </ul>
                 </div>
@@ -776,7 +778,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               <div className="w-[260px] shrink-0 border-l border-white/8 bg-white/3 p-6">
                 <div className="rounded-lg bg-white/8 px-4 py-5 text-center">
                   <p className="text-3xl font-bold text-[#DD6E42]">{selectedService.priceHbar}</p>
-                  <p className="mt-1 text-xs uppercase tracking-wider text-white/30">HBAR / task</p>
+                  <p className="mt-1 text-xs uppercase tracking-wider text-white/30">HBAR Reward</p>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -807,7 +809,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 </div>
 
                 <div className="mt-4">
-                  <p className="text-[10px] uppercase tracking-wider text-white/30">Provider</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">Posted By</p>
                   <div
                     className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
