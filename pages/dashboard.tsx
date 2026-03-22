@@ -228,18 +228,15 @@ function DashboardContent() {
         </button>
       </Navbar>
 
-      {view === "dashboard" ? (
-        <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-6 px-[2.5%] pt-[3vh] pb-[3vh]">
-          <AgentStatus />
-          <AgentSession />
-          <KnowledgeLayer />
-          <AgentAccount />
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col px-[2.5%] pt-[3vh] pb-[3vh]">
-          <HiringLayer onBack={() => setView("dashboard")} />
-        </div>
-      )}
+      <div className={`grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-6 px-[2.5%] pt-[3vh] pb-[3vh] ${view === "dashboard" ? "" : "hidden"}`}>
+        <AgentStatus />
+        <AgentSession />
+        <KnowledgeLayer />
+        <AgentAccount />
+      </div>
+      <div className={`flex min-h-0 flex-1 flex-col px-[2.5%] pt-[3vh] pb-[3vh] ${view === "hiring" ? "" : "hidden"}`}>
+        <HiringLayer onBack={() => setView("dashboard")} />
+      </div>
     </div>
   );
 }
