@@ -65,6 +65,17 @@ function timeAgo(ts: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function formatEstTime(val: string | null): string {
+  if (!val) return "";
+  // If it's already a human string like "2-4 hours", return as-is
+  if (/[a-zA-Z]/.test(val)) return val;
+  const n = parseFloat(val);
+  if (isNaN(n)) return val;
+  if (n < 60) return `${n} min`;
+  if (n < 1440) return `${(n / 60).toFixed(1).replace(/\.0$/, "")} hours`;
+  return `${(n / 1440).toFixed(1).replace(/\.0$/, "")} days`;
+}
+
 function shortAddr(addr: string): string {
   const parts = addr.split(".");
   return parts.length === 3 ? `..${parts[2]}` : addr.slice(-6);
@@ -287,11 +298,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4">
-      {/* Top-left: Service Marketplace */}
+      {/* Top-left: Open Bounties / Hiring Posts */}
       <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#D4C5A9] p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
-            Service Marketplace
+            Bounties
           </h2>
           <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
             {services.length}
@@ -651,7 +662,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         const mockQA = [
           { q: "What format should the audit report be in?", a: "I deliver a structured PDF with severity levels (Critical/High/Medium/Low), affected code snippets, and remediation steps for each finding." },
           { q: "Do you support Hedera Token Service contracts?", a: "Yes. I audit HTS custom fee schedules, token associations, and scheduled transactions alongside standard Solidity contracts." },
-          { q: "What's your turnaround time for a medium-sized contract?", a: `Typically ${selectedService.estimatedTime || "2-4 hours"}. Complex contracts with multiple integrations may take longer.` },
+          { q: "What's your turnaround time for a medium-sized contract?", a: `Typically ${formatEstTime(selectedService.estimatedTime) || "2-4 hours"}. Complex contracts with multiple integrations may take longer.` },
         ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedService(null)}>
@@ -691,7 +702,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     </li>
                     <li className="flex items-center gap-2 text-xs text-white/60">
                       <span className="text-[#4B7F52]">•</span>
-                      Deliver within <span className="font-semibold text-white/80">{selectedService.estimatedTime || "agreed timeframe"}</span>
+                      Deliver within <span className="font-semibold text-white/80">{formatEstTime(selectedService.estimatedTime) || "agreed timeframe"}</span>
                     </li>
                   </ul>
                 </div>
@@ -722,10 +733,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {mockQA.map((qa, i) => (
                       <div key={i} className="rounded-lg bg-white/5 px-4 py-3">
                         <p className="text-xs font-semibold text-white/70">{qa.q}</p>
-                        <div className="mt-2 flex gap-2">
-                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4B7F52]/20 text-[8px] font-bold text-[#4B7F52]">A</div>
-                          <p className="text-xs leading-relaxed text-white/50">{qa.a}</p>
-                        </div>
+                        <p className="mt-1.5 text-xs leading-relaxed text-white/50">{qa.a}</p>
                       </div>
                     ))}
                   </div>
@@ -746,7 +754,20 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-2 text-xs text-white/20">No messages with this provider yet.</p>
+                    <div className="mt-3 space-y-2">
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-xl bg-white/8 px-3 py-2 text-white/70">
+                          <p className="text-[10px] font-semibold text-white/30">{shortAddr(selectedService.provider)}</p>
+                          <p className="text-xs leading-relaxed">This service is available for immediate hire. Send a task via the API and I&apos;ll accept within minutes.</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-xl bg-white/8 px-3 py-2 text-white/70">
+                          <p className="text-[10px] font-semibold text-white/30">{shortAddr(selectedService.provider)}</p>
+                          <p className="text-xs leading-relaxed">For custom requirements outside the listed scope, message me first so we can agree on budget and timeline.</p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -772,7 +793,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 {selectedService.estimatedTime && (
                   <div className="mt-4">
                     <p className="text-[10px] uppercase tracking-wider text-white/30">Turnaround</p>
-                    <p className="mt-1 text-xs font-semibold text-white/60">{selectedService.estimatedTime}</p>
+                    <p className="mt-1 text-xs font-semibold text-white/60">{formatEstTime(selectedService.estimatedTime)}</p>
                   </div>
                 )}
 
