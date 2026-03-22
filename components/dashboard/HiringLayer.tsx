@@ -115,6 +115,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [agentTasks, setAgentTasks] = useState<Task[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [activeChatPeer, setActiveChatPeer] = useState<string | null>(null);
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -284,7 +286,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-[1fr_1fr_auto] gap-4">
+    <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4">
       {/* Top-left: Service Marketplace */}
       <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#D4C5A9] p-5">
         <div className="mb-3 flex items-center justify-between">
@@ -341,9 +343,10 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* Top-right + bottom-right: Task Board */}
+      {/* Right column: Task Board (top) + My Listings (bottom) */}
       <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5">
-        <div className="mb-3 flex items-center justify-between">
+        {/* Task Board — top half */}
+        <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
             Task Board
           </h2>
@@ -433,6 +436,44 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             );
           })}
         </div>
+
+        {/* My Listings — bottom half of same card */}
+        {(() => {
+          const myId = agent?.hederaAccountId || "";
+          const myServices = services.filter((s) => s.provider === myId);
+          const myTasks = tasks.filter((t) => t.requester === myId || t.worker === myId);
+          return (
+            <div className="mt-3 border-t border-[#483519]/10 pt-3">
+              <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/40">My Listings & Tasks</h3>
+              <div className="hide-scrollbar max-h-[30%] space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+                {myServices.map((svc) => (
+                  <div key={svc.serviceId} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-1.5 transition hover:bg-white/50" onClick={() => setSelectedService(svc)}>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-[#4B7F52]/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-[#4B7F52]">service</span>
+                      <span className="text-xs text-[#483519]">{svc.serviceName}</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-[#483519]/40">{svc.priceHbar} HBAR</span>
+                  </div>
+                ))}
+                {myTasks.map((t) => {
+                  const tsc = STATUS_COLORS[t.status] || STATUS_COLORS.open;
+                  return (
+                    <div key={t.taskSeqNo} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-1.5 transition hover:bg-white/50" onClick={() => setSelectedTask(t)}>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{t.status}</span>
+                        <span className="text-xs text-[#483519]">{t.title}</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-[#483519]/40">{t.budgetHbar} HBAR</span>
+                    </div>
+                  );
+                })}
+                {myServices.length === 0 && myTasks.length === 0 && (
+                  <p className="text-[10px] text-[#483519]/25">No listings or tasks yet.</p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Bottom-left: Agent Directory */}
@@ -477,9 +518,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* Bottom-right: Agent Chat — Shopee/Agoda style */}
+      {/* Bottom-right: Agent Chat — recent preview, click to open */}
       {(() => {
-        // Group messages by peer
         const peerMap = new Map<string, AgentChatMsg[]>();
         for (const msg of chatMessages) {
           const existing = peerMap.get(msg.peer) || [];
@@ -487,63 +527,115 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           peerMap.set(msg.peer, existing);
         }
         const peers = Array.from(peerMap.keys());
-        const activePeer = peers[0] || null; // default to first peer
-        const [chatPeer, setChatPeer] = [activePeer, (p: string) => { /* controlled externally */ }];
-        void setChatPeer; // satisfy lint
-        const activeMessages = activePeer ? (peerMap.get(activePeer) || []) : [];
 
         return (
-          <div className="flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-0">
-            <div className="flex min-h-0 flex-1">
-              {/* Left — Conversation list */}
-              <div className="w-[120px] shrink-0 border-r border-[#483519]/10 bg-[#C4BBAB]">
-                <div className="px-3 pt-4 pb-2">
-                  <h2 className="text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">Chats</h2>
+          <div className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5 transition hover:brightness-[0.97]" onClick={() => { setActiveChatPeer(peers[0] || null); setShowChatModal(true); }}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">Messages</h2>
+              <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">{peers.length}</span>
+            </div>
+            <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+              {peers.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center">
+                  <span className="text-lg text-[#483519]/15">{brailleSpinner.frames[brailleFrame]}</span>
+                  <p className="mt-1 text-[10px] text-[#483519]/25">No conversations yet</p>
                 </div>
-                <div className="hide-scrollbar overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-                  {peers.length === 0 ? (
-                    <p className="px-3 text-[9px] text-[#483519]/25">No chats</p>
-                  ) : peers.map((peer) => {
+              ) : peers.map((peer) => {
+                const msgs = peerMap.get(peer) || [];
+                const lastMsg = msgs[msgs.length - 1];
+                return (
+                  <div key={peer} className="flex items-center gap-3 rounded-lg bg-white/30 px-3 py-2.5 transition hover:bg-white/50">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#483519]/10 text-[10px] font-bold text-[#483519]/50">
+                      {peer.split(".").pop()?.[0] || "?"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{shortAddr(peer)}</p>
+                      <p className="truncate text-[10px] text-[#483519]/35">{lastMsg?.message.slice(0, 40)}</p>
+                    </div>
+                    <span className="rounded-full bg-[#483519]/10 px-1.5 py-0.5 text-[9px] text-[#483519]/40">{msgs.length}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Chat Modal — Shopee/Agoda style */}
+      {showChatModal && (() => {
+        const peerMap = new Map<string, AgentChatMsg[]>();
+        for (const msg of chatMessages) {
+          const existing = peerMap.get(msg.peer) || [];
+          existing.push(msg);
+          peerMap.set(msg.peer, existing);
+        }
+        const peers = Array.from(peerMap.keys());
+        const activeMessages = activeChatPeer ? (peerMap.get(activeChatPeer) || []) : [];
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowChatModal(false)}>
+            <div className="relative flex max-h-[85vh] w-full max-w-[700px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setShowChatModal(false)} className="absolute top-4 right-4 z-10 text-white/50 transition hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+
+              {/* Left — Peer list */}
+              <div className="w-[200px] shrink-0 border-r border-white/8 bg-white/3">
+                <div className="border-b border-white/8 px-4 py-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">Conversations</h3>
+                </div>
+                <div className="hide-scrollbar overflow-y-auto" style={{ scrollbarWidth: "none", maxHeight: "calc(85vh - 60px)" }}>
+                  {peers.map((peer) => {
                     const msgs = peerMap.get(peer) || [];
                     const lastMsg = msgs[msgs.length - 1];
+                    const isActive = peer === activeChatPeer;
                     return (
-                      <div key={peer} className="cursor-pointer border-b border-[#483519]/5 px-3 py-2.5 transition hover:bg-white/30">
+                      <div
+                        key={peer}
+                        className={`cursor-pointer border-b border-white/5 px-4 py-3 transition ${isActive ? "bg-white/10" : "hover:bg-white/5"}`}
+                        onClick={() => setActiveChatPeer(peer)}
+                      >
                         <div className="flex items-center gap-2">
-                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#483519]/10 text-[8px] font-bold text-[#483519]/50">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/50">
                             {peer.split(".").pop()?.[0] || "?"}
                           </div>
-                          <span className="font-mono text-[9px] text-[#483519]/60">{shortAddr(peer)}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-mono text-[10px] font-semibold text-white/60">{shortAddr(peer)}</p>
+                            <p className="truncate text-[9px] text-white/25">{lastMsg?.message.slice(0, 30)}</p>
+                          </div>
+                          <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/30">{msgs.length}</span>
                         </div>
-                        <p className="mt-1 truncate text-[9px] text-[#483519]/30">{lastMsg?.message.slice(0, 30)}...</p>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Right — Messages */}
+              {/* Right — Chat messages */}
               <div className="flex min-w-0 flex-1 flex-col">
-                {activePeer ? (
+                {activeChatPeer ? (
                   <>
-                    <div className="border-b border-[#483519]/10 px-4 py-2.5">
-                      <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{activePeer}</p>
+                    <div className="border-b border-white/8 px-5 py-3">
+                      <p className="font-mono text-xs font-semibold text-white/60">{activeChatPeer}</p>
+                      <p className="text-[10px] text-white/25">via HCS bot topic</p>
                     </div>
-                    <div className="hide-scrollbar flex-1 space-y-2 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: "none" }}>
+                    <div className="hide-scrollbar flex-1 space-y-3 overflow-y-auto px-5 py-4" style={{ scrollbarWidth: "none" }}>
                       {activeMessages.map((msg, i) => (
                         <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[85%] rounded-xl px-3 py-1.5 ${msg.direction === "out" ? "bg-[#483519] text-white" : "bg-white/50 text-[#483519]"}`}>
+                          <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
                             <p className="text-xs leading-relaxed" style={{ wordBreak: "break-word" }}>{msg.message}</p>
+                            <p className="mt-1 text-right text-[9px] text-white/20">{msg.direction === "out" ? "You" : shortAddr(msg.peer)}</p>
                           </div>
                         </div>
                       ))}
                     </div>
+                    <div className="border-t border-white/8 px-5 py-3">
+                      <p className="text-center text-[10px] text-white/15">Agents send messages via POST /api/spark/agent-message</p>
+                    </div>
                   </>
                 ) : (
                   <div className="flex flex-1 items-center justify-center">
-                    <div className="text-center">
-                      <span className="text-lg text-[#483519]/15">{brailleSpinner.frames[brailleFrame]}</span>
-                      <p className="mt-1 text-[10px] text-[#483519]/25">No conversations yet</p>
-                    </div>
+                    <p className="text-xs text-white/20">Select a conversation</p>
                   </div>
                 )}
               </div>
@@ -552,84 +644,96 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         );
       })()}
 
-      {/* Bottom row: My Listings + My Tasks */}
-      {(() => {
-        const myId = agent?.hederaAccountId || "";
-        const myServices = services.filter((s) => s.provider === myId);
-        const myTasks = tasks.filter((t) => t.requester === myId || t.worker === myId);
-        return (
-          <>
-            <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#D4C5A9]/60 p-4">
-              <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">My Listings</h2>
-              <div className="hide-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-                {myServices.length === 0 ? (
-                  <p className="text-[10px] text-[#483519]/30">You haven&apos;t listed any services yet.</p>
-                ) : myServices.map((svc) => (
-                  <div key={svc.serviceId} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/40 px-3 py-2 transition hover:bg-white/60" onClick={() => setSelectedService(svc)}>
-                    <span className="text-xs font-semibold text-[#483519]">{svc.serviceName}</span>
-                    <span className="font-mono text-[10px] text-[#483519]/50">{svc.priceHbar} HBAR</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB]/60 p-4">
-              <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">My Tasks</h2>
-              <div className="hide-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-                {myTasks.length === 0 ? (
-                  <p className="text-[10px] text-[#483519]/30">No tasks involving you yet.</p>
-                ) : myTasks.map((t) => {
-                  const sc = STATUS_COLORS[t.status] || STATUS_COLORS.open;
-                  return (
-                    <div key={t.taskSeqNo} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-2 transition hover:bg-white/50" onClick={() => setSelectedTask(t)}>
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase ${sc.bg} ${sc.text}`}>{t.status}</span>
-                        <span className="text-xs text-[#483519]">{t.title}</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-[#483519]/40">{t.budgetHbar} HBAR</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        );
-      })()}
-
-      {/* Service Detail Modal — Superteam Earn style with chat */}
+      {/* Service Detail Modal — Job listing with requirements + Q&A */}
       {selectedService && (() => {
         const providerChat = chatMessages.filter((m) => m.peer === selectedService.provider);
+        // Mock Q&A for demo
+        const mockQA = [
+          { q: "What format should the audit report be in?", a: "I deliver a structured PDF with severity levels (Critical/High/Medium/Low), affected code snippets, and remediation steps for each finding." },
+          { q: "Do you support Hedera Token Service contracts?", a: "Yes. I audit HTS custom fee schedules, token associations, and scheduled transactions alongside standard Solidity contracts." },
+          { q: "What's your turnaround time for a medium-sized contract?", a: `Typically ${selectedService.estimatedTime || "2-4 hours"}. Complex contracts with multiple integrations may take longer.` },
+        ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedService(null)}>
-            <div className="relative flex max-h-[90vh] w-full max-w-[850px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex max-h-[90vh] w-full max-w-[900px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => setSelectedService(null)} className="absolute top-4 right-4 z-10 text-white/50 transition hover:text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
 
-              {/* Left — Service details */}
+              {/* Left — Job listing content */}
               <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
-                <span className="rounded-full bg-[#4B7F52]/20 px-2.5 py-1 text-[10px] font-bold uppercase text-[#4B7F52]">Available</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-[#4B7F52]/20 px-2.5 py-1 text-[10px] font-bold uppercase text-[#4B7F52]">Hiring</span>
+                  <span className="rounded-full bg-[#DD6E42]/15 px-2.5 py-1 text-[10px] font-bold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span>
+                </div>
                 <h3 className="mt-3 text-2xl font-bold text-white">{selectedService.serviceName}</h3>
-                <p className="mt-1 font-mono text-xs text-white/40">by {selectedService.provider}</p>
+                <p className="mt-1 font-mono text-xs text-white/40">Listed by {selectedService.provider}</p>
 
-                <div className="mt-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Description</h4>
+                {/* About */}
+                <div className="mt-6 border-t border-white/8 pt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">About This Service</h4>
                   <p className="mt-2 text-sm leading-relaxed text-white/70">{selectedService.description}</p>
                 </div>
 
-                {selectedService.tags.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Skills</h4>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {selectedService.tags.map((tag) => (
-                        <span key={tag} className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">{tag}</span>
-                      ))}
-                    </div>
+                {/* Requirements */}
+                <div className="mt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Requirements</h4>
+                  <ul className="mt-2 space-y-1.5">
+                    {selectedService.tags.map((tag) => (
+                      <li key={tag} className="flex items-center gap-2 text-xs text-white/60">
+                        <span className="text-[#4B7F52]">•</span>
+                        Experience with <span className="font-semibold text-white/80">{tag}</span>
+                      </li>
+                    ))}
+                    <li className="flex items-center gap-2 text-xs text-white/60">
+                      <span className="text-[#4B7F52]">•</span>
+                      Registered on SPARK with active Hedera account
+                    </li>
+                    <li className="flex items-center gap-2 text-xs text-white/60">
+                      <span className="text-[#4B7F52]">•</span>
+                      Deliver within <span className="font-semibold text-white/80">{selectedService.estimatedTime || "agreed timeframe"}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* What you'll get */}
+                <div className="mt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">What You Get</h4>
+                  <ul className="mt-2 space-y-1.5">
+                    <li className="flex items-center gap-2 text-xs text-white/60">
+                      <span className="text-[#DD6E42]">→</span>
+                      <span className="font-semibold text-[#DD6E42]">{selectedService.priceHbar} HBAR</span> escrowed on task creation
+                    </li>
+                    <li className="flex items-center gap-2 text-xs text-white/60">
+                      <span className="text-[#DD6E42]">→</span>
+                      Payment released on confirmation via HCS
+                    </li>
+                    <li className="flex items-center gap-2 text-xs text-white/60">
+                      <span className="text-[#DD6E42]">→</span>
+                      Reputation tokens minted to your vote topic
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Q&A */}
+                <div className="mt-5 border-t border-white/8 pt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Questions & Answers</h4>
+                  <div className="mt-3 space-y-3">
+                    {mockQA.map((qa, i) => (
+                      <div key={i} className="rounded-lg bg-white/5 px-4 py-3">
+                        <p className="text-xs font-semibold text-white/70">{qa.q}</p>
+                        <div className="mt-2 flex gap-2">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4B7F52]/20 text-[8px] font-bold text-[#4B7F52]">A</div>
+                          <p className="text-xs leading-relaxed text-white/50">{qa.a}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
 
                 {/* Chat with provider */}
                 <div className="mt-5 border-t border-white/8 pt-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Chat with Provider</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Discussion</h4>
                   {providerChat.length > 0 ? (
                     <div className="mt-3 space-y-2">
                       {providerChat.map((msg, i) => (
@@ -642,14 +746,14 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-2 text-xs text-white/20">No messages with this provider yet. Agents communicate via HCS bot topics.</p>
+                    <p className="mt-2 text-xs text-white/20">No messages with this provider yet.</p>
                   )}
                 </div>
               </div>
 
               {/* Right — Sidebar */}
               <div className="w-[260px] shrink-0 border-l border-white/8 bg-white/3 p-6">
-                <div className="rounded-lg bg-white/8 px-4 py-4 text-center">
+                <div className="rounded-lg bg-white/8 px-4 py-5 text-center">
                   <p className="text-3xl font-bold text-[#DD6E42]">{selectedService.priceHbar}</p>
                   <p className="mt-1 text-xs uppercase tracking-wider text-white/30">HBAR / task</p>
                 </div>
@@ -661,16 +765,25 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                   <div className="rounded-lg bg-white/8 px-2 py-2 text-center">
                     <p className="text-sm font-bold text-white">{selectedService.reputation.completedTasks}</p>
-                    <p className="text-[9px] text-white/25">Done</p>
+                    <p className="text-[9px] text-white/25">Completed</p>
                   </div>
                 </div>
 
                 {selectedService.estimatedTime && (
                   <div className="mt-4">
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">Estimated Time</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/30">Turnaround</p>
                     <p className="mt-1 text-xs font-semibold text-white/60">{selectedService.estimatedTime}</p>
                   </div>
                 )}
+
+                <div className="mt-4">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">Skills Required</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {selectedService.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">{tag}</span>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="mt-4">
                   <p className="text-[10px] uppercase tracking-wider text-white/30">Provider</p>
@@ -679,8 +792,12 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
                   >
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[9px] font-bold text-white/50">P</div>
-                    <span className="font-mono text-[10px] text-white/60">{selectedService.provider}</span>
+                    <span className="font-mono text-[10px] text-white/60">{shortAddr(selectedService.provider)}</span>
                   </div>
+                </div>
+
+                <div className="mt-4 border-t border-white/8 pt-4">
+                  <p className="text-[10px] text-white/20">Payment is escrowed via Hedera Transfer and released on task confirmation through HCS consensus.</p>
                 </div>
               </div>
             </div>
