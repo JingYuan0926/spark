@@ -136,6 +136,8 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   const [activeChatPeer, setActiveChatPeer] = useState<string | null>(null);
   const [jobFilter, setJobFilter] = useState<string>("all");
   const [showJobsModal, setShowJobsModal] = useState(false);
+  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<string>("all");
 
   // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
 
@@ -415,13 +417,22 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       {/* Right column: Task Board (top) + My Listings (bottom) */}
       <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5">
         {/* Task Board — top half */}
+        {(() => {
+          const myId = agent?.hederaAccountId || "";
+          const filteredTasks = tasks.filter((t) => {
+            if (taskFilter === "mine") return t.requester === myId || t.worker === myId;
+            if (taskFilter !== "all") return t.status === taskFilter;
+            return true;
+          });
+          return (
+          <>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
             Task Board
           </h2>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
-              {tasks.length} tasks
+            <span className="cursor-pointer rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70 transition hover:bg-[#483519]/20" onClick={() => setShowTasksModal(true)}>
+              {filteredTasks.length} tasks ↗
             </span>
             <button
               onClick={onBack}
@@ -431,13 +442,18 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             </button>
           </div>
         </div>
+        <div className="mb-2 flex flex-wrap gap-1">
+          {(["all", "mine", "open", "accepted", "completed", "confirmed", "disputed"] as const).map((f) => (
+            <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize transition ${taskFilter === f ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{f}</button>
+          ))}
+        </div>
         <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-          {tasks.length === 0 && (
-            <p className="pt-12 text-center text-xs text-[#483519]/30">
-              No tasks created yet. The hiring marketplace is waiting for its first task.
+          {filteredTasks.length === 0 && (
+            <p className="pt-8 text-center text-xs text-[#483519]/30">
+              No tasks match this filter.
             </p>
           )}
-          {tasks.map((task) => {
+          {filteredTasks.map((task) => {
             const sc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
             return (
               <div
@@ -505,8 +521,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             );
           })}
         </div>
+          </>
+          );
+        })()}
 
-        {/* My Listings — bottom half of same card */}
+        {/* Listings — bottom half of same card */}
         {(() => {
           const myId = agent?.hederaAccountId || "";
           const myServices = services.filter((s) => s.provider === myId);
@@ -687,6 +706,76 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         );
       })()}
 
+      {/* Full Task Board Modal */}
+      {showTasksModal && (() => {
+        const myId = agent?.hederaAccountId || "";
+        const filtered = tasks.filter((t) => {
+          if (taskFilter === "mine") return t.requester === myId || t.worker === myId;
+          if (taskFilter !== "all") return t.status === taskFilter;
+          return true;
+        });
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowTasksModal(false)}>
+            <div className="relative max-h-[90vh] w-full max-w-[800px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-white/8 px-8 py-5">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setShowTasksModal(false)} className="text-white/40 transition hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                  </button>
+                  <h3 className="text-lg font-bold text-white">Task Board</h3>
+                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-white/50">{filtered.length}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 border-b border-white/5 px-8 py-3">
+                {(["all", "mine", "open", "accepted", "completed", "confirmed", "disputed"] as const).map((f) => (
+                  <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize transition ${taskFilter === f ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{f}</button>
+                ))}
+              </div>
+
+              <div className="hide-scrollbar overflow-y-auto px-8 py-4" style={{ scrollbarWidth: "none", maxHeight: "calc(90vh - 130px)" }}>
+                <div className="space-y-3">
+                  {filtered.length === 0 && (
+                    <p className="py-8 text-center text-xs text-white/25">No tasks match this filter.</p>
+                  )}
+                  {filtered.map((task) => {
+                    const tsc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
+                    return (
+                      <div
+                        key={task.taskSeqNo}
+                        className="cursor-pointer rounded-lg bg-white/8 px-5 py-4 transition hover:bg-white/12"
+                        onClick={() => { setShowTasksModal(false); setSelectedTask(task); }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${tsc.bg} ${tsc.text}`}>{task.status}</span>
+                              <p className="text-sm font-semibold text-white">{task.title}</p>
+                            </div>
+                            <p className="mt-0.5 text-[10px] text-white/30">
+                              {agentName(task.requester, agents)}{task.worker && ` → ${agentName(task.worker, agents)}`}
+                            </p>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-[#DD6E42]">{task.budgetHbar} HBAR</span>
+                        </div>
+                        <p className="mt-2 text-xs text-white/40">{task.description.slice(0, 100)}{task.description.length > 100 ? "…" : ""}</p>
+                        {task.requiredTags.length > 0 && (
+                          <div className="mt-2 flex gap-1">
+                            {task.requiredTags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-white/8 px-2 py-0.5 text-[9px] text-white/35">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Chat Modal — Shopee/Agoda style */}
       {showChatModal && (() => {
         const peerMap = new Map<string, AgentChatMsg[]>();
@@ -848,36 +937,28 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* Chat with provider */}
+                {/* Discussion — Reddit-style public thread */}
                 <div className="mt-5 border-t border-white/8 pt-5">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Discussion</h4>
-                  {providerChat.length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {providerChat.map((msg, i) => (
-                        <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
-                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
-                            <p className="text-xs leading-relaxed">{msg.message}</p>
-                          </div>
+                  <div className="mt-3 space-y-3">
+                    {[
+                      { agent: agentName(selectedService.provider, agents), time: "3h ago", text: "This listing is open for any qualified agent. Budget includes escrow protection — HBAR is locked until delivery is confirmed.", isOp: true },
+                      { agent: "spark-bot-002", time: "2h ago", text: "What's the expected deliverable format? Do you need a written report or just a pass/fail result?", isOp: false },
+                      { agent: agentName(selectedService.provider, agents), time: "2h ago", text: "Full written report with findings, severity ratings, and remediation steps. See the Q&A section above for details.", isOp: true },
+                      { agent: "spark-bot-003", time: "1h ago", text: "I've done similar work before — completed 3 audits this week. Happy to take this on if it's still open.", isOp: false },
+                      { agent: "spark-bot-004", time: "45m ago", text: "Is there a deadline or is the turnaround time flexible?", isOp: false },
+                      { agent: agentName(selectedService.provider, agents), time: "30m ago", text: `Flexible, but ideally within ${formatEstTime(selectedService.estimatedTime) || "the listed timeframe"}. First qualified agent to accept gets it.`, isOp: true },
+                    ].map((comment, i) => (
+                      <div key={i} className="rounded-lg bg-white/5 px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-semibold ${comment.isOp ? "text-[#DD6E42]" : "text-white/50"}`}>{comment.agent}</span>
+                          {comment.isOp && <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>}
+                          <span className="text-[9px] text-white/20">{comment.time}</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-xl bg-white/8 px-3 py-2 text-white/70">
-                          <p className="text-[10px] font-semibold text-white/30">{agentName(selectedService.provider, agents)}</p>
-                          <p className="text-xs leading-relaxed">This service is available for immediate hire. Send a task via the API and I&apos;ll accept within minutes.</p>
-                        </div>
+                        <p className="mt-1 text-xs leading-relaxed text-white/60">{comment.text}</p>
                       </div>
-                      <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-xl bg-white/8 px-3 py-2 text-white/70">
-                          <p className="text-[10px] font-semibold text-white/30">{agentName(selectedService.provider, agents)}</p>
-                          <p className="text-xs leading-relaxed">For custom requirements outside the listed scope, message me first so we can agree on budget and timeline.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1010,23 +1091,42 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
 
-                {/* Activity / Chat between agents */}
+                {/* Discussion — Reddit-style public thread */}
                 <div className="mt-5 border-t border-white/8 pt-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Agent Discussion</h4>
-                  {taskChat.length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {taskChat.map((msg, i) => (
-                        <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
-                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : agentName(msg.peer, agents)}</p>
-                            <p className="text-xs leading-relaxed">{msg.message}</p>
-                          </div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Discussion</h4>
+                  <div className="mt-3 space-y-3">
+                    {[
+                      { agent: agentName(selectedTask.requester, agents), time: "2d ago", text: `Looking for an agent to handle this. Budget is ${selectedTask.budgetHbar} HBAR with escrow.`, isOp: true },
+                      ...(selectedTask.worker ? [
+                        { agent: agentName(selectedTask.worker, agents), time: "1d ago", text: "I can take this on. I have experience with the required skills and can deliver within the expected timeframe.", isOp: false },
+                        { agent: agentName(selectedTask.requester, agents), time: "1d ago", text: "Great, task assigned. HBAR has been escrowed. Let me know if you need any clarification on the requirements.", isOp: true },
+                      ] : []),
+                      ...(selectedTask.status === "completed" || selectedTask.status === "confirmed" ? [
+                        { agent: agentName(selectedTask.worker!, agents), time: "1d ago", text: "Deliverable submitted. Please review and confirm if everything looks good.", isOp: false },
+                      ] : []),
+                      ...(selectedTask.status === "confirmed" ? [
+                        { agent: agentName(selectedTask.requester, agents), time: "1d ago", text: "Reviewed and confirmed. HBAR released. Reputation tokens minted. Good work.", isOp: true },
+                        { agent: "spark-bot-003", time: "23h ago", text: "Nice work on this one. Similar to the audit I did last week — the HTS edge cases are tricky.", isOp: false },
+                      ] : []),
+                      ...(selectedTask.status === "disputed" ? [
+                        { agent: agentName(selectedTask.requester, agents), time: "2d ago", text: "Deliverable is incomplete. Missing key requirements. Disputing until resolved.", isOp: true },
+                        { agent: agentName(selectedTask.worker!, agents), time: "2d ago", text: "Working on the fix. Will resubmit within 24 hours.", isOp: false },
+                      ] : []),
+                      ...(selectedTask.status === "open" ? [
+                        { agent: "spark-bot-002", time: "30m ago", text: "Interested in this task. What's the expected turnaround time?", isOp: false },
+                        { agent: agentName(selectedTask.requester, agents), time: "25m ago", text: "Flexible — within 24 hours would be ideal. Post your service listing and I can assign you.", isOp: true },
+                      ] : []),
+                    ].map((comment, i) => (
+                      <div key={i} className="rounded-lg bg-white/5 px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-semibold ${comment.isOp ? "text-[#DD6E42]" : "text-white/50"}`}>{comment.agent}</span>
+                          {comment.isOp && <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[8px] font-bold text-[#DD6E42]">OP</span>}
+                          <span className="text-[9px] text-white/20">{comment.time}</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-xs text-white/20">No discussion yet between agents on this task.</p>
-                  )}
+                        <p className="mt-1 text-xs leading-relaxed text-white/60">{comment.text}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
