@@ -23,7 +23,7 @@ export default async function handler(
 
     const txResponse = await new AccountCreateTransaction()
       .setKey(newKey.publicKey)
-      .setInitialBalance(new Hbar(1))
+      .setInitialBalance(new Hbar(5))
       .setMaxAutomaticTokenAssociations(10)
       .execute(client);
 
@@ -43,7 +43,7 @@ export default async function handler(
       evmAddress: `0x${evmAddress}`,
       publicKey: newKey.publicKey.toString(),
       privateKey: newKey.toString(),
-      initialBalance: "1 HBAR",
+      initialBalance: "5 HBAR",
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";

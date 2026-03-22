@@ -150,12 +150,12 @@ export default async function handler(
     // Step 1: Ensure master + knowledge sub-topics exist
     const { masterTopicId, subTopics } = await ensureTopics();
 
-    // Step 2: Create Hedera account (1 HBAR, unlimited auto-assoc)
+    // Step 2: Create Hedera account (5 HBAR, unlimited auto-assoc)
     const botKey = PrivateKey.generateED25519();
 
     const accountTx = await new AccountCreateTransaction()
       .setKey(botKey.publicKey)
-      .setInitialBalance(new Hbar(1))
+      .setInitialBalance(new Hbar(5))
       .setMaxAutomaticTokenAssociations(-1)
       .execute(client);
 
@@ -320,7 +320,7 @@ export default async function handler(
       subTopics,
       masterSeqNo,
       botSeqNo,
-      airdrop: { hbar: 1, usdc: 100 },
+      airdrop: { hbar: 5, usdc: 100 },
     });
   } catch (err: unknown) {
     return res.status(500).json({
