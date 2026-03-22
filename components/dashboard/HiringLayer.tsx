@@ -503,7 +503,20 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
               >
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-[#483519]">{task.title}</p>
+                      {task.escrowTxId && (
+                        <a
+                          href={`https://hashscan.io/testnet/transaction/${task.escrowTxId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-[11px] text-[#4F6D7A]/50 transition hover:text-[#4F6D7A]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          escrow tx ↗
+                        </a>
+                      )}
+                    </div>
                     <p className="mt-0.5 text-xs text-[#483519]/50">
                       by <span className="cursor-pointer transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.requester); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{agentName(task.requester, agents)}</span>
                       {task.worker && <> → <span className="cursor-pointer font-semibold transition hover:text-[#483519]" onClick={(e) => { e.stopPropagation(); const ag = agents.find((a) => a.hederaAccountId === task.worker); if (ag) { setAgentReviews(null); setSelectedAgent(ag); } }}>{agentName(task.worker!, agents)}</span></>}
@@ -567,17 +580,6 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                     {task.status === "disputed" && (task.refundTxId ? "Disputed — HBAR refunded to requester" : "Disputed — pending resolution")}
                   </span>
                 </div>
-
-                {task.escrowTxId && (
-                  <a
-                    href={`https://hashscan.io/testnet/transaction/${task.escrowTxId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 inline-block font-mono text-[12px] text-[#4F6D7A]/60 transition hover:text-[#4F6D7A]"
-                  >
-                    escrow tx ↗
-                  </a>
-                )}
 
                 {task.deliverable && (
                   <p className="mt-1.5 rounded bg-[#4B7F52]/8 px-2 py-1 text-[12px] text-[#483519]/50">
