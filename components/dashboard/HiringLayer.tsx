@@ -284,7 +284,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-6">
+    <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-[1fr_1fr_auto] gap-4">
       {/* Top-left: Service Marketplace */}
       <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#D4C5A9] p-5">
         <div className="mb-3 flex items-center justify-between">
@@ -477,106 +477,216 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* Bottom-right: Agent-to-Agent Chat */}
-      <div className="flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">
-            Agent Chat
-          </h2>
-          <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">
-            {chatMessages.length}
-          </span>
-        </div>
-        <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-          {chatMessages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <span className="text-2xl text-[#483519]/15">
-                {brailleSpinner.frames[brailleFrame]}
-              </span>
-              <p className="mt-2 text-xs text-[#483519]/30">
-                No agent-to-agent messages yet.
-              </p>
-              <p className="mt-1 font-mono text-[10px] text-[#483519]/20">
-                Agents communicate via HCS bot topics
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {chatMessages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}
-                >
-                  <div className={`max-w-[85%] rounded-xl px-3 py-2 ${
-                    msg.direction === "out"
-                      ? "bg-[#483519] text-white"
-                      : "bg-white/50 text-[#483519]"
-                  }`}>
-                    <p className="text-[10px] font-semibold opacity-50">
-                      {msg.direction === "out" ? `→ ${shortAddr(msg.peer)}` : `← ${shortAddr(msg.peer)}`}
-                    </p>
-                    <p className="text-xs leading-relaxed" style={{ wordBreak: "break-word" }}>
-                      {msg.message}
-                    </p>
-                  </div>
+      {/* Bottom-right: Agent Chat — Shopee/Agoda style */}
+      {(() => {
+        // Group messages by peer
+        const peerMap = new Map<string, AgentChatMsg[]>();
+        for (const msg of chatMessages) {
+          const existing = peerMap.get(msg.peer) || [];
+          existing.push(msg);
+          peerMap.set(msg.peer, existing);
+        }
+        const peers = Array.from(peerMap.keys());
+        const activePeer = peers[0] || null; // default to first peer
+        const [chatPeer, setChatPeer] = [activePeer, (p: string) => { /* controlled externally */ }];
+        void setChatPeer; // satisfy lint
+        const activeMessages = activePeer ? (peerMap.get(activePeer) || []) : [];
+
+        return (
+          <div className="flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-0">
+            <div className="flex min-h-0 flex-1">
+              {/* Left — Conversation list */}
+              <div className="w-[120px] shrink-0 border-r border-[#483519]/10 bg-[#C4BBAB]">
+                <div className="px-3 pt-4 pb-2">
+                  <h2 className="text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">Chats</h2>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Service Detail Modal */}
-      {selectedService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedService(null)}>
-          <div className="relative w-full max-w-[500px] rounded-2xl bg-[#483519]/90 p-8 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setSelectedService(null)} className="absolute top-4 right-4 text-white/50 transition hover:text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            </button>
-            <h3 className="text-lg font-bold text-white">{selectedService.serviceName}</h3>
-            <p className="mt-1 font-mono text-xs text-white/40">by {selectedService.provider}</p>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-[#DD6E42]">{selectedService.priceHbar}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">HBAR</p>
+                <div className="hide-scrollbar overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+                  {peers.length === 0 ? (
+                    <p className="px-3 text-[9px] text-[#483519]/25">No chats</p>
+                  ) : peers.map((peer) => {
+                    const msgs = peerMap.get(peer) || [];
+                    const lastMsg = msgs[msgs.length - 1];
+                    return (
+                      <div key={peer} className="cursor-pointer border-b border-[#483519]/5 px-3 py-2.5 transition hover:bg-white/30">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#483519]/10 text-[8px] font-bold text-[#483519]/50">
+                            {peer.split(".").pop()?.[0] || "?"}
+                          </div>
+                          <span className="font-mono text-[9px] text-[#483519]/60">{shortAddr(peer)}</span>
+                        </div>
+                        <p className="mt-1 truncate text-[9px] text-[#483519]/30">{lastMsg?.message.slice(0, 30)}...</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-[#4B7F52]">↑{selectedService.reputation.upvotes}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Upvotes</p>
-              </div>
-              <div className="rounded-lg bg-white/8 px-3 py-2.5 text-center">
-                <p className="text-lg font-bold text-white">{selectedService.reputation.completedTasks}</p>
-                <p className="text-[10px] uppercase tracking-wider text-white/30">Tasks Done</p>
+
+              {/* Right — Messages */}
+              <div className="flex min-w-0 flex-1 flex-col">
+                {activePeer ? (
+                  <>
+                    <div className="border-b border-[#483519]/10 px-4 py-2.5">
+                      <p className="font-mono text-[10px] font-semibold text-[#483519]/60">{activePeer}</p>
+                    </div>
+                    <div className="hide-scrollbar flex-1 space-y-2 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: "none" }}>
+                      {activeMessages.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[85%] rounded-xl px-3 py-1.5 ${msg.direction === "out" ? "bg-[#483519] text-white" : "bg-white/50 text-[#483519]"}`}>
+                            <p className="text-xs leading-relaxed" style={{ wordBreak: "break-word" }}>{msg.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-1 items-center justify-center">
+                    <div className="text-center">
+                      <span className="text-lg text-[#483519]/15">{brailleSpinner.frames[brailleFrame]}</span>
+                      <p className="mt-1 text-[10px] text-[#483519]/25">No conversations yet</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+          </div>
+        );
+      })()}
 
-            <div className="mt-5">
-              <p className="text-[10px] uppercase tracking-wider text-white/30">Description</p>
-              <p className="mt-1 text-sm leading-relaxed text-white/70">{selectedService.description}</p>
-            </div>
-
-            {selectedService.estimatedTime && (
-              <p className="mt-3 text-xs text-white/40">Estimated time: <span className="font-semibold text-white/60">{selectedService.estimatedTime}</span></p>
-            )}
-
-            {selectedService.tags.length > 0 && (
-              <div className="mt-3 flex gap-1.5">
-                {selectedService.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">{tag}</span>
+      {/* Bottom row: My Listings + My Tasks */}
+      {(() => {
+        const myId = agent?.hederaAccountId || "";
+        const myServices = services.filter((s) => s.provider === myId);
+        const myTasks = tasks.filter((t) => t.requester === myId || t.worker === myId);
+        return (
+          <>
+            <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#D4C5A9]/60 p-4">
+              <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">My Listings</h2>
+              <div className="hide-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+                {myServices.length === 0 ? (
+                  <p className="text-[10px] text-[#483519]/30">You haven&apos;t listed any services yet.</p>
+                ) : myServices.map((svc) => (
+                  <div key={svc.serviceId} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/40 px-3 py-2 transition hover:bg-white/60" onClick={() => setSelectedService(svc)}>
+                    <span className="text-xs font-semibold text-[#483519]">{svc.serviceName}</span>
+                    <span className="font-mono text-[10px] text-[#483519]/50">{svc.priceHbar} HBAR</span>
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
+            <div className="col-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB]/60 p-4">
+              <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#483519]/50">My Tasks</h2>
+              <div className="hide-scrollbar min-h-0 flex-1 space-y-1.5 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+                {myTasks.length === 0 ? (
+                  <p className="text-[10px] text-[#483519]/30">No tasks involving you yet.</p>
+                ) : myTasks.map((t) => {
+                  const sc = STATUS_COLORS[t.status] || STATUS_COLORS.open;
+                  return (
+                    <div key={t.taskSeqNo} className="flex cursor-pointer items-center justify-between rounded-lg bg-white/30 px-3 py-2 transition hover:bg-white/50" onClick={() => setSelectedTask(t)}>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase ${sc.bg} ${sc.text}`}>{t.status}</span>
+                        <span className="text-xs text-[#483519]">{t.title}</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-[#483519]/40">{t.budgetHbar} HBAR</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
-            <button
-              className="mt-4 text-xs text-white/40 transition hover:text-white/70"
-              onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
-            >
-              View provider profile ↗
-            </button>
+      {/* Service Detail Modal — Superteam Earn style with chat */}
+      {selectedService && (() => {
+        const providerChat = chatMessages.filter((m) => m.peer === selectedService.provider);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedService(null)}>
+            <div className="relative flex max-h-[90vh] w-full max-w-[850px] overflow-hidden rounded-2xl bg-[#483519]/95 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setSelectedService(null)} className="absolute top-4 right-4 z-10 text-white/50 transition hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+
+              {/* Left — Service details */}
+              <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
+                <span className="rounded-full bg-[#4B7F52]/20 px-2.5 py-1 text-[10px] font-bold uppercase text-[#4B7F52]">Available</span>
+                <h3 className="mt-3 text-2xl font-bold text-white">{selectedService.serviceName}</h3>
+                <p className="mt-1 font-mono text-xs text-white/40">by {selectedService.provider}</p>
+
+                <div className="mt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Description</h4>
+                  <p className="mt-2 text-sm leading-relaxed text-white/70">{selectedService.description}</p>
+                </div>
+
+                {selectedService.tags.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Skills</h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedService.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Chat with provider */}
+                <div className="mt-5 border-t border-white/8 pt-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Chat with Provider</h4>
+                  {providerChat.length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {providerChat.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[80%] rounded-xl px-3 py-2 ${msg.direction === "out" ? "bg-white/15 text-white" : "bg-white/8 text-white/70"}`}>
+                            <p className="text-[10px] font-semibold text-white/30">{msg.direction === "out" ? "You" : shortAddr(msg.peer)}</p>
+                            <p className="text-xs leading-relaxed">{msg.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-white/20">No messages with this provider yet. Agents communicate via HCS bot topics.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right — Sidebar */}
+              <div className="w-[260px] shrink-0 border-l border-white/8 bg-white/3 p-6">
+                <div className="rounded-lg bg-white/8 px-4 py-4 text-center">
+                  <p className="text-3xl font-bold text-[#DD6E42]">{selectedService.priceHbar}</p>
+                  <p className="mt-1 text-xs uppercase tracking-wider text-white/30">HBAR / task</p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white/8 px-2 py-2 text-center">
+                    <p className="text-sm font-bold text-[#4B7F52]">↑{selectedService.reputation.upvotes}</p>
+                    <p className="text-[9px] text-white/25">Upvotes</p>
+                  </div>
+                  <div className="rounded-lg bg-white/8 px-2 py-2 text-center">
+                    <p className="text-sm font-bold text-white">{selectedService.reputation.completedTasks}</p>
+                    <p className="text-[9px] text-white/25">Done</p>
+                  </div>
+                </div>
+
+                {selectedService.estimatedTime && (
+                  <div className="mt-4">
+                    <p className="text-[10px] uppercase tracking-wider text-white/30">Estimated Time</p>
+                    <p className="mt-1 text-xs font-semibold text-white/60">{selectedService.estimatedTime}</p>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <p className="text-[10px] uppercase tracking-wider text-white/30">Provider</p>
+                  <div
+                    className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 transition hover:bg-white/10"
+                    onClick={() => { const ag = agents.find((a) => a.hederaAccountId === selectedService.provider); if (ag) { setSelectedService(null); setAgentReviews(null); setSelectedAgent(ag); } }}
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[9px] font-bold text-white/50">P</div>
+                    <span className="font-mono text-[10px] text-white/60">{selectedService.provider}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Task Detail Modal — Superteam Earn style */}
       {selectedTask && (() => {
