@@ -580,17 +580,30 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 {myServices.map((svc) => (
                   <div key={svc.serviceId} className="cursor-pointer rounded-lg bg-white/30 px-4 py-3 transition hover:bg-white/40" onClick={() => setSelectedService(svc)}>
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-[#483519]">{svc.serviceName}</p>
-                        <p className="mt-0.5 text-xs text-[#483519]/50">{svc.description.slice(0, 60)}{svc.description.length > 60 ? "…" : ""}</p>
+                        <p className="mt-0.5 text-xs text-[#483519]/50">
+                          {agentName(svc.provider, agents)}
+                        </p>
                       </div>
-                      <span className="font-mono text-xs font-bold text-[#483519]">{svc.priceHbar} HBAR</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-[#483519]">{svc.priceHbar} HBAR</span>
+                        <span className="rounded-full bg-[#4B7F52]/15 px-2 py-0.5 text-[10px] font-bold uppercase text-[#4B7F52]">Listed</span>
+                      </div>
                     </div>
-                    <div className="mt-2 flex gap-1">
-                      {svc.tags.map((tag) => (
-                        <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[10px] text-[#483519]/40">{tag}</span>
-                      ))}
+                    <div className="mt-2 flex items-center gap-1">
+                      <div className="h-2 w-2 rounded-full bg-[#4B7F52]" />
+                      <div className="h-0.5 w-4 bg-[#483519]/10" />
+                      <div className="h-2 w-2 rounded-full bg-[#483519]/15" />
+                      <div className="h-0.5 w-4 bg-[#483519]/10" />
+                      <div className="h-2 w-2 rounded-full bg-[#483519]/15" />
+                      <div className="h-0.5 w-4 bg-[#483519]/10" />
+                      <div className="h-2 w-2 rounded-full bg-[#483519]/15" />
+                      <span className="ml-2 text-[9px] text-[#483519]/30">Waiting for hire</span>
                     </div>
+                    <p className="mt-1.5 rounded bg-[#483519]/5 px-2 py-1 text-[10px] text-[#483519]/50">
+                      {svc.description.slice(0, 80)}{svc.description.length > 80 ? "…" : ""}
+                    </p>
                   </div>
                 ))}
               </div>
