@@ -28,11 +28,22 @@ const STAGE_CONFIG: Record<AgentStage, {
 
 // ── Canvas drawing ──────────────────────────────────────────────
 
+const AGENT_BODY_COLORS: readonly (readonly number[])[] = [
+  C.fern,            // green
+  C.peach,           // orange
+  C.slate,           // blue-grey
+  [139, 90, 43],     // brown
+  [168, 85, 110],    // mauve
+  [90, 130, 160],    // steel blue
+  [180, 140, 60],    // gold
+];
+
 function drawAgent(
   ctx: CanvasRenderingContext2D,
   px: number, py: number,
   unit: number, timestamp: number,
   isMoving: boolean, facingRight: boolean,
+  bodyColor: readonly number[] = C.fern,
 ) {
   const bw = unit * 0.045;
   const bh = unit * 0.06;
@@ -46,7 +57,7 @@ function drawAgent(
   ctx.fill();
 
   const legW = bw * 0.32, legH = bh * 0.18;
-  ctx.fillStyle = rgba(C.fern, 0.85);
+  ctx.fillStyle = rgba(bodyColor, 0.85);
   ctx.beginPath();
   ctx.roundRect(x - bw * 0.35, y + bh / 2 - legH * 0.3 + legSwing, legW, legH, 2);
   ctx.fill();
@@ -55,12 +66,12 @@ function drawAgent(
   ctx.fill();
 
   const bpSide = facingRight ? -1 : 1;
-  ctx.fillStyle = rgba(C.fern, 0.65);
+  ctx.fillStyle = rgba(bodyColor, 0.65);
   ctx.beginPath();
   ctx.roundRect(x + bpSide * bw * 0.38, y - bh * 0.05, bw * 0.2, bh * 0.35, 3);
   ctx.fill();
 
-  ctx.fillStyle = rgba(C.fern, 0.85);
+  ctx.fillStyle = rgba(bodyColor, 0.85);
   ctx.beginPath();
   ctx.roundRect(x - bw / 2, y - bh / 2, bw, bh, bw / 2);
   ctx.fill();
@@ -75,6 +86,52 @@ function drawAgent(
   ctx.beginPath();
   ctx.roundRect(x + vs * bw * 0.15, y - bh * 0.22, bw * 0.12, bh * 0.08, 2);
   ctx.fill();
+}
+
+function drawPlazaFloor(ctx: CanvasRenderingContext2D, size: number) {
+  // Warm sandy floor
+  ctx.fillStyle = "#d4c5a9";
+  ctx.fillRect(0, 0, size, size);
+
+  // Subtle border
+  ctx.strokeStyle = rgba(C.walnut, 0.12);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(6, 6, size - 12, size - 12);
+
+  // Center circle — meeting point
+  ctx.strokeStyle = rgba(C.walnut, 0.08);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.12, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Small dot in center
+  ctx.fillStyle = rgba(C.walnut, 0.06);
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label
+  ctx.fillStyle = rgba(C.walnut, 0.15);
+  ctx.font = `600 ${Math.max(8, size * 0.022)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("PUBLIC SPACE", size / 2, 12);
+}
+
+// Plaza agent state
+interface PlazaAgentState {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  facingRight: boolean;
+  colorIdx: number;
+  lastBubble: string;
+  bubbleColor: readonly number[];
+  bubbleExpiry: number;
 }
 
 function drawSpeechBubble(
@@ -178,11 +235,18 @@ export function AgentSession() {
   const { agent } = useAgent();
   const evmAddress = agent?.evmAddress || "";
 
-  // Canvas refs
+  // Office canvas refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
   const bgRef = useRef<HTMLImageElement | null>(null);
+
+  // Plaza canvas refs
+  const plazaContainerRef = useRef<HTMLDivElement>(null);
+  const plazaCanvasRef = useRef<HTMLCanvasElement>(null);
+  const plazaSizeRef = useRef({ w: 0, h: 0 });
+  const plazaAgentsRef = useRef<PlazaAgentState[]>([]);
+  const plazaInitRef = useRef(false);
 
   // LLM state
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -413,6 +477,158 @@ export function AgentSession() {
     return () => { cancelAnimationFrame(animId); obs.disconnect(); };
   }, [setup]);
 
+  // ── Plaza canvas setup + animation ─────────────────────────
+  const plazaSetup = useCallback(() => {
+    const canvas = plazaCanvasRef.current;
+    const container = plazaContainerRef.current;
+    if (!canvas || !container) return;
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    plazaSizeRef.current = { w: rect.width, h: rect.height };
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.scale(dpr, dpr);
+  }, []);
+
+  // Fetch registered agents for plaza
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchAgents() {
+      try {
+        const res = await fetch("/api/spark/agents");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data.success) return;
+        const agents: { hederaAccountId: string; botId: string }[] = data.agents || [];
+        if (agents.length === 0) return;
+
+        // Seed plaza agents at random positions
+        const seeded: PlazaAgentState[] = agents.slice(0, 8).map((a, i) => {
+          const x = 0.2 + Math.random() * 0.6;
+          const y = 0.25 + Math.random() * 0.55;
+          return {
+            id: a.hederaAccountId,
+            name: a.botId || `Agent-${a.hederaAccountId.split(".").pop()}`,
+            x, y,
+            targetX: x, targetY: y,
+            facingRight: Math.random() > 0.5,
+            colorIdx: i % AGENT_BODY_COLORS.length,
+            lastBubble: "",
+            bubbleColor: AGENT_BODY_COLORS[i % AGENT_BODY_COLORS.length],
+            bubbleExpiry: 0,
+          };
+        });
+        plazaAgentsRef.current = seeded;
+        plazaInitRef.current = true;
+      } catch { /* ignore */ }
+    }
+    fetchAgents();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Randomize plaza agent targets every 4s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      for (const ag of plazaAgentsRef.current) {
+        ag.targetX = 0.15 + Math.random() * 0.7;
+        ag.targetY = 0.2 + Math.random() * 0.6;
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Show activity as speech bubbles on random plaza agents
+  useEffect(() => {
+    if (activity.length <= 1) return;
+    // Pick a random agent and show the latest activity as a bubble
+    const agents = plazaAgentsRef.current;
+    if (agents.length === 0) return;
+    const latest = activity[0]; // newest
+    const randomAgent = agents[Math.floor(Math.random() * agents.length)];
+    randomAgent.lastBubble = latest.type.replace(/_/g, " ");
+    randomAgent.bubbleExpiry = Date.now() + 5000;
+  }, [activity]);
+
+  // Plaza animation loop
+  useEffect(() => {
+    plazaSetup();
+    const container = plazaContainerRef.current;
+    if (!container) return;
+    const obs = new ResizeObserver(() => plazaSetup());
+    obs.observe(container);
+
+    const canvas = plazaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animId: number;
+
+    const draw = (timestamp: number) => {
+      const { w, h } = plazaSizeRef.current;
+      if (w === 0 || h === 0) { animId = requestAnimationFrame(draw); return; }
+
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.imageSmoothingEnabled = false;
+
+      const size = Math.min(w, h);
+      drawPlazaFloor(ctx, size);
+
+      const agents = plazaAgentsRef.current;
+      const now = Date.now();
+
+      for (const ag of agents) {
+        // Move toward target
+        const dx = ag.targetX - ag.x;
+        const dy = ag.targetY - ag.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const isMoving = dist > 0.008;
+        if (isMoving) {
+          ag.x += dx * 0.015;
+          ag.y += dy * 0.015;
+          if (dx > 0.005) ag.facingRight = true;
+          else if (dx < -0.005) ag.facingRight = false;
+        }
+
+        const px = ag.x * size;
+        const py = ag.y * size;
+        const color = AGENT_BODY_COLORS[ag.colorIdx];
+        drawAgent(ctx, px, py, size, timestamp, isMoving, ag.facingRight, color);
+
+        // Show name label below agent
+        ctx.fillStyle = rgba(C.walnut, 0.5);
+        ctx.font = `500 ${Math.max(7, size * 0.018)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(ag.name, px, py + size * 0.04);
+
+        // Show speech bubble if active
+        if (ag.lastBubble && now < ag.bubbleExpiry) {
+          drawSpeechBubble(ctx, px, py, ag.lastBubble, ag.bubbleColor, size);
+        }
+      }
+
+      // Empty state
+      if (agents.length === 0) {
+        ctx.fillStyle = rgba(C.walnut, 0.2);
+        ctx.font = `500 ${Math.max(10, size * 0.025)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Waiting for agents...", size / 2, size / 2);
+      }
+
+      animId = requestAnimationFrame(draw);
+    };
+
+    animId = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(animId); obs.disconnect(); };
+  }, [plazaSetup]);
+
   // ── Stage badge color ──────────────────────────────────────
   const stageBadge: Record<AgentStage, { bg: string; text: string }> = {
     researching: { bg: "bg-[#4F6D7A]/20", text: "text-[#4F6D7A]" },
@@ -431,9 +647,12 @@ export function AgentSession() {
       </div>
 
       <div className="grid flex-1 min-h-0 grid-cols-4 grid-rows-4 gap-3">
-        {/* Map — 4x2 top full width */}
-        <div ref={containerRef} className="col-span-4 row-span-2 overflow-hidden">
+        {/* Map — left: office, right: public plaza */}
+        <div ref={containerRef} className="col-span-2 row-span-2 overflow-hidden rounded-lg">
           <canvas ref={canvasRef} className="h-full w-full" />
+        </div>
+        <div ref={plazaContainerRef} className="col-span-2 row-span-2 overflow-hidden rounded-lg">
+          <canvas ref={plazaCanvasRef} className="h-full w-full" />
         </div>
 
         {/* Activity feed — 4x2 bottom full width (ledger-based from HEAD) */}
