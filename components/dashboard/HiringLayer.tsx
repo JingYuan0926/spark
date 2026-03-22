@@ -658,7 +658,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         const peers = Array.from(peerMap.keys());
 
         return (
-          <div className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5 transition hover:brightness-[0.97]" onClick={() => { setActiveChatPeer(peers[0] || null); setShowChatModal(true); }}>
+          <div className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#B1C6B4] p-5 transition hover:brightness-[0.97]" onClick={() => { setActiveChatPeer(peers[0] || null); setShowChatModal(true); }}>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-[#483519]">Messages</h2>
               <span className="rounded-full bg-[#483519]/10 px-2.5 py-0.5 text-xs font-bold text-[#483519]/70">{peers.length}</span>
