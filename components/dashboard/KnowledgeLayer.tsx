@@ -8,6 +8,11 @@ const CATEGORIES: Record<string, { color: number[]; topicId: string; label: stri
   legal: { color: [244, 172, 69], topicId: "0.0.7993403", label: "Legal" },
   trend: { color: [208, 241, 191], topicId: "0.0.7993404", label: "Trend" },
   skills: { color: [75, 127, 82], topicId: "0.0.7993405", label: "Skills" },
+  defi: { color: [60, 160, 200], topicId: "0.0.7993406", label: "DeFi" },
+  security: { color: [200, 80, 120], topicId: "0.0.7993407", label: "Security" },
+  ai: { color: [130, 90, 180], topicId: "0.0.7993408", label: "AI / ML" },
+  governance: { color: [221, 110, 66], topicId: "0.0.7993409", label: "Governance" },
+  nft: { color: [180, 160, 50], topicId: "0.0.7993410", label: "NFT" },
 };
 
 /* ── Globe block colors (3 shades × 5 categories) ──────── */
@@ -772,7 +777,51 @@ function KnowledgeModal({
           </svg>
         </button>
 
-        {/* Knowledge Registry — full width */}
+        {/* Left — Globe + Categories (40%) */}
+        <div className="flex w-[40%] shrink-0 flex-col border-r border-white/10 p-6">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-bold text-white">Knowledge Layer</h3>
+            <button
+              onClick={() => setIsGrouped(!isGrouped)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${isGrouped
+                ? "bg-[#4B7F52]/80 text-white"
+                : "bg-white/10 text-white/50 hover:bg-white/20"
+                }`}
+            >
+              {isGrouped ? "Grouped" : "Mixed"}
+            </button>
+          </div>
+
+          {/* Globe */}
+          <div ref={globeContainerRef} className="flex flex-1 items-center justify-center">
+            {globeSize && globeSize.w > 0 && globeSize.h > 0 && (
+              <ModalGlobe
+                width={globeSize.w - 32}
+                height={globeSize.h - 32}
+                isGrouped={isGrouped}
+                knowledgeItems={knowledgeItems}
+                onHoverKnowledge={setHoveredKnowledge}
+                onClickKnowledge={setSelectedKnowledge}
+              />
+            )}
+          </div>
+
+          {/* Categories */}
+          <div className="mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Categories</h4>
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
+              {Object.entries(CATEGORIES).map(([key, { color, topicId, label }]) => (
+                <div key={key} className="flex items-center gap-2 text-sm">
+                  <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: `rgb(${color.join(",")})` }} />
+                  <span className="font-medium text-white/80">{label}</span>
+                  <span className="font-mono text-[10px] text-white/25">{topicId}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right — Knowledge Registry (60%) */}
         <div className="flex min-h-0 flex-1 flex-col p-6">
           {/* Header */}
           <div className="flex items-start justify-between">
