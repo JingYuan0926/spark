@@ -3,6 +3,7 @@ import { useAgent } from "@/components/AgentContext";
 import { spinners } from "unicode-animations";
 
 const brailleSpinner = spinners.braille;
+const pulseSpinner = spinners.pulse;
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {
@@ -18,22 +19,32 @@ const CATEGORIES: Record<string, { color: number[]; topicId: string; label: stri
   nft: { color: [180, 160, 50], topicId: "0.0.7993410", label: "NFT" },
 };
 
-/* ── Globe block colors (3 shades × 5 categories) ──────── */
+/* ── Globe block colors (3 shades × 10 categories) ─────── */
 const GLOBE_COLORS = [
-  [55, 95, 60], [75, 127, 82], [110, 160, 115],
-  [160, 210, 148], [208, 241, 191], [225, 248, 215],
-  [200, 135, 30], [244, 172, 69], [250, 200, 120],
-  [75, 50, 35], [105, 74, 56], [145, 110, 90],
-  [120, 15, 40], [166, 28, 60], [200, 70, 95],
+  [55, 95, 60], [75, 127, 82], [110, 160, 115],       // Skills (green)
+  [160, 210, 148], [208, 241, 191], [225, 248, 215],   // Trend (light green)
+  [200, 135, 30], [244, 172, 69], [250, 200, 120],     // Legal (gold)
+  [75, 50, 35], [105, 74, 56], [145, 110, 90],         // Blockchain (brown)
+  [120, 15, 40], [166, 28, 60], [200, 70, 95],         // Scam (crimson)
+  [30, 120, 160], [60, 160, 200], [100, 190, 220],     // DeFi (blue)
+  [160, 50, 90], [200, 80, 120], [230, 120, 150],      // Security (pink)
+  [90, 55, 140], [130, 90, 180], [170, 130, 210],      // AI/ML (purple)
+  [180, 80, 40], [221, 110, 66], [245, 150, 100],      // Governance (orange)
+  [140, 125, 25], [180, 160, 50], [210, 195, 90],      // NFT (olive)
 ];
 
 /* ── Grouped mode: 3 shades per category sector ────────── */
 const CATEGORY_SHADES = [
-  [[120, 15, 40], [166, 28, 60], [200, 70, 95]],
-  [[75, 50, 35], [105, 74, 56], [145, 110, 90]],
-  [[200, 135, 30], [244, 172, 69], [250, 200, 120]],
-  [[160, 210, 148], [208, 241, 191], [225, 248, 215]],
-  [[55, 95, 60], [75, 127, 82], [110, 160, 115]],
+  [[120, 15, 40], [166, 28, 60], [200, 70, 95]],       // Scam
+  [[75, 50, 35], [105, 74, 56], [145, 110, 90]],       // Blockchain
+  [[200, 135, 30], [244, 172, 69], [250, 200, 120]],   // Legal
+  [[160, 210, 148], [208, 241, 191], [225, 248, 215]], // Trend
+  [[55, 95, 60], [75, 127, 82], [110, 160, 115]],      // Skills
+  [[30, 120, 160], [60, 160, 200], [100, 190, 220]],   // DeFi
+  [[160, 50, 90], [200, 80, 120], [230, 120, 150]],    // Security
+  [[90, 55, 140], [130, 90, 180], [170, 130, 210]],    // AI/ML
+  [[180, 80, 40], [221, 110, 66], [245, 150, 100]],    // Governance
+  [[140, 125, 25], [180, 160, 50], [210, 195, 90]],    // NFT
 ];
 
 
@@ -93,7 +104,8 @@ function generateGroupedBlocks(): Block[] {
     const ringCount = Math.round(Math.cos(lat) * 100);
     for (let j = 0; j < ringCount; j++) {
       const lng = (j / ringCount) * Math.PI * 2;
-      const sector = Math.min(4, Math.floor((lng / (Math.PI * 2)) * 5));
+      const sectorCount = CATEGORY_SHADES.length;
+      const sector = Math.min(sectorCount - 1, Math.floor((lng / (Math.PI * 2)) * sectorCount));
       const shades = CATEGORY_SHADES[sector];
       const shade = shades[Math.floor(Math.random() * shades.length)];
       const rand = Math.random();
@@ -933,7 +945,7 @@ function KnowledgeModal({
                             {k.status === "approved" ? (
                               <span className="w-4 text-center text-sm" title="Approved">⣿</span>
                             ) : k.status === "rejected" ? (
-                              <span className="w-4 text-center text-sm" title="Rejected">{brailleSpinner.frames[brailleFrame]}</span>
+                              <span className="w-5 text-center text-sm" title="Rejected">{pulseSpinner.frames[brailleFrame % pulseSpinner.frames.length]}</span>
                             ) : (
                               <span className="w-4 text-center text-sm" title="Pending">{brailleSpinner.frames[brailleFrame]}</span>
                             )}
