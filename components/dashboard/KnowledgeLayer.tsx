@@ -945,7 +945,7 @@ function KnowledgeModal({
                             {k.status === "approved" ? (
                               <span className="w-4 text-center text-sm" title="Approved">⣿</span>
                             ) : k.status === "rejected" ? (
-                              <span className="w-4 text-center text-sm tracking-tight" title="Rejected">⠇⠸</span>
+                              <span className="w-4 text-center text-sm" style={{ letterSpacing: "-0.15em" }} title="Rejected">⠇⠸</span>
                             ) : (
                               <span className="w-4 text-center text-sm" title="Pending">{brailleSpinner.frames[brailleFrame]}</span>
                             )}
