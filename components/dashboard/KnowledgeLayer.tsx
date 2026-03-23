@@ -145,34 +145,36 @@ function drawSphere(
   }
 }
 
-/* ── Network node type ──────────────────────────────────── */
-interface NetNode {
-  angle: number;       // radians around center
-  dist: number;        // distance from center (ratio of max)
+/* ── Beam: a line fired from edge toward globe center ───── */
+interface Beam {
+  angle: number;       // direction from center outward (source is at edge)
   color: number[];
-  label: string;
-  pulseOffset: number; // for staggered pulse animation
-  speed: number;       // orbit drift speed
+  speed: number;       // how fast the pulse travels inward
+  offset: number;      // stagger
+  edgeDist: number;    // how far from center the source is (> canvas)
 }
 
-function generateNetNodes(): NetNode[] {
-  return AGENT_NODES.map((a, i) => ({
-    angle: (i / AGENT_NODES.length) * Math.PI * 2 + (Math.random() - 0.5) * 0.4,
-    dist: 0.65 + Math.random() * 0.3,
-    color: a.color,
-    label: a.label,
-    pulseOffset: Math.random() * Math.PI * 2,
-    speed: 0.0003 + Math.random() * 0.0006,
-  }));
+function generateBeams(count: number): Beam[] {
+  const beams: Beam[] = [];
+  const allColors = AGENT_NODES.map((a) => a.color);
+  for (let i = 0; i < count; i++) {
+    beams.push({
+      angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.3,
+      color: allColors[i % allColors.length],
+      speed: 0.0008 + Math.random() * 0.0015,
+      offset: Math.random() * Math.PI * 2,
+      edgeDist: 1.1 + Math.random() * 0.5,
+    });
+  }
+  return beams;
 }
 
 /* ── Preview Globe (small, card view) ──────────────────── */
 function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blocksRef = useRef<Block[]>(generateBlocks());
-  const nodesRef = useRef<NetNode[]>(generateNetNodes());
+  const beamsRef = useRef<Beam[]>(generateBeams(40));
   const angleRef = useRef(0);
-  const timeRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -185,118 +187,68 @@ function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
 
-    const globeRadius = Math.min(width, height) * 0.32;
+    const globeRadius = Math.min(width, height) * 0.38;
     const cx = width / 2;
     const cy = height / 2;
     const blockSize = Math.max(2, globeRadius * 0.038);
-    const maxDist = Math.min(width, height) * 0.48;
+    const maxR = Math.max(width, height) * 0.8;
 
     let animId: number;
     const draw = (timestamp: number) => {
       ctx.clearRect(0, 0, width, height);
-      timeRef.current = timestamp;
 
-      const nodes = nodesRef.current;
+      // ── Draw beams (behind the globe) ──
+      for (const beam of beams) {
+        // Source point: far outside, at beam.angle
+        const sx = cx + Math.cos(beam.angle) * beam.edgeDist * maxR;
+        const sy = cy + Math.sin(beam.angle) * beam.edgeDist * maxR;
 
-      // ── Draw network lines from center to each node ──
-      for (const node of nodes) {
-        node.angle += node.speed;
-        const nx = cx + Math.cos(node.angle) * node.dist * maxDist;
-        const ny = cy + Math.sin(node.angle) * node.dist * maxDist;
+        // Target: globe surface
+        const tx = cx + Math.cos(beam.angle + Math.PI) * globeRadius * 0.3;
+        const ty = cy + Math.sin(beam.angle + Math.PI) * globeRadius * 0.3;
 
-        // Line from globe surface to node
-        const lineGrad = ctx.createLinearGradient(cx, cy, nx, ny);
-        lineGrad.addColorStop(0, `rgba(${node.color[0]},${node.color[1]},${node.color[2]},0.08)`);
-        lineGrad.addColorStop(0.4, `rgba(${node.color[0]},${node.color[1]},${node.color[2]},0.25)`);
-        lineGrad.addColorStop(1, `rgba(${node.color[0]},${node.color[1]},${node.color[2]},0.5)`);
+        // Line: gradient from dim at edge to brighter near globe
+        const lineGrad = ctx.createLinearGradient(sx, sy, tx, ty);
+        lineGrad.addColorStop(0, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0)`);
+        lineGrad.addColorStop(0.3, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.06)`);
+        lineGrad.addColorStop(0.7, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.15)`);
+        lineGrad.addColorStop(1, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.35)`);
         ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 0.8;
         ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(nx, ny);
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
         ctx.stroke();
 
-        // Traveling pulse dot along the line
-        const pulseT = (Math.sin(timestamp * 0.002 + node.pulseOffset) + 1) / 2;
-        const px = cx + (nx - cx) * pulseT;
-        const py = cy + (ny - cy) * pulseT;
-        ctx.fillStyle = `rgba(${node.color[0]},${node.color[1]},${node.color[2]},${0.4 + pulseT * 0.4})`;
+        // Pulse dot traveling inward along beam
+        const t = ((timestamp * beam.speed + beam.offset * 1000) % 3000) / 3000;
+        const px = sx + (tx - sx) * t;
+        const py = sy + (ty - sy) * t;
+        const alpha = t < 0.5 ? t * 2 : 1;
+        ctx.fillStyle = `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},${0.5 * alpha})`;
         ctx.beginPath();
         ctx.arc(px, py, 1.5, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // ── Draw the globe ──
+      // ── Draw the globe on top ──
       drawSphere(ctx, blocksRef.current, angleRef.current, cx, cy, globeRadius, blockSize);
 
-      // ── Center glow ──
-      const glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, globeRadius * 0.3);
-      glowGrad.addColorStop(0, "rgba(244,172,69,0.15)");
+      // ── Center glow where beams converge ──
+      const glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, globeRadius * 0.5);
+      glowGrad.addColorStop(0, "rgba(244,172,69,0.12)");
+      glowGrad.addColorStop(0.5, "rgba(244,172,69,0.04)");
       glowGrad.addColorStop(1, "rgba(244,172,69,0)");
       ctx.fillStyle = glowGrad;
       ctx.beginPath();
-      ctx.arc(cx, cy, globeRadius * 0.3, 0, Math.PI * 2);
+      ctx.arc(cx, cy, globeRadius * 0.5, 0, Math.PI * 2);
       ctx.fill();
-
-      // ── Draw nodes (outer dots) ──
-      for (const node of nodes) {
-        const nx = cx + Math.cos(node.angle) * node.dist * maxDist;
-        const ny = cy + Math.sin(node.angle) * node.dist * maxDist;
-
-        // Skip if outside canvas bounds
-        if (nx < -10 || nx > width + 10 || ny < -10 || ny > height + 10) continue;
-
-        // Outer glow
-        const pulse = Math.sin(timestamp * 0.003 + node.pulseOffset) * 0.3 + 0.7;
-        ctx.save();
-        ctx.shadowColor = `rgba(${node.color[0]},${node.color[1]},${node.color[2]},0.6)`;
-        ctx.shadowBlur = 8 * pulse;
-        ctx.fillStyle = `rgba(${node.color[0]},${node.color[1]},${node.color[2]},${0.8 * pulse})`;
-        ctx.beginPath();
-        ctx.arc(nx, ny, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Inner bright dot
-        ctx.fillStyle = `rgba(${Math.min(255, node.color[0] + 80)},${Math.min(255, node.color[1] + 80)},${Math.min(255, node.color[2] + 80)},0.9)`;
-        ctx.beginPath();
-        ctx.arc(nx, ny, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Label
-        ctx.font = "9px 'Space Mono', monospace";
-        ctx.fillStyle = `rgba(${node.color[0]},${node.color[1]},${node.color[2]},0.6)`;
-        ctx.textAlign = "center";
-        ctx.fillText(node.label, nx, ny + 12);
-      }
-
-      // ── Draw faint inter-node connections ──
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        const ax = cx + Math.cos(a.angle) * a.dist * maxDist;
-        const ay = cy + Math.sin(a.angle) * a.dist * maxDist;
-        // Connect to next 1-2 neighbors
-        for (let j = 1; j <= 2; j++) {
-          const b = nodes[(i + j) % nodes.length];
-          const bx = cx + Math.cos(b.angle) * b.dist * maxDist;
-          const by = cy + Math.sin(b.angle) * b.dist * maxDist;
-          const dx = ax - bx;
-          const dy = ay - by;
-          const distSq = dx * dx + dy * dy;
-          if (distSq < (maxDist * 1.2) ** 2) {
-            ctx.strokeStyle = `rgba(${a.color[0]},${a.color[1]},${a.color[2]},0.08)`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(ax, ay);
-            ctx.lineTo(bx, by);
-            ctx.stroke();
-          }
-        }
-      }
 
       angleRef.current += 0.004;
       animId = requestAnimationFrame(draw);
     };
+
+    const beams = beamsRef.current;
     animId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animId);
   }, [width, height]);
