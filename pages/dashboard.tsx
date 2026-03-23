@@ -42,35 +42,39 @@ function AuthGate() {
   const [error, setError] = useState("");
   const [autoLoading, setAutoLoading] = useState(false);
 
+  // Determine which account to auto-load: URL query param takes priority over localStorage
+  const targetAccountId = (router.query.accountId as string) || savedAccountId;
+
   // Support ?accountId= query param for direct links
   useEffect(() => {
     const qid = router.query.accountId as string;
     if (qid) setAccountId(qid);
   }, [router.query.accountId]);
 
-  // Auto-load from saved account ID
+  // Auto-load from URL query param or saved account ID
   useEffect(() => {
-    if (savedAccountId) setAutoLoading(true);
-  }, [savedAccountId]);
+    if (targetAccountId) setAutoLoading(true);
+  }, [targetAccountId]);
 
   useEffect(() => {
-    if (!savedAccountId) return;
+    if (!targetAccountId) return;
     setAutoLoading(true);
-    fetch(`/api/spark/load-agent?accountId=${savedAccountId}`)
+    fetch(`/api/spark/load-agent?accountId=${targetAccountId}`)
       .then((res) => res.json())
       .then((result) => {
         if (!result.success) {
-          localStorage.removeItem("spark_account_id");
+          if (!router.query.accountId) localStorage.removeItem("spark_account_id");
           setAutoLoading(false);
           return;
         }
+        setSavedAccountId(targetAccountId);
         setAgent(parseAgentResult(result));
       })
       .catch(() => {
-        localStorage.removeItem("spark_account_id");
+        if (!router.query.accountId) localStorage.removeItem("spark_account_id");
         setAutoLoading(false);
       });
-  }, [savedAccountId, setAgent]);
+  }, [targetAccountId, setAgent, setSavedAccountId, router.query.accountId]);
 
   async function handleLoad() {
     const id = accountId.trim();

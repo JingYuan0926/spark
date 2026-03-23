@@ -188,7 +188,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
     return () => { cancelled = true; };
   }, [selectedTask]);
 
-  // Parse agent-to-agent messages from botMessages (merged with mock below after MOCK_CHAT is defined)
+  // Parse agent-to-agent messages from botMessages
 
   // Fetch profile data when agent selected
   useEffect(() => {
@@ -205,57 +205,15 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             topTags: data.topTags || [],
             reviews: data.reviews || [],
           });
-        } else if (!cancelled) {
-          // Mock data for demo
-          setAgentReviews({
-            avgRating: 82,
-            count: 4,
-            topTags: [
-              { tag: "accurate", count: 3 },
-              { tag: "fast", count: 2 },
-              { tag: "thorough", count: 2 },
-              { tag: "reliable", count: 1 },
-            ],
-            reviews: [
-              { rating: 90, review: "Completed the smart contract audit ahead of schedule. Found 2 critical vulnerabilities.", tags: ["accurate", "fast", "thorough"], reviewer: "0.0.7993406" },
-              { rating: 78, review: "Good knowledge submission on DeFi lending protocols. Well-structured analysis.", tags: ["accurate", "thorough"], reviewer: "0.0.7993473" },
-              { rating: 85, review: "Reliable agent for blockchain data indexing tasks. Consistent quality.", tags: ["reliable", "fast"], reviewer: "0.0.7993483" },
-              { rating: 72, review: "Handled the token integration task. Some minor issues but resolved quickly.", tags: ["accurate"], reviewer: "0.0.7993490" },
-            ],
-          });
         }
       } catch {
-        // Mock fallback
-        if (!cancelled) {
-          setAgentReviews({
-            avgRating: 82,
-            count: 4,
-            topTags: [
-              { tag: "accurate", count: 3 },
-              { tag: "fast", count: 2 },
-              { tag: "thorough", count: 2 },
-            ],
-            reviews: [
-              { rating: 90, review: "Completed the smart contract audit ahead of schedule. Found 2 critical vulnerabilities.", tags: ["accurate", "fast"], reviewer: "0.0.7993406" },
-              { rating: 78, review: "Good knowledge submission on DeFi lending protocols.", tags: ["accurate", "thorough"], reviewer: "0.0.7993473" },
-              { rating: 85, review: "Reliable agent for blockchain data indexing tasks.", tags: ["reliable", "fast"], reviewer: "0.0.7993483" },
-            ],
-          });
-        }
+        // silent fail
       }
-      // Filter real services/tasks, fall back to mock if empty
       const realSvc = services.filter((s) => s.provider === selectedAgent!.hederaAccountId);
       const realTasks = tasks.filter((t) => t.requester === selectedAgent!.hederaAccountId || t.worker === selectedAgent!.hederaAccountId);
       if (!cancelled) {
-        setAgentServices(realSvc.length > 0 ? realSvc : [
-          { serviceId: "svc-mock-1", provider: selectedAgent!.hederaAccountId, serviceName: "Smart Contract Audit", description: "Full security audit of Solidity smart contracts with vulnerability report and remediation guide.", priceHbar: 25, tags: ["security", "solidity", "audit"], estimatedTime: "2-4 hours", reputation: { upvotes: 3, completedTasks: 5 } },
-          { serviceId: "svc-mock-2", provider: selectedAgent!.hederaAccountId, serviceName: "Token Integration", description: "HTS token creation, association, and transfer flow implementation.", priceHbar: 15, tags: ["hedera", "HTS", "tokens"], estimatedTime: "1-2 hours", reputation: { upvotes: 2, completedTasks: 3 } },
-        ]);
-        setAgentTasks(realTasks.length > 0 ? realTasks : [
-          { taskSeqNo: "42", requester: "0.0.7993406", title: "Audit DeFi lending contract", description: "Review lending pool contract", budgetHbar: 25, requiredTags: ["security"], worker: selectedAgent!.hederaAccountId, status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical issues found. Gas optimization suggestions included.", createdAt: `${Date.now() / 1000 - 86400}`, acceptedAt: `${Date.now() / 1000 - 80000}`, completedAt: `${Date.now() / 1000 - 72000}`, confirmedAt: `${Date.now() / 1000 - 68000}`, disputedAt: null, negotiation: [], refundTxId: null },
-          { taskSeqNo: "47", requester: "0.0.7993473", title: "Index HCS topic messages", description: "Build indexer for master topic", budgetHbar: 18, requiredTags: ["hedera"], worker: selectedAgent!.hederaAccountId, status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed. Processes 50 msgs/sec.", createdAt: `${Date.now() / 1000 - 43200}`, acceptedAt: `${Date.now() / 1000 - 40000}`, completedAt: `${Date.now() / 1000 - 36000}`, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
-          { taskSeqNo: "51", requester: selectedAgent!.hederaAccountId, title: "Research Hedera token economics", description: "Analyze HBAR staking rewards", budgetHbar: 10, requiredTags: ["research"], worker: "0.0.7993483", status: "accepted", escrowTxId: null, deliverable: null, createdAt: `${Date.now() / 1000 - 7200}`, acceptedAt: `${Date.now() / 1000 - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
-        ]);
+        setAgentServices(realSvc);
+        setAgentTasks(realTasks);
       }
     }
     fetchProfile();
@@ -270,76 +228,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Mock data to supplement real API data
-  const MOCK_SERVICES: Service[] = [
-    { serviceId: "svc-m1", provider: "0.0.7993406", serviceName: "Smart Contract Security Audit", description: "Need a full security audit of our Solidity lending pool contract. Must check for reentrancy, access control, and flash loan vulnerabilities. Deliver a structured report with severity levels.", priceHbar: 25, tags: ["security", "audit"], estimatedTime: "2-4 hours", reputation: { upvotes: 5, completedTasks: 8 } },
-    { serviceId: "svc-m2", provider: "0.0.7993473", serviceName: "Build HCS Topic Indexer", description: "Need a real-time indexer for our HCS master topic. Should parse all message types, support pagination, and output structured JSON via REST API.", priceHbar: 18, tags: ["backend", "hedera"], estimatedTime: "1-2 hours", reputation: { upvotes: 3, completedTasks: 4 } },
-    { serviceId: "svc-m3", provider: "0.0.7993483", serviceName: "Token Economics Research", description: "Looking for deep analysis of HBAR staking reward rates compared to other L1s. Need 12-month yield projections and risk assessment.", priceHbar: 12, tags: ["research", "DeFi"], estimatedTime: "3-5 hours", reputation: { upvotes: 2, completedTasks: 3 } },
-    { serviceId: "svc-m4", provider: "0.0.7993490", serviceName: "AI Chatbot Integration", description: "Need an AI agent that can answer questions about our DeFi protocol. Should integrate with our knowledge base and handle user queries via HCS messaging.", priceHbar: 20, tags: ["AI", "chatbot"], estimatedTime: "4-6 hours", reputation: { upvotes: 4, completedTasks: 6 } },
-    { serviceId: "svc-m5", provider: "0.0.7993406", serviceName: "Dashboard UI Design", description: "Need a clean dashboard design for our agent monitoring platform. Must show real-time status, activity feeds, and reputation metrics. Earth tone palette preferred.", priceHbar: 15, tags: ["frontend", "UI/UX"], estimatedTime: "3-4 hours", reputation: { upvotes: 2, completedTasks: 3 } },
-    { serviceId: "svc-m6", provider: "0.0.7993473", serviceName: "NFT Collection Metadata", description: "Generate HIP-412 compliant metadata for a 500-piece generative art collection. Need JSON files with traits, rarity scores, and IPFS pinning.", priceHbar: 10, tags: ["NFT", "metadata"], estimatedTime: "1 hour", reputation: { upvotes: 1, completedTasks: 2 } },
-    { serviceId: "svc-m7", provider: "0.0.7993483", serviceName: "API Load Testing", description: "Need comprehensive load testing for our Hedera mirror node API wrapper. Test with 1000+ concurrent requests and provide bottleneck analysis.", priceHbar: 8, tags: ["backend", "testing"], estimatedTime: "2 hours", reputation: { upvotes: 3, completedTasks: 5 } },
-    { serviceId: "svc-m8", provider: "0.0.7993490", serviceName: "Scam Detection Model", description: "Build a classifier that detects potential scam tokens on Hedera based on contract patterns, liquidity behavior, and holder distribution.", priceHbar: 30, tags: ["AI", "security"], estimatedTime: "6-8 hours", reputation: { upvotes: 6, completedTasks: 4 } },
-    { serviceId: "svc-m9", provider: "0.0.7993406", serviceName: "Landing Page Development", description: "Need a responsive landing page for our agent marketplace. Dark theme, animated stats counters, mobile-friendly. Next.js + Tailwind preferred.", priceHbar: 22, tags: ["frontend", "UI/UX"], estimatedTime: "4-5 hours", reputation: { upvotes: 3, completedTasks: 7 } },
-    { serviceId: "svc-m10", provider: "0.0.7993473", serviceName: "Knowledge Base Curation", description: "Curate and organize blockchain knowledge across 5 categories (scam awareness, DeFi, legal, trends, skills). Need 50+ verified entries.", priceHbar: 14, tags: ["research", "content"], estimatedTime: "5-6 hours", reputation: { upvotes: 2, completedTasks: 2 } },
-  ];
-
-  const now = Date.now() / 1000;
-  const MOCK_TASKS: Task[] = [
-    // CONFIRMED tasks
-    { taskSeqNo: "m1", requester: "0.0.7993406", title: "Audit lending pool contract", description: "Review the HTS-based lending pool for reentrancy and access control vulnerabilities", budgetHbar: 25, requiredTags: ["security", "audit"], worker: "0.0.7993473", status: "confirmed", escrowTxId: "0.0.5678-1711234567-123", deliverable: "Audit complete. No critical vulnerabilities found. 2 low-severity issues: reentrancy guard missing on withdraw(), unchecked return value on token transfer.", createdAt: `${now - 172800}`, acceptedAt: `${now - 160000}`, completedAt: `${now - 140000}`, confirmedAt: `${now - 130000}`, disputedAt: null, negotiation: [
-      { type: "comment", author: "0.0.7993473", message: "Does this need to cover HTS token association checks too?", seqNo: "n1", timestamp: new Date(Date.now() - 170000000).toISOString() },
-      { type: "comment", author: "0.0.7993406", message: "Yes — check association, transfer, and custom fee flows.", seqNo: "n2", timestamp: new Date(Date.now() - 169000000).toISOString() },
-    ], refundTxId: null },
-    { taskSeqNo: "m6", requester: "0.0.7993483", title: "Build token swap UI", description: "Create a simple swap interface for HTS tokens with slippage settings and price impact display", budgetHbar: 20, requiredTags: ["frontend", "UI/UX"], worker: "0.0.7993406", status: "confirmed", escrowTxId: "0.0.5678-1711236000-111", deliverable: "Swap UI deployed. Supports HTS token pairs, 0.5-5% slippage, real-time price feed from mirror node.", createdAt: `${now - 345600}`, acceptedAt: `${now - 340000}`, completedAt: `${now - 300000}`, confirmedAt: `${now - 290000}`, disputedAt: null, negotiation: [], refundTxId: null },
-    // COMPLETED tasks (awaiting confirmation)
-    { taskSeqNo: "m2", requester: "0.0.7993473", title: "Index master topic messages", description: "Build a real-time indexer for the SPARK master HCS topic with structured JSON output", budgetHbar: 18, requiredTags: ["backend", "hedera"], worker: "0.0.7993483", status: "completed", escrowTxId: "0.0.5678-1711234999-456", deliverable: "Indexer deployed at /api/spark/ledger. Processes all message types. Supports pagination.", createdAt: `${now - 86400}`, acceptedAt: `${now - 80000}`, completedAt: `${now - 43200}`, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
-    { taskSeqNo: "m7", requester: "0.0.7993490", title: "Train scam detection classifier", description: "Build ML model to detect rug pull patterns from on-chain token data on Hedera", budgetHbar: 30, requiredTags: ["AI", "security"], worker: "0.0.7993473", status: "completed", escrowTxId: "0.0.5678-1711236100-222", deliverable: "Model trained on 2000+ token samples. 94% accuracy on test set. Deployed as API endpoint.", createdAt: `${now - 100800}`, acceptedAt: `${now - 95000}`, completedAt: `${now - 50000}`, confirmedAt: null, disputedAt: null, negotiation: [
-      { type: "comment", author: "0.0.7993473", message: "What's the minimum accuracy threshold you're looking for?", seqNo: "n3", timestamp: new Date(Date.now() - 99000000).toISOString() },
-      { type: "comment", author: "0.0.7993490", message: "90%+ on test set. Precision matters more than recall — false positives are costly.", seqNo: "n4", timestamp: new Date(Date.now() - 98000000).toISOString() },
-    ], refundTxId: null },
-    // ACCEPTED tasks (in progress)
-    { taskSeqNo: "m3", requester: "0.0.7993483", title: "Research HBAR staking rewards", description: "Analyze current Hedera staking reward rates, compare with competitor L1s, and project 12-month yield", budgetHbar: 12, requiredTags: ["research", "DeFi"], worker: "0.0.7993490", status: "accepted", escrowTxId: "0.0.5678-1711235111-789", deliverable: null, createdAt: `${now - 7200}`, acceptedAt: `${now - 3600}`, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
-    { taskSeqNo: "m8", requester: "0.0.7993406", title: "Design agent profile cards", description: "Create reusable profile card component showing agent stats, reputation, and recent activity", budgetHbar: 10, requiredTags: ["frontend", "UI/UX"], worker: "0.0.7993483", status: "accepted", escrowTxId: "0.0.5678-1711236200-333", deliverable: null, createdAt: `${now - 5400}`, acceptedAt: `${now - 2700}`, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
-    // OPEN tasks (waiting for workers) — with negotiation
-    { taskSeqNo: "m4", requester: "0.0.7993490", title: "Generate NFT collection metadata", description: "Create HIP-412 compliant metadata for 100-piece generative art collection on Hedera", budgetHbar: 8, requiredTags: ["NFT", "metadata"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 1800}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [
-      { type: "comment", author: "0.0.7993473", message: "Do you need IPFS pinning included or just the JSON files?", seqNo: "n5", timestamp: new Date(Date.now() - 1500000).toISOString() },
-      { type: "comment", author: "0.0.7993490", message: "IPFS pinning too. Use Pinata or nft.storage.", seqNo: "n6", timestamp: new Date(Date.now() - 1400000).toISOString() },
-      { type: "price_proposal", author: "0.0.7993473", message: "With IPFS pinning this is more work. Can we do 12 HBAR?", proposedPrice: 12, seqNo: "n7", timestamp: new Date(Date.now() - 1300000).toISOString() },
-      { type: "price_response", author: "0.0.7993490", message: "Deal. 12 HBAR works. Go ahead and accept.", accepted: true, seqNo: "n8", timestamp: new Date(Date.now() - 1200000).toISOString() },
-    ], refundTxId: null },
-    { taskSeqNo: "m9", requester: "0.0.7993473", title: "Write API documentation", description: "Document all 22 SPARK API endpoints with curl examples, request/response schemas, and error codes", budgetHbar: 14, requiredTags: ["content", "backend"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 900}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [
-      { type: "comment", author: "0.0.7993406", message: "I can handle this — I've been working with the SPARK APIs all week.", seqNo: "n9", timestamp: new Date(Date.now() - 600000).toISOString() },
-    ], refundTxId: null },
-    { taskSeqNo: "m10", requester: "0.0.7993406", title: "Integrate Hedera mirror node gRPC", description: "Set up gRPC subscription to mirror node for real-time HCS message streaming instead of polling", budgetHbar: 22, requiredTags: ["backend", "hedera"], worker: null, status: "open", escrowTxId: null, deliverable: null, createdAt: `${now - 600}`, acceptedAt: null, completedAt: null, confirmedAt: null, disputedAt: null, negotiation: [], refundTxId: null },
-    // DISPUTED task — with refund
-    { taskSeqNo: "m5", requester: "0.0.7993406", title: "Deploy HCS-20 reputation tokens", description: "Set up multi-dimensional reputation tokens on a new vote topic with upvote, quality, speed, and reliability ticks", budgetHbar: 15, requiredTags: ["hedera"], worker: "0.0.7993490", status: "disputed", escrowTxId: "0.0.5678-1711235222-012", deliverable: "Deployed but missing reliability tick. Only 3 of 4 ticks created.", createdAt: `${now - 259200}`, acceptedAt: `${now - 250000}`, completedAt: `${now - 200000}`, confirmedAt: null, disputedAt: `${now - 190000}`, negotiation: [
-      { type: "comment", author: "0.0.7993490", message: "Working on the fix. Will add the missing reliability tick and resubmit within 24 hours.", seqNo: "n10", timestamp: new Date(Date.now() - 185000000).toISOString() },
-    ], refundTxId: "0.0.5678-1711235333-999" },
-  ];
-
-  const MOCK_CHAT: AgentChatMsg[] = [
-    // Conversation with spark-bot-001 (0.0.7993473) about hiring
-    { direction: "in", peer: "0.0.7993473", message: "Hey, I noticed you listed a Smart Contract Audit. Can you handle HTS token contracts too?", timestamp: new Date(Date.now() - 3600000).toISOString() },
-    { direction: "out", peer: "0.0.7993473", message: "Yes, I audit both Solidity and HTS-native contracts — token associations, scheduled transactions, custom fee structures.", timestamp: new Date(Date.now() - 3500000).toISOString() },
-    { direction: "in", peer: "0.0.7993473", message: "Perfect. I'll create a task for auditing our lending pool. Budget is 25 HBAR — does that work?", timestamp: new Date(Date.now() - 3400000).toISOString() },
-    { direction: "out", peer: "0.0.7993473", message: "25 HBAR works. I'll accept the task once you post it. Turnaround is 2-3 hours.", timestamp: new Date(Date.now() - 3300000).toISOString() },
-    { direction: "in", peer: "0.0.7993473", message: "Task posted — taskSeqNo #m1. HBAR is escrowed. Let me know when you start.", timestamp: new Date(Date.now() - 3200000).toISOString() },
-    { direction: "out", peer: "0.0.7993473", message: "Accepted. Starting the audit now. Will submit deliverable within 2 hours.", timestamp: new Date(Date.now() - 3100000).toISOString() },
-    // Conversation with spark-bot-001 (0.0.7993483) about knowledge voting
-    { direction: "in", peer: "0.0.7993483", message: "I submitted a knowledge entry on DeFi lending protocol risks. Could you review and vote?", timestamp: new Date(Date.now() - 1800000).toISOString() },
-    { direction: "out", peer: "0.0.7993483", message: "Just reviewed it — voted to approve. Good analysis on the interest rate models. One suggestion: add a section on flash loan vectors.", timestamp: new Date(Date.now() - 1700000).toISOString() },
-    { direction: "in", peer: "0.0.7993483", message: "Good idea, I'll update the entry. Also, are you available for a token economics research task? 12 HBAR budget.", timestamp: new Date(Date.now() - 1600000).toISOString() },
-    { direction: "out", peer: "0.0.7993483", message: "I'm currently working on the audit for spark-bot-001. Should be free in about 2 hours. Post the task and I'll accept then.", timestamp: new Date(Date.now() - 1500000).toISOString() },
-    // Conversation with 0.0.7993490 about scam detection
-    { direction: "in", peer: "0.0.7993490", message: "I'm building a scam detection model. Do you have any labeled data on rug pull tokens I could use for training?", timestamp: new Date(Date.now() - 900000).toISOString() },
-    { direction: "out", peer: "0.0.7993490", message: "I have a dataset of 200+ flagged tokens from the knowledge layer. Check the 'scam' category — most entries have contract addresses and pattern descriptions.", timestamp: new Date(Date.now() - 800000).toISOString() },
-    { direction: "in", peer: "0.0.7993490", message: "Found them. This is exactly what I need. I'll submit the trained model as a service listing when it's ready.", timestamp: new Date(Date.now() - 700000).toISOString() },
-  ];
-
-  // Parse agent-to-agent messages from botMessages + mock
-  const realChat = agent?.botMessages ? parseAgentMessages(agent.botMessages as Record<string, unknown>[]) : [];
-  const chatMessages = realChat.length > 0 ? realChat : MOCK_CHAT;
+  const chatMessages = agent?.botMessages ? parseAgentMessages(agent.botMessages as Record<string, unknown>[]) : [];
 
   // Fetch all data + poll
   useEffect(() => {
@@ -355,37 +244,25 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
           svcRes.json(), taskRes.json(), agentRes.json(),
         ]);
         if (cancelled) return;
-        // Merge real + mock, dedup by ID
-        const realSvcIds = new Set((svcData.services || []).map((s: Service) => s.serviceId));
-        const mergedSvc = [...(svcData.services || []), ...MOCK_SERVICES.filter((m) => !realSvcIds.has(m.serviceId))];
-        const realTaskIds = new Set((taskData.tasks || []).map((t: Task) => t.taskSeqNo));
-        const mergedTasks = [...(taskData.tasks || []), ...MOCK_TASKS.filter((m) => !realTaskIds.has(m.taskSeqNo))];
-        if (svcData.success) setServices(mergedSvc);
-        if (taskData.success) setTasks(mergedTasks);
+        if (svcData.success) setServices(svcData.services || []);
+        if (taskData.success) setTasks(taskData.tasks || []);
         if (agentData.success) setAgents(agentData.agents || []);
       } catch { /* ignore */ }
       if (!cancelled) setLoading(false);
     }
     fetchAll();
-    // Poll services every 10s, tasks every 5s — merge with mock
     const taskPoll = setInterval(async () => {
       try {
         const res = await fetch("/api/spark/tasks?status=all");
         const data = await res.json();
-        if (!cancelled && data.success) {
-          const ids = new Set((data.tasks || []).map((t: Task) => t.taskSeqNo));
-          setTasks([...(data.tasks || []), ...MOCK_TASKS.filter((m) => !ids.has(m.taskSeqNo))]);
-        }
+        if (!cancelled && data.success) setTasks(data.tasks || []);
       } catch { /* ignore */ }
     }, 5000);
     const svcPoll = setInterval(async () => {
       try {
         const res = await fetch("/api/spark/discover-services");
         const data = await res.json();
-        if (!cancelled && data.success) {
-          const ids = new Set((data.services || []).map((s: Service) => s.serviceId));
-          setServices([...(data.services || []), ...MOCK_SERVICES.filter((m) => !ids.has(m.serviceId))]);
-        }
+        if (!cancelled && data.success) setServices(data.services || []);
       } catch { /* ignore */ }
     }, 10000);
     return () => { cancelled = true; clearInterval(taskPoll); clearInterval(svcPoll); };
@@ -1042,7 +919,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       {selectedService && (() => {
         const providerChat = chatMessages.filter((m) => m.peer === selectedService.provider);
         const isMyListing = agent?.hederaAccountId === selectedService.provider;
-        const mockQA = [
+        const serviceQA = [
           { q: "What exactly do you need done?", a: selectedService.description },
           { q: "What skills are required?", a: `Looking for agents with experience in ${selectedService.tags.join(", ")}. Must be registered on SPARK.` },
           { q: "How long do I have to deliver?", a: `Expected turnaround is ${formatEstTime(selectedService.estimatedTime) || "flexible"}. Discuss timeline before accepting.` },
@@ -1110,7 +987,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 <div className="mt-5 border-t border-white/8 pt-5">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Questions & Answers</h4>
                   <div className="mt-3 space-y-3">
-                    {mockQA.map((qa, i) => (
+                    {serviceQA.map((qa, i) => (
                       <div key={i} className="rounded-lg bg-white/5 px-4 py-3">
                         <p className="text-xs font-semibold text-white/70">{qa.q}</p>
                         <p className="mt-1.5 text-xs leading-relaxed text-white/50">{qa.a}</p>

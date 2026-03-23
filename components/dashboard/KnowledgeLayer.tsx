@@ -970,15 +970,10 @@ function KnowledgeModal({
         {/* Knowledge Detail Popup */}
         {detailItem && (() => {
           const cat = CATEGORIES[detailItem.category] || CATEGORIES.blockchain;
-          // Mock voters based on votes
-          const yesVoters = Array.from({ length: detailItem.upvotes }, (_, i) => `spark-bot-${String(i + 1).padStart(3, "0")}`);
-          const noVoters = Array.from({ length: detailItem.downvotes }, (_, i) => `spark-bot-${String(i + 20).padStart(3, "0")}`);
-          const mockDiscussion = [
-            { author: detailItem.author, isOP: true, time: "2h ago", text: `Submitted knowledge entry: "${detailItem.title}"` },
-            ...(detailItem.upvotes > 0 ? [{ author: yesVoters[0], isOP: false, time: "1h ago", text: "Reviewed and verified. The data checks out against on-chain records." }] : []),
-            ...(detailItem.upvotes > 1 ? [{ author: yesVoters[1], isOP: false, time: "45m ago", text: "Cross-referenced with mirror node data. Confirmed accurate." }] : []),
-            ...(detailItem.downvotes > 0 ? [{ author: noVoters[0], isOP: false, time: "30m ago", text: "Some claims here are unsubstantiated. Needs more evidence." }] : []),
-            ...(detailItem.status === "approved" ? [{ author: "system", isOP: false, time: "15m ago", text: "Quorum reached. Knowledge entry approved and committed to HCS." }] : []),
+          const discussion = [
+            { author: detailItem.author, isOP: true, time: "", text: `Submitted knowledge entry: "${detailItem.title}"` },
+            ...(detailItem.status === "approved" ? [{ author: "system", isOP: false, time: "", text: `Quorum reached. Approved with ${detailItem.upvotes} vote(s).` }] : []),
+            ...(detailItem.status === "rejected" ? [{ author: "system", isOP: false, time: "", text: `Rejected with ${detailItem.downvotes} vote(s) against.` }] : []),
           ];
 
           return (
@@ -1033,7 +1028,7 @@ function KnowledgeModal({
                   <div className="mt-6">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">Discussion</h3>
                     <div className="mt-3 space-y-3">
-                      {mockDiscussion.map((msg, i) => (
+                      {discussion.map((msg, i) => (
                         <div key={i} className="rounded-lg bg-white/5 p-3">
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-bold ${msg.author === "system" ? "text-[#DD6E42]" : "text-white/80"}`}>
@@ -1075,26 +1070,26 @@ function KnowledgeModal({
                   {/* Voted Yes */}
                   <div className="mt-5">
                     <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#4B7F52]/60">Voted Yes</h4>
-                    <div className="mt-2 space-y-1">
-                      {yesVoters.length > 0 ? yesVoters.map((v) => (
-                        <div key={v} className="flex items-center gap-2 rounded-md bg-[#4B7F52]/10 px-2 py-1.5">
+                    <div className="mt-2">
+                      {detailItem.upvotes > 0 ? (
+                        <div className="flex items-center gap-2 rounded-md bg-[#4B7F52]/10 px-2 py-1.5">
                           <span className="text-xs text-[#4B7F52]">⣿</span>
-                          <span className="font-mono text-[11px] text-white/60">{v}</span>
+                          <span className="font-mono text-[11px] text-white/60">{detailItem.upvotes} vote{detailItem.upvotes !== 1 ? "s" : ""}</span>
                         </div>
-                      )) : <p className="text-[11px] text-white/20">None</p>}
+                      ) : <p className="text-[11px] text-white/20">None</p>}
                     </div>
                   </div>
 
                   {/* Voted No */}
                   <div className="mt-4">
                     <h4 className="text-[10px] font-semibold uppercase tracking-wider text-red-400/60">Voted No</h4>
-                    <div className="mt-2 space-y-1">
-                      {noVoters.length > 0 ? noVoters.map((v) => (
-                        <div key={v} className="flex items-center gap-2 rounded-md bg-red-500/10 px-2 py-1.5">
+                    <div className="mt-2">
+                      {detailItem.downvotes > 0 ? (
+                        <div className="flex items-center gap-2 rounded-md bg-red-500/10 px-2 py-1.5">
                           <span className="text-xs text-red-400" style={{ letterSpacing: "-0.15em" }}>⠇⠸</span>
-                          <span className="font-mono text-[11px] text-white/60">{v}</span>
+                          <span className="font-mono text-[11px] text-white/60">{detailItem.downvotes} vote{detailItem.downvotes !== 1 ? "s" : ""}</span>
                         </div>
-                      )) : <p className="text-[11px] text-white/20">None</p>}
+                      ) : <p className="text-[11px] text-white/20">None</p>}
                     </div>
                   </div>
 
