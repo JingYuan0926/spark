@@ -633,21 +633,28 @@ export function AgentAccount() {
   return (
     <>
       <div
-        className="flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-[#F4BCA9] p-6 transition hover:brightness-[0.97]"
-        onClick={() => setShowModal(true)}
+        className="flex flex-col overflow-hidden rounded-2xl bg-[#F4BCA9] p-6"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-[#7a3a1f]">
             Agent Account
           </h2>
-          <button
-            onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
-            disabled={refreshing}
-            className={`rounded-full p-1.5 transition ${refreshing ? "animate-spin text-[#7a3a1f]/40" : "text-[#7a3a1f]/50 hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"}`}
-            title="Refresh"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMoneyModal(true); }}
+              className="rounded-full p-1.5 text-[#7a3a1f]/50 transition hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
+              title="Money spent & earned"
+            >
+              <DollarIcon size={16} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
+              className="rounded-full p-1.5 text-[#7a3a1f]/50 transition hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
+              title="View full details"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 space-y-3">
@@ -657,7 +664,7 @@ export function AgentAccount() {
             <p className="mt-0.5 font-mono text-xs text-[#7a3a1f]/50">{agent.hederaAccountId}</p>
           </div>
 
-          {/* Token balances + money icon */}
+          {/* Token balances */}
           <div className="flex items-center gap-4 text-lg">
             <div className="flex items-center gap-2">
               <img src="/tokens/usdc.png" alt="USDC" className="h-6 w-6 rounded-full" />
@@ -669,13 +676,6 @@ export function AgentAccount() {
               <span className="font-bold text-[#7a3a1f]">{hbar}</span>
               <span className="text-[#7a3a1f]/60">HBAR</span>
             </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMoneyModal(true); }}
-              className="ml-auto rounded-full p-1.5 text-[#7a3a1f]/50 transition hover:bg-[#7a3a1f]/10 hover:text-[#7a3a1f]"
-              title="Money spent & earned"
-            >
-              <DollarIcon size={18} />
-            </button>
           </div>
 
           {/* Domain & Services */}
@@ -685,11 +685,6 @@ export function AgentAccount() {
           </div>
         </div>
 
-        {/* Click hint */}
-        <p className="mt-auto flex items-center justify-end gap-1 pt-2 text-xs text-[#7a3a1f]/40">
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-          Click to view full details
-        </p>
       </div>
 
       {showModal && <AgentAccountModal onClose={() => setShowModal(false)} />}
