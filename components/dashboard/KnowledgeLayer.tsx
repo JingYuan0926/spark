@@ -29,9 +29,6 @@ const CATEGORY_SHADES = [
 ];
 
 /* ── Grey shades for the moon ──────────────────────────── */
-const GREY_SHADES = [
-  [90, 90, 95], [110, 110, 115], [130, 130, 135], [75, 75, 80], [150, 150, 155],
-];
 
 /* ── Types ─────────────────────────────────────────────── */
 interface Knowledge {
@@ -104,25 +101,7 @@ function generateGroupedBlocks(): Block[] {
   return blocks;
 }
 
-function generateMoonBlocks(): Block[] {
-  const blocks: Block[] = [];
-  for (let i = 0; i < 30; i++) {
-    const lat = (i / 29) * Math.PI - Math.PI / 2;
-    const ringCount = Math.round(Math.cos(lat) * 60);
-    for (let j = 0; j < ringCount; j++) {
-      const lng = (j / ringCount) * Math.PI * 2;
-      const shade = GREY_SHADES[Math.floor(Math.random() * GREY_SHADES.length)];
-      const rand = Math.random();
-      let opacity = 1;
-      if (rand < 0.15) opacity = 0.3;
-      else if (rand < 0.35) opacity = 0.5;
-      else if (rand < 0.6) opacity = 0.7;
-      else if (rand < 0.85) opacity = 0.85;
-      blocks.push({ lat, lng, color: shade, opacity });
-    }
-  }
-  return blocks;
-}
+
 
 /* ── Draw a sphere of blocks (shared helper) ───────────── */
 function drawSphere(
@@ -157,7 +136,7 @@ function drawSphere(
 }
 
 /* ── Preview Globe (small, card view) ──────────────────── */
-function KnowledgeGlobe({ width, height, onClick }: { width: number; height: number; onClick?: (k: any) => void }) {
+function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blocksRef = useRef<Block[]>(generateBlocks());
   const angleRef = useRef(0);
@@ -189,7 +168,7 @@ function KnowledgeGlobe({ width, height, onClick }: { width: number; height: num
     return () => cancelAnimationFrame(animId);
   }, [width, height]);
 
-  return <canvas ref={canvasRef} style={{ width, height }} onClick={onClick ? () => onClick("show-gated-registry") : undefined} />;
+  return <canvas ref={canvasRef} style={{ width, height }} />;
 }
 
 /* ── Modal Globe (interactive — rays, glow, moon) ──────── */
@@ -200,7 +179,6 @@ function ModalGlobe({
   knowledgeItems,
   onHoverKnowledge,
   onClickKnowledge,
-  onMoonClick,
 }: {
   width: number;
   height: number;
@@ -208,12 +186,10 @@ function ModalGlobe({
   knowledgeItems: Knowledge[];
   onHoverKnowledge: (k: Knowledge | null) => void;
   onClickKnowledge: (k: Knowledge | null) => void;
-  onMoonClick?: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const randomBlocksRef = useRef<Block[]>(generateBlocks());
   const groupedBlocksRef = useRef<Block[]>(generateGroupedBlocks());
-  const moonBlocksRef = useRef<Block[]>(generateMoonBlocks());
   const isGroupedRef = useRef(isGrouped);
   isGroupedRef.current = isGrouped;
 
@@ -223,7 +199,6 @@ function ModalGlobe({
   const angleRef = useRef(0);
   const mouseRef = useRef({ x: -1, y: -1 });
   const isHoveringGlobeRef = useRef(false);
-  const isHoveringMoonRef = useRef(false);
   const raysRef = useRef<LightRay[]>([]);
   const lastRayTimeRef = useRef(0);
   const lastHoveredKeyRef = useRef("");
@@ -248,12 +223,6 @@ function ModalGlobe({
     const GLOW_RADIUS = 35;
     const GLOW_SQ = GLOW_RADIUS * GLOW_RADIUS;
 
-    // Moon
-    const moonRadius = radius * 0.28;
-    const moonCx = cx + radius * 0.85;
-    const moonCy = cy - radius * 0.8;
-    const moonBlockSize = Math.max(1.5, moonRadius * 0.04);
-
     let animId: number;
 
     const draw = (timestamp: number) => {
@@ -266,13 +235,7 @@ function ModalGlobe({
       const gdy = mouse.y - cy;
       const isOverGlobe = gdx * gdx + gdy * gdy < radius * radius;
 
-      // Moon hover detection
-      const mdx = mouse.x - moonCx;
-      const mdy = mouse.y - moonCy;
-      const isOverMoon = mdx * mdx + mdy * mdy < moonRadius * moonRadius;
-
-      isHoveringGlobeRef.current = isOverGlobe || isOverMoon;
-      isHoveringMoonRef.current = isOverMoon;
+      isHoveringGlobeRef.current = isOverGlobe;
 
       // ── Spawn light rays ──
       if (timestamp - lastRayTimeRef.current > 400) {
@@ -404,35 +367,6 @@ function ModalGlobe({
         }
       }
 
-      // ── Draw moon ──
-      drawSphere(ctx, moonBlocksRef.current, rot * 1.2, moonCx, moonCy, moonRadius, moonBlockSize);
-
-      // Moon hover overlay
-      if (isOverMoon) {
-        ctx.fillStyle = "rgba(0,0,0,0.55)";
-        ctx.beginPath();
-        ctx.arc(moonCx, moonCy, moonRadius + 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eye icon
-        ctx.strokeStyle = "rgba(255,255,255,0.85)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.ellipse(moonCx, moonCy - 8, 10, 6, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.beginPath();
-        ctx.arc(moonCx, moonCy - 8, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Text
-        ctx.font = "bold 10px 'Space Grotesk', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.fillText("View Gated", moonCx, moonCy + 10);
-        ctx.fillText("Registry", moonCx, moonCy + 22);
-      }
-
       // ── Rotate ──
       if (!isHoveringGlobeRef.current) {
         angleRef.current += 0.004;
@@ -461,22 +395,18 @@ function ModalGlobe({
   }, [onHoverKnowledge]);
 
   const handleClick = useCallback(() => {
-    if (isHoveringMoonRef.current && onMoonClick) {
-      onMoonClick();
-      return;
-    }
     const items = knowledgeRef.current;
     if (lastHoveredKeyRef.current && items.length > 0) {
       onClickKnowledge(items[Math.floor(Math.random() * items.length)]);
     } else {
       onClickKnowledge(null);
     }
-  }, [onClickKnowledge, onMoonClick]);
+  }, [onClickKnowledge]);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width, height, cursor: isHoveringMoonRef.current ? "pointer" : undefined }}
+      style={{ width, height }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
@@ -614,7 +544,6 @@ function KnowledgeModal({
   const [selectedKnowledge, setSelectedKnowledge] = useState<Knowledge | null>(null);
   const [isGrouped, setIsGrouped] = useState(false);
   const [registryFilter, setRegistryFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const [showGatedRegistry, setShowGatedRegistry] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -813,11 +742,6 @@ function KnowledgeModal({
     setSubLoading(false);
   }
 
-  function handleMoonClick() {
-    setShowSubPanel(true);
-    checkSubscription();
-  }
-
   useEffect(() => {
     const el = globeContainerRef.current;
     if (!el) return;
@@ -862,7 +786,6 @@ function KnowledgeModal({
               knowledgeItems={knowledgeItems}
               onHoverKnowledge={setHoveredKnowledge}
               onClickKnowledge={setSelectedKnowledge}
-              onMoonClick={handleMoonClick}
             />
           )}
         </div>
@@ -1056,39 +979,6 @@ function KnowledgeModal({
 
           {/* Globe container */}
           <div ref={globeContainerRef} className="flex min-h-[200px] flex-1 items-center justify-center">
-            {showGatedRegistry ? (
-              <div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white/5 p-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Gated Knowledge Registry</h3>
-                    <p className="mt-0.5 text-[10px] text-white/50">All gated submissions.</p>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowGatedRegistry(false); }}
-                    className="rounded-lg bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/70 transition hover:bg-white/20 hover:text-white"
-                  >
-                    Back to Globe
-                  </button>
-                </div>
-
-            {/* Summary count boxes */}
-            <div className="grid grid-cols-4 gap-3">
-              {[
-                { label: "Total", value: counts.total, color: "text-white", border: "border-white/10", bg: "bg-white/5" },
-                { label: "Pending", value: counts.pending, color: "text-yellow-400", border: "border-yellow-400/30", bg: "bg-yellow-400/5" },
-                { label: "Approved", value: counts.approved, color: "text-[#4B7F52]", border: "border-[#4B7F52]/30", bg: "bg-[#4B7F52]/10" },
-                { label: "Rejected", value: counts.rejected, color: "text-red-400", border: "border-red-400/30", bg: "bg-red-400/5" },
-              ].map((s) => (
-                <div key={s.label} className={`aspect-square rounded-xl border ${s.border} ${s.bg} flex flex-col items-center justify-center`}>
-                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-[10px] text-white/40">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-            ) : (
-              <p className="text-sm text-white/30">Click to explore knowledge</p>
-            )}
           </div>
 
           {/* Filter tabs + entries */}
