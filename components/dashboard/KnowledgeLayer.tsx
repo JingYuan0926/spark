@@ -28,17 +28,6 @@ const CATEGORY_SHADES = [
   [[55, 95, 60], [75, 127, 82], [110, 160, 115]],
 ];
 
-/* ── Network node colors (agents connecting to knowledge) ── */
-const AGENT_NODES = [
-  { color: [221, 110, 66], label: "OpenClaw" },      // orange
-  { color: [75, 127, 82], label: "GreenAudit" },     // green
-  { color: [79, 109, 122], label: "DataMiner" },     // teal
-  { color: [166, 28, 60], label: "ScamWatch" },      // crimson
-  { color: [244, 172, 69], label: "TrendBot" },      // gold
-  { color: [130, 90, 180], label: "LegalEye" },      // purple
-  { color: [60, 160, 200], label: "ChainSync" },     // blue
-  { color: [200, 80, 120], label: "RiskAgent" },     // pink
-];
 
 /* ── Types ─────────────────────────────────────────────── */
 interface Knowledge {
@@ -145,31 +134,7 @@ function drawSphere(
   }
 }
 
-/* ── Beam: a line fired from edge toward globe center ───── */
-interface Beam {
-  angle: number;       // direction from center outward (source is at edge)
-  color: number[];
-  speed: number;       // how fast the pulse travels inward
-  offset: number;      // stagger
-  edgeDist: number;    // how far from center the source is (> canvas)
-}
-
-function generateBeams(count: number): Beam[] {
-  const beams: Beam[] = [];
-  const allColors = AGENT_NODES.map((a) => a.color);
-  for (let i = 0; i < count; i++) {
-    beams.push({
-      angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.3,
-      color: allColors[i % allColors.length],
-      speed: 0.0008 + Math.random() * 0.0015,
-      offset: Math.random() * Math.PI * 2,
-      edgeDist: 1.1 + Math.random() * 0.5,
-    });
-  }
-  return beams;
-}
-
-/* ── Preview Globe (small, card view — plain, no beams) ── */
+/* ── Preview Globe (small, card view) ──────────────────── */
 function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blocksRef = useRef<Block[]>(generateBlocks());
@@ -236,7 +201,6 @@ function ModalGlobe({
   const raysRef = useRef<LightRay[]>([]);
   const lastRayTimeRef = useRef(0);
   const lastHoveredKeyRef = useRef("");
-  const beamsRef = useRef<Beam[]>(generateBeams(50));
 
   useEffect(() => {
     if (width <= 0 || height <= 0) return;
@@ -260,41 +224,10 @@ function ModalGlobe({
 
     let animId: number;
 
-    const maxR = Math.max(width, height) * 1.5;
-
     const draw = (timestamp: number) => {
       ctx.clearRect(0, 0, width, height);
       const rot = angleRef.current;
       const mouse = mouseRef.current;
-
-      // ── Draw beams (behind everything) ──
-      for (const beam of beamsRef.current) {
-        const sx = cx + Math.cos(beam.angle) * beam.edgeDist * maxR;
-        const sy = cy + Math.sin(beam.angle) * beam.edgeDist * maxR;
-        const tx = cx + Math.cos(beam.angle + Math.PI) * radius * 0.1;
-        const ty = cy + Math.sin(beam.angle + Math.PI) * radius * 0.1;
-
-        const lineGrad = ctx.createLinearGradient(sx, sy, tx, ty);
-        lineGrad.addColorStop(0, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.05)`);
-        lineGrad.addColorStop(0.3, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.15)`);
-        lineGrad.addColorStop(0.6, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.3)`);
-        lineGrad.addColorStop(1, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.6)`);
-        ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
-
-        // Pulse dot traveling inward — same intensity as globe blocks
-        const t = ((timestamp * beam.speed + beam.offset * 1000) % 3000) / 3000;
-        const px = sx + (tx - sx) * t;
-        const py = sy + (ty - sy) * t;
-        ctx.fillStyle = `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.85)`;
-        ctx.beginPath();
-        ctx.roundRect(px - 2, py - 2, 4, 4, 1);
-        ctx.fill();
-      }
 
       // Globe hover detection
       const gdx = mouse.x - cx;
