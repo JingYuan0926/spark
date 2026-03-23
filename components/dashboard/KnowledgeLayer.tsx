@@ -573,6 +573,7 @@ function KnowledgeModal({
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [brailleFrame, setBrailleFrame] = useState(0);
+  const [detailItem, setDetailItem] = useState<Knowledge | null>(null);
 
   useEffect(() => {
     const iv = setInterval(() => setBrailleFrame((f) => (f + 1) % brailleSpinner.frames.length), 150);
@@ -920,7 +921,7 @@ function KnowledgeModal({
                       <tr
                         key={k.id}
                         className="cursor-pointer border-b border-white/5 transition hover:bg-white/5"
-                        onClick={() => window.open(`https://hashscan.io/testnet/topic/${cat.topicId}`, "_blank")}
+                        onClick={() => setDetailItem(k)}
                       >
                         <td className="py-2.5 pr-4">
                           <span className="flex items-center gap-2 text-xs text-white/70">
@@ -965,6 +966,154 @@ function KnowledgeModal({
             </table>
           </div>
         </div>
+
+        {/* Knowledge Detail Popup */}
+        {detailItem && (() => {
+          const cat = CATEGORIES[detailItem.category] || CATEGORIES.blockchain;
+          // Mock voters based on votes
+          const yesVoters = Array.from({ length: detailItem.upvotes }, (_, i) => `spark-bot-${String(i + 1).padStart(3, "0")}`);
+          const noVoters = Array.from({ length: detailItem.downvotes }, (_, i) => `spark-bot-${String(i + 20).padStart(3, "0")}`);
+          const mockDiscussion = [
+            { author: detailItem.author, isOP: true, time: "2h ago", text: `Submitted knowledge entry: "${detailItem.title}"` },
+            ...(detailItem.upvotes > 0 ? [{ author: yesVoters[0], isOP: false, time: "1h ago", text: "Reviewed and verified. The data checks out against on-chain records." }] : []),
+            ...(detailItem.upvotes > 1 ? [{ author: yesVoters[1], isOP: false, time: "45m ago", text: "Cross-referenced with mirror node data. Confirmed accurate." }] : []),
+            ...(detailItem.downvotes > 0 ? [{ author: noVoters[0], isOP: false, time: "30m ago", text: "Some claims here are unsubstantiated. Needs more evidence." }] : []),
+            ...(detailItem.status === "approved" ? [{ author: "system", isOP: false, time: "15m ago", text: "Quorum reached. Knowledge entry approved and committed to HCS." }] : []),
+          ];
+
+          return (
+            <div className="absolute inset-0 z-30 flex bg-black/50 backdrop-blur-sm" onClick={() => setDetailItem(null)}>
+              <div className="flex h-full w-full" onClick={(e) => e.stopPropagation()}>
+                {/* Left — Detail content */}
+                <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
+                  {/* Back + Status */}
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setDetailItem(null)} className="text-white/40 transition hover:text-white">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    </button>
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                      detailItem.status === "approved" ? "bg-[#4B7F52]/20 text-[#4B7F52]" :
+                      detailItem.status === "rejected" ? "bg-red-500/20 text-red-400" :
+                      "bg-yellow-500/20 text-yellow-400"
+                    }`}>
+                      {detailItem.status === "approved" ? "⣿" : detailItem.status === "rejected" ? "⠇⠸" : brailleSpinner.frames[brailleFrame]}{" "}
+                      {detailItem.status}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h2 className="mt-4 text-2xl font-bold text-white">{detailItem.title}</h2>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: `rgb(${cat.color.join(",")})` }} />
+                    <span className="text-sm text-white/50">{cat.label}</span>
+                    <span className="text-sm text-white/30">·</span>
+                    <span className="font-mono text-xs text-white/40">{detailItem.author}</span>
+                  </div>
+
+                  {/* Description */}
+                  <div className="mt-6">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">Content</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-white/70">{detailItem.description}</p>
+                  </div>
+
+                  {/* On-chain */}
+                  <div className="mt-6">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">On-chain</h3>
+                    <div className="mt-2 space-y-1">
+                      <a href={`https://hashscan.io/testnet/topic/${cat.topicId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-400 hover:underline">
+                        Topic {cat.topicId}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /></svg>
+                      </a>
+                    </div>
+                  </div>
+
+                  <hr className="mt-6 border-white/10" />
+
+                  {/* Discussion */}
+                  <div className="mt-6">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">Discussion</h3>
+                    <div className="mt-3 space-y-3">
+                      {mockDiscussion.map((msg, i) => (
+                        <div key={i} className="rounded-lg bg-white/5 p-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold ${msg.author === "system" ? "text-[#DD6E42]" : "text-white/80"}`}>
+                              {msg.author}
+                            </span>
+                            {msg.isOP && <span className="rounded bg-[#DD6E42]/20 px-1.5 py-0.5 text-[9px] font-bold text-[#DD6E42]">OP</span>}
+                            <span className="text-[10px] text-white/25">{msg.time}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-white/60">{msg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right — Sidebar */}
+                <div className="w-[280px] shrink-0 border-l border-white/10 p-6">
+                  {/* Vote summary */}
+                  <div className="rounded-xl bg-white/5 p-4 text-center">
+                    <div className="flex items-center justify-center gap-6">
+                      <div>
+                        <p className="text-2xl font-bold text-[#4B7F52]">{detailItem.upvotes}</p>
+                        <p className="text-[10px] text-white/40">Yes</p>
+                      </div>
+                      <div className="h-8 w-px bg-white/10" />
+                      <div>
+                        <p className="text-2xl font-bold text-red-400">{detailItem.downvotes}</p>
+                        <p className="text-[10px] text-white/40">No</p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-[#4B7F52]" style={{ width: `${detailItem.upvotes + detailItem.downvotes > 0 ? (detailItem.upvotes / (detailItem.upvotes + detailItem.downvotes)) * 100 : 0}%` }} />
+                      </div>
+                      <p className="mt-1 text-[10px] text-white/30">Quorum: {detailItem.quorum} / 2</p>
+                    </div>
+                  </div>
+
+                  {/* Voted Yes */}
+                  <div className="mt-5">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#4B7F52]/60">Voted Yes</h4>
+                    <div className="mt-2 space-y-1">
+                      {yesVoters.length > 0 ? yesVoters.map((v) => (
+                        <div key={v} className="flex items-center gap-2 rounded-md bg-[#4B7F52]/10 px-2 py-1.5">
+                          <span className="text-xs text-[#4B7F52]">⣿</span>
+                          <span className="font-mono text-[11px] text-white/60">{v}</span>
+                        </div>
+                      )) : <p className="text-[11px] text-white/20">None</p>}
+                    </div>
+                  </div>
+
+                  {/* Voted No */}
+                  <div className="mt-4">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-red-400/60">Voted No</h4>
+                    <div className="mt-2 space-y-1">
+                      {noVoters.length > 0 ? noVoters.map((v) => (
+                        <div key={v} className="flex items-center gap-2 rounded-md bg-red-500/10 px-2 py-1.5">
+                          <span className="text-xs text-red-400" style={{ letterSpacing: "-0.15em" }}>⠇⠸</span>
+                          <span className="font-mono text-[11px] text-white/60">{v}</span>
+                        </div>
+                      )) : <p className="text-[11px] text-white/20">None</p>}
+                    </div>
+                  </div>
+
+                  {/* Category info */}
+                  <div className="mt-5">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Category</h4>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: `rgb(${cat.color.join(",")})` }} />
+                      <span className="text-sm font-medium text-white/80">{cat.label}</span>
+                    </div>
+                    <a href={`https://hashscan.io/testnet/topic/${cat.topicId}`} target="_blank" rel="noopener noreferrer" className="mt-1 block font-mono text-[10px] text-blue-400 hover:underline">
+                      {cat.topicId} ↗
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
