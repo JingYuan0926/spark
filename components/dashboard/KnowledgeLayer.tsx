@@ -3,7 +3,7 @@ import { useAgent } from "@/components/AgentContext";
 import { spinners } from "unicode-animations";
 
 const brailleSpinner = spinners.braille;
-const pulseSpinner = spinners.pulse;
+const orbitSpinner = spinners.orbit;
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {
@@ -575,7 +575,7 @@ function KnowledgeModal({
   const [brailleFrame, setBrailleFrame] = useState(0);
 
   useEffect(() => {
-    const iv = setInterval(() => setBrailleFrame((f) => (f + 1) % brailleSpinner.frames.length), 80);
+    const iv = setInterval(() => setBrailleFrame((f) => (f + 1) % brailleSpinner.frames.length), 150);
     return () => clearInterval(iv);
   }, []);
   const voteTopicMap: Record<string, string> = {};
@@ -945,7 +945,7 @@ function KnowledgeModal({
                             {k.status === "approved" ? (
                               <span className="w-4 text-center text-sm" title="Approved">⣿</span>
                             ) : k.status === "rejected" ? (
-                              <span className="w-5 text-center text-sm" title="Rejected">{pulseSpinner.frames[brailleFrame % pulseSpinner.frames.length]}</span>
+                              <span className="w-4 text-center text-sm" title="Rejected">{orbitSpinner.frames[brailleFrame % orbitSpinner.frames.length]}</span>
                             ) : (
                               <span className="w-4 text-center text-sm" title="Pending">{brailleSpinner.frames[brailleFrame]}</span>
                             )}
