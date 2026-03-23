@@ -881,7 +881,7 @@ function KnowledgeModal({
                 <tr className="border-b border-white/10 text-left text-[11px] font-semibold uppercase tracking-wider text-white/30">
                   <th className="pb-2 pr-4">Category</th>
                   <th className="pb-2 pr-4">Content</th>
-                  <th className="pb-2 pr-4">Topic</th>
+                  <th className="pb-2 pr-4">Status</th>
                   <th className="pb-2">Votes</th>
                 </tr>
               </thead>
@@ -910,18 +910,26 @@ function KnowledgeModal({
                             {cat.label}
                           </span>
                         </td>
-                        <td className="max-w-[300px] truncate py-2.5 pr-4 text-xs text-white/60">
+                        <td className="max-w-[400px] truncate py-2.5 pr-4 text-xs text-white/60">
                           {k.description || "(no content)"}
                         </td>
-                        <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
-                          <a
-                            href={`https://hashscan.io/testnet/topic/${voteTopicMap[k.author] || k.author}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-xs text-blue-400 hover:text-blue-300 hover:underline"
-                          >
-                            {voteTopicMap[k.author] || k.author}
-                          </a>
+                        <td className="py-2.5 pr-4">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                            k.status === "approved"
+                              ? "text-[#4B7F52]"
+                              : k.status === "rejected"
+                                ? "text-red-400"
+                                : "text-yellow-400"
+                          }`}>
+                            {k.status === "approved" ? (
+                              <span className="text-sm" title="Approved">⣿</span>
+                            ) : k.status === "rejected" ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            ) : (
+                              <span className="inline-block animate-pulse text-sm" title="Pending">⠋</span>
+                            )}
+                            {k.status.charAt(0).toUpperCase() + k.status.slice(1)}
+                          </span>
                         </td>
                         <td className="py-2.5 text-xs">
                           <span className="text-[#4B7F52]">{k.upvotes}</span>
