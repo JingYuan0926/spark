@@ -260,7 +260,7 @@ function ModalGlobe({
 
     let animId: number;
 
-    const maxR = Math.max(width, height) * 0.8;
+    const maxR = Math.max(width, height) * 1.5;
 
     const draw = (timestamp: number) => {
       ctx.clearRect(0, 0, width, height);
@@ -271,29 +271,28 @@ function ModalGlobe({
       for (const beam of beamsRef.current) {
         const sx = cx + Math.cos(beam.angle) * beam.edgeDist * maxR;
         const sy = cy + Math.sin(beam.angle) * beam.edgeDist * maxR;
-        const tx = cx + Math.cos(beam.angle + Math.PI) * radius * 0.15;
-        const ty = cy + Math.sin(beam.angle + Math.PI) * radius * 0.15;
+        const tx = cx + Math.cos(beam.angle + Math.PI) * radius * 0.1;
+        const ty = cy + Math.sin(beam.angle + Math.PI) * radius * 0.1;
 
         const lineGrad = ctx.createLinearGradient(sx, sy, tx, ty);
-        lineGrad.addColorStop(0, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0)`);
-        lineGrad.addColorStop(0.4, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.04)`);
-        lineGrad.addColorStop(0.75, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.12)`);
-        lineGrad.addColorStop(1, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.3)`);
+        lineGrad.addColorStop(0, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.05)`);
+        lineGrad.addColorStop(0.3, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.15)`);
+        lineGrad.addColorStop(0.6, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.3)`);
+        lineGrad.addColorStop(1, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.6)`);
         ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 0.7;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(sx, sy);
         ctx.lineTo(tx, ty);
         ctx.stroke();
 
-        // Pulse dot traveling inward
+        // Pulse dot traveling inward — same intensity as globe blocks
         const t = ((timestamp * beam.speed + beam.offset * 1000) % 3000) / 3000;
         const px = sx + (tx - sx) * t;
         const py = sy + (ty - sy) * t;
-        const alpha = t < 0.5 ? t * 2 : 1;
-        ctx.fillStyle = `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},${0.4 * alpha})`;
+        ctx.fillStyle = `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.85)`;
         ctx.beginPath();
-        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+        ctx.roundRect(px - 2, py - 2, 4, 4, 1);
         ctx.fill();
       }
 
