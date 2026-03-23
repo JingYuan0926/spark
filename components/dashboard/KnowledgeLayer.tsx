@@ -241,22 +241,27 @@ function ModalGlobe({
 
       isHoveringGlobeRef.current = isOverGlobe;
 
-      // ── Spawn light rays ──
-      if (timestamp - lastRayTimeRef.current > 400) {
+      // ── Spawn light rays (burst of 2-4 every 80ms) ──
+      if (timestamp - lastRayTimeRef.current > 80) {
         lastRayTimeRef.current = timestamp;
         const catKeys = Object.keys(CATEGORIES);
-        const cat = catKeys[Math.floor(Math.random() * catKeys.length)];
-        raysRef.current.push({
-          targetLat: (Math.random() - 0.5) * Math.PI * 0.8,
-          targetLng: Math.random() * Math.PI * 2,
-          progress: 0,
-          color: CATEGORIES[cat].color,
-          age: 0,
-        });
+        const burstCount = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < burstCount; i++) {
+          const cat = catKeys[Math.floor(Math.random() * catKeys.length)];
+          raysRef.current.push({
+            targetLat: (Math.random() - 0.5) * Math.PI * 0.8,
+            targetLng: Math.random() * Math.PI * 2,
+            progress: 0,
+            color: CATEGORIES[cat].color,
+            age: 0,
+          });
+        }
       }
       raysRef.current = raysRef.current
-        .map((r) => ({ ...r, progress: Math.min(1, r.progress + 0.04), age: r.age + 1 }))
-        .filter((r) => r.age < 80);
+        .map((r) => ({ ...r, progress: Math.min(1, r.progress + 0.05), age: r.age + 1 }))
+        .filter((r) => r.age < 60);
+      // Cap at 120 active rays for performance
+      if (raysRef.current.length > 120) raysRef.current = raysRef.current.slice(-120);
 
       // ── Choose block set ──
       const activeBlocks = isGroupedRef.current ? groupedBlocksRef.current : randomBlocksRef.current;
