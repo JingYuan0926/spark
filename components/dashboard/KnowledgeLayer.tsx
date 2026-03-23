@@ -1,5 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useAgent } from "@/components/AgentContext";
+import { spinners } from "unicode-animations";
+
+const brailleSpinner = spinners.braille;
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {
@@ -557,6 +560,12 @@ function KnowledgeModal({
   const [activeFilter, setActiveFilter] = useState("all");
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
+  const [brailleFrame, setBrailleFrame] = useState(0);
+
+  useEffect(() => {
+    const iv = setInterval(() => setBrailleFrame((f) => (f + 1) % brailleSpinner.frames.length), 80);
+    return () => clearInterval(iv);
+  }, []);
   const voteTopicMap: Record<string, string> = {};
   const globeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -877,7 +886,7 @@ function KnowledgeModal({
           {/* Table */}
           <div className="hide-scrollbar mt-4 min-h-0 flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-[#2d3f47]">
                 <tr className="border-b border-white/10 text-left text-[11px] font-semibold uppercase tracking-wider text-white/30">
                   <th className="pb-2 pr-4">Category</th>
                   <th className="pb-2 pr-4">Content</th>
@@ -922,11 +931,11 @@ function KnowledgeModal({
                                 : "text-yellow-400"
                           }`}>
                             {k.status === "approved" ? (
-                              <span className="text-sm" title="Approved">⣿</span>
+                              <span className="w-4 text-center text-sm" title="Approved">⣿</span>
                             ) : k.status === "rejected" ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                              <span className="w-4 text-center text-sm" title="Rejected">{brailleSpinner.frames[brailleFrame]}</span>
                             ) : (
-                              <span className="inline-block animate-pulse text-sm" title="Pending">⠋</span>
+                              <span className="w-4 text-center text-sm" title="Pending">{brailleSpinner.frames[brailleFrame]}</span>
                             )}
                             {k.status.charAt(0).toUpperCase() + k.status.slice(1)}
                           </span>
