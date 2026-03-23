@@ -169,11 +169,10 @@ function generateBeams(count: number): Beam[] {
   return beams;
 }
 
-/* ── Preview Globe (small, card view) ──────────────────── */
+/* ── Preview Globe (small, card view — plain, no beams) ── */
 function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blocksRef = useRef<Block[]>(generateBlocks());
-  const beamsRef = useRef<Beam[]>(generateBeams(40));
   const angleRef = useRef(0);
 
   useEffect(() => {
@@ -187,69 +186,19 @@ function KnowledgeGlobe({ width, height }: { width: number; height: number }) {
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
 
-    const globeRadius = Math.min(width, height) * 0.38;
+    const radius = Math.min(width, height) * 0.45;
     const cx = width / 2;
     const cy = height / 2;
-    const blockSize = Math.max(2, globeRadius * 0.038);
-    const maxR = Math.max(width, height) * 0.8;
+    const blockSize = Math.max(2, radius * 0.038);
 
     let animId: number;
-    const draw = (timestamp: number) => {
+    const draw = () => {
       ctx.clearRect(0, 0, width, height);
-
-      // ── Draw beams (behind the globe) ──
-      for (const beam of beams) {
-        // Source point: far outside, at beam.angle
-        const sx = cx + Math.cos(beam.angle) * beam.edgeDist * maxR;
-        const sy = cy + Math.sin(beam.angle) * beam.edgeDist * maxR;
-
-        // Target: globe surface
-        const tx = cx + Math.cos(beam.angle + Math.PI) * globeRadius * 0.3;
-        const ty = cy + Math.sin(beam.angle + Math.PI) * globeRadius * 0.3;
-
-        // Line: gradient from dim at edge to brighter near globe
-        const lineGrad = ctx.createLinearGradient(sx, sy, tx, ty);
-        lineGrad.addColorStop(0, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0)`);
-        lineGrad.addColorStop(0.3, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.06)`);
-        lineGrad.addColorStop(0.7, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.15)`);
-        lineGrad.addColorStop(1, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.35)`);
-        ctx.strokeStyle = lineGrad;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
-
-        // Pulse dot traveling inward along beam
-        const t = ((timestamp * beam.speed + beam.offset * 1000) % 3000) / 3000;
-        const px = sx + (tx - sx) * t;
-        const py = sy + (ty - sy) * t;
-        const alpha = t < 0.5 ? t * 2 : 1;
-        ctx.fillStyle = `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},${0.5 * alpha})`;
-        ctx.beginPath();
-        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // ── Draw the globe on top ──
-      drawSphere(ctx, blocksRef.current, angleRef.current, cx, cy, globeRadius, blockSize);
-
-      // ── Center glow where beams converge ──
-      const glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, globeRadius * 0.5);
-      glowGrad.addColorStop(0, "rgba(244,172,69,0.12)");
-      glowGrad.addColorStop(0.5, "rgba(244,172,69,0.04)");
-      glowGrad.addColorStop(1, "rgba(244,172,69,0)");
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, globeRadius * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-
+      drawSphere(ctx, blocksRef.current, angleRef.current, cx, cy, radius, blockSize);
       angleRef.current += 0.004;
       animId = requestAnimationFrame(draw);
     };
-
-    const beams = beamsRef.current;
-    animId = requestAnimationFrame(draw);
+    draw();
     return () => cancelAnimationFrame(animId);
   }, [width, height]);
 
@@ -287,6 +236,7 @@ function ModalGlobe({
   const raysRef = useRef<LightRay[]>([]);
   const lastRayTimeRef = useRef(0);
   const lastHoveredKeyRef = useRef("");
+  const beamsRef = useRef<Beam[]>(generateBeams(50));
 
   useEffect(() => {
     if (width <= 0 || height <= 0) return;
@@ -310,10 +260,42 @@ function ModalGlobe({
 
     let animId: number;
 
+    const maxR = Math.max(width, height) * 0.8;
+
     const draw = (timestamp: number) => {
       ctx.clearRect(0, 0, width, height);
       const rot = angleRef.current;
       const mouse = mouseRef.current;
+
+      // ── Draw beams (behind everything) ──
+      for (const beam of beamsRef.current) {
+        const sx = cx + Math.cos(beam.angle) * beam.edgeDist * maxR;
+        const sy = cy + Math.sin(beam.angle) * beam.edgeDist * maxR;
+        const tx = cx + Math.cos(beam.angle + Math.PI) * radius * 0.15;
+        const ty = cy + Math.sin(beam.angle + Math.PI) * radius * 0.15;
+
+        const lineGrad = ctx.createLinearGradient(sx, sy, tx, ty);
+        lineGrad.addColorStop(0, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0)`);
+        lineGrad.addColorStop(0.4, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.04)`);
+        lineGrad.addColorStop(0.75, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.12)`);
+        lineGrad.addColorStop(1, `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},0.3)`);
+        ctx.strokeStyle = lineGrad;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+
+        // Pulse dot traveling inward
+        const t = ((timestamp * beam.speed + beam.offset * 1000) % 3000) / 3000;
+        const px = sx + (tx - sx) * t;
+        const py = sy + (ty - sy) * t;
+        const alpha = t < 0.5 ? t * 2 : 1;
+        ctx.fillStyle = `rgba(${beam.color[0]},${beam.color[1]},${beam.color[2]},${0.4 * alpha})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Globe hover detection
       const gdx = mouse.x - cx;
