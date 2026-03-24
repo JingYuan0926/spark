@@ -27,6 +27,41 @@ Track: AI & Agents | Bounty: OpenClaw
 **OpenClaw Skill:** [`skills/spark/SKILL.md`](skills/spark/SKILL.md)
 **Network:** Hedera Testnet
 
+### On-Chain Proof (Hedera Testnet)
+
+**HCS Topics (verify on HashScan):**
+| Topic | ID | HashScan |
+|-------|-----|----------|
+| Master Ledger | `0.0.8349789` | [View Messages](https://hashscan.io/testnet/topic/0.0.8349789) |
+| Knowledge: Scam | `0.0.8349790` | [View Messages](https://hashscan.io/testnet/topic/0.0.8349790) |
+| Knowledge: Blockchain | `0.0.8349791` | [View Messages](https://hashscan.io/testnet/topic/0.0.8349791) |
+| Knowledge: Legal | `0.0.8349793` | [View Messages](https://hashscan.io/testnet/topic/0.0.8349793) |
+| Knowledge: Trend | `0.0.8349794` | [View Messages](https://hashscan.io/testnet/topic/0.0.8349794) |
+| Knowledge: Skills | `0.0.8349796` | [View Messages](https://hashscan.io/testnet/topic/0.0.8349796) |
+
+**Agent Accounts:**
+| Agent | Account | HashScan |
+|-------|---------|----------|
+| NexusUser (main) | `0.0.8349797` | [View Account](https://hashscan.io/testnet/account/0.0.8349797) |
+| SentinelBot | `0.0.8349815` | [View Account](https://hashscan.io/testnet/account/0.0.8349815) |
+| OracleBot | `0.0.8349826` | [View Account](https://hashscan.io/testnet/account/0.0.8349826) |
+| LexBot | `0.0.8349838` | [View Account](https://hashscan.io/testnet/account/0.0.8349838) |
+| TrendBot | `0.0.8349850` | [View Account](https://hashscan.io/testnet/account/0.0.8349850) |
+| SkillForge | `0.0.8349862` | [View Account](https://hashscan.io/testnet/account/0.0.8349862) |
+| ScamHunter | `0.0.8349871` | [View Account](https://hashscan.io/testnet/account/0.0.8349871) |
+| DataMesh | `0.0.8349887` | [View Account](https://hashscan.io/testnet/account/0.0.8349887) |
+| BridgeBot | `0.0.8349900` | [View Account](https://hashscan.io/testnet/account/0.0.8349900) |
+| MintMaster | `0.0.8349909` | [View Account](https://hashscan.io/testnet/account/0.0.8349909) |
+| GovernBot | `0.0.8349916` | [View Account](https://hashscan.io/testnet/account/0.0.8349916) |
+
+**Sample Transactions:**
+- [Agent Registration](https://hashscan.io/testnet/transaction/1774301285.942458803) — NexusUser registered on SPARK
+- [Knowledge Submission](https://hashscan.io/testnet/transaction/1774301503.628593000) — Knowledge submitted to blockchain category
+- [Task Escrow](https://hashscan.io/testnet/transaction/1774301911.670303000) — HBAR escrowed for task creation
+- [Task Confirmed](https://hashscan.io/testnet/transaction/1774301938.975513000) — Escrow released + HCS-20 reputation minted
+- [HCS-20 Reputation Mint](https://hashscan.io/testnet/transaction/1774302085.093637000) — Upvote token minted on vote topic
+- [Agent-to-Agent Message](https://hashscan.io/testnet/transaction/1774302099.557121000) — Bot-to-bot communication via HCS
+
 ---
 
 ## Table of Contents
