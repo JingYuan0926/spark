@@ -1,8 +1,15 @@
 /**
  * HCS Standards Integration for SPARK
  *
- * Implements HCS-1 (file chunking), HCS-2 (registries), HCS-10 (OpenConvAI),
+ * Implements HCS-1 (file chunking), HCS-2 (topic registries), HCS-10 (OpenConvAI agent registry),
  * HCS-11 (agent profiles) for enhanced Hedera integration.
+ *
+ * References:
+ * - HCS-1:  https://hashgraphonline.com/docs/standards/hcs-1/
+ * - HCS-2:  https://hashgraphonline.com/docs/standards/hcs-2/
+ * - HCS-10: https://hashgraphonline.com/docs/standards/hcs-10/
+ * - HCS-11: https://hashgraphonline.com/docs/standards/hcs-11/
+ * - HCS-20: https://hashgraphonline.com/docs/standards/hcs-20/
  */
 
 import {
@@ -100,8 +107,9 @@ export async function hcs1Download(topicId: string): Promise<string | null> {
 }
 
 
-// ── HCS-2: Review Registry ───────────────────────────────────────
-// Append-only registry for structured reviews
+// ── HCS-2: Topic Registry ────────────────────────────────────────
+// Append-only topic registry (https://hashgraphonline.com/docs/standards/hcs-2/)
+// SPARK uses HCS-2 register op with extended fields for structured reviews
 
 export interface HCS2ReviewEntry {
   p: "hcs-2";
@@ -179,13 +187,21 @@ export async function hcs2ReadReviews(
 
 
 // ── HCS-11: Agent Profile ────────────────────────────────────────
-// Standardized agent profile metadata
+// Standardized agent profile metadata (https://hashgraphonline.com/docs/standards/hcs-11/)
+// type: 0=personal, 1=ai_agent, 2=mcp_server, 3=flora
 
 export interface HCS11AgentProfile {
-  version: "1.0.0";
-  type: 1; // 1 = AI agent
+  version: "1.0";
+  type: 1;
   display_name: string;
+  uaid: string;
   bio: string;
+  aiAgent: {
+    type: 0;             // 0 = manual, 1 = autonomous
+    capabilities: number[];
+    model: string;
+    creator: string;
+  };
   properties: {
     domainTags: string;
     serviceOfferings: string;
@@ -194,8 +210,8 @@ export interface HCS11AgentProfile {
     botTopicId: string;
     voteTopicId: string;
   };
-  inboundTopicId?: string;  // HCS-10 inbound
-  outboundTopicId?: string; // HCS-10 outbound
+  inboundTopicId?: string;
+  outboundTopicId?: string;
 }
 
 /**
@@ -210,10 +226,17 @@ export function createHCS11Profile(
   voteTopicId: string,
 ): HCS11AgentProfile {
   return {
-    version: "1.0.0",
+    version: "1.0",
     type: 1,
     display_name: botId,
+    uaid: `uaid:spark:${hederaAccountId}`,
     bio: `SPARK agent specializing in ${domainTags}. Services: ${serviceOfferings}.`,
+    aiAgent: {
+      type: 0,
+      capabilities: [0, 1],
+      model: "spark-agent",
+      creator: "SPARK Protocol",
+    },
     properties: {
       domainTags,
       serviceOfferings,
@@ -226,18 +249,20 @@ export function createHCS11Profile(
 }
 
 
-// ── HCS-10: Agent Communication ──────────────────────────────────
-// Agent-to-agent discovery and messaging via HCS topics
+// ── HCS-10: OpenConvAI Agent Registry ────────────────────────────
+// Agent discovery and communication (https://hashgraphonline.com/docs/standards/hcs-10/)
 
 export interface HCS10RegistryEntry {
   p: "hcs-10";
   op: "register";
-  agentId: string;
-  hederaAccountId: string;
-  profileTopicId: string;  // bot topic with HCS-11 profile
-  voteTopicId: string;
-  capabilities: string[];
-  timestamp: string;
+  account_id: string;
+  m?: string;
+  // SPARK extended fields (not part of base spec)
+  display_name?: string;
+  profileTopicId?: string;
+  voteTopicId?: string;
+  capabilities?: string[];
+  timestamp?: string;
 }
 
 /**
@@ -246,13 +271,18 @@ export interface HCS10RegistryEntry {
 export async function hcs10RegisterAgent(
   client: Client,
   registryTopicId: string,
-  agent: Omit<HCS10RegistryEntry, "p" | "op" | "timestamp">,
+  agent: { account_id: string; display_name?: string; profileTopicId?: string; voteTopicId?: string; capabilities?: string[] },
   signingKey: PrivateKey
 ): Promise<string> {
   const entry: HCS10RegistryEntry = {
     p: "hcs-10",
     op: "register",
-    ...agent,
+    account_id: agent.account_id,
+    m: `Registering SPARK agent ${agent.display_name || agent.account_id}`,
+    display_name: agent.display_name,
+    profileTopicId: agent.profileTopicId,
+    voteTopicId: agent.voteTopicId,
+    capabilities: agent.capabilities,
     timestamp: new Date().toISOString(),
   };
 

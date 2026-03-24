@@ -129,7 +129,7 @@ export default async function handler(
     const timestamp = new Date().toISOString();
     const type = messageType || "agent_message";
 
-    // 1. Send message to recipient's bot topic (operator signs — topics use submit key)
+    // 1. Send message to recipient's bot topic (operator signs — threshold key allows it)
     const recipientMsg = JSON.stringify({
       action: "agent_message",
       from: sender.accountId,
@@ -140,7 +140,7 @@ export default async function handler(
     });
     const recipientSeqNo = await submitToTopic(client, recipientBotTopicId, recipientMsg, operatorKey);
 
-    // 2. Log to sender's bot topic
+    // 2. Log to sender's bot topic (sender signs their own diary)
     const senderMsg = JSON.stringify({
       action: "i_sent_message",
       to: recipientAccountId,
@@ -148,7 +148,7 @@ export default async function handler(
       messageType: type,
       timestamp,
     });
-    const senderSeqNo = await submitToTopic(client, sender.botTopicId, senderMsg, operatorKey);
+    const senderSeqNo = await submitToTopic(client, sender.botTopicId, senderMsg, senderKey);
 
     return res.status(200).json({
       success: true,

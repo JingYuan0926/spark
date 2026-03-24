@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { spinners } from "unicode-animations";
 import { useRouter } from "next/router";
 import { Navbar } from "@/components/Navbar";
 import { AgentStatus } from "@/components/dashboard/AgentStatus";
@@ -103,12 +104,18 @@ function AuthGate() {
     setLoading(false);
   }
 
+  const [spinFrame, setSpinFrame] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setSpinFrame((f) => (f + 1) % spinners.braille.frames.length), spinners.braille.interval);
+    return () => clearInterval(iv);
+  }, []);
+
   if (autoLoading) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-[#f5f0e8]">
         <div className="flex flex-col items-center gap-6">
           <img src="/logo.png" alt="SPARK" className="h-14 animate-pulse" />
-          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#483519]/20 border-t-[#DD6E42]" />
+          <span className="text-4xl text-[#DD6E42]">{spinners.braille.frames[spinFrame]}</span>
           <p className="text-base font-medium text-[#483519]/70">Loading agent...</p>
         </div>
       </div>

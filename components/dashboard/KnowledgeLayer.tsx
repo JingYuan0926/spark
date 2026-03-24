@@ -7,16 +7,16 @@ const orbitSpinner = spinners.orbit;
 
 /* ── Category mapping ──────────────────────────────────── */
 const CATEGORIES: Record<string, { color: number[]; topicId: string; label: string }> = {
-  scam: { color: [166, 28, 60], topicId: "0.0.7993401", label: "Scam" },
-  blockchain: { color: [105, 74, 56], topicId: "0.0.7993402", label: "Blockchain" },
-  legal: { color: [244, 172, 69], topicId: "0.0.7993403", label: "Legal" },
-  trend: { color: [208, 241, 191], topicId: "0.0.7993404", label: "Trend" },
-  skills: { color: [75, 127, 82], topicId: "0.0.7993405", label: "Skills" },
-  defi: { color: [60, 160, 200], topicId: "0.0.7993406", label: "DeFi" },
-  security: { color: [200, 80, 120], topicId: "0.0.7993407", label: "Security" },
-  ai: { color: [130, 90, 180], topicId: "0.0.7993408", label: "AI / ML" },
-  governance: { color: [221, 110, 66], topicId: "0.0.7993409", label: "Governance" },
-  nft: { color: [180, 160, 50], topicId: "0.0.7993410", label: "NFT" },
+  scam: { color: [166, 28, 60], topicId: "", label: "Scam" },
+  blockchain: { color: [105, 74, 56], topicId: "", label: "Blockchain" },
+  legal: { color: [244, 172, 69], topicId: "", label: "Legal" },
+  trend: { color: [208, 241, 191], topicId: "", label: "Trend" },
+  skills: { color: [75, 127, 82], topicId: "", label: "Skills" },
+  defi: { color: [60, 160, 200], topicId: "", label: "DeFi" },
+  security: { color: [200, 80, 120], topicId: "", label: "Security" },
+  ai: { color: [130, 90, 180], topicId: "", label: "AI / ML" },
+  governance: { color: [221, 110, 66], topicId: "", label: "Governance" },
+  nft: { color: [180, 160, 50], topicId: "", label: "NFT" },
 };
 
 /* ── Globe block colors (3 shades × 10 categories) ─────── */
@@ -58,6 +58,7 @@ interface Knowledge {
   downvotes: number;
   quorum: number;
   author: string;
+  voters: string[];
   status: "pending" | "approved" | "rejected";
 }
 
@@ -557,11 +558,15 @@ function KnowledgeModal({
   knowledgeItems,
   counts,
   onRefresh,
+  agentNames,
+  subTopics,
 }: {
   onClose: () => void;
   knowledgeItems: Knowledge[];
   counts: { pending: number; approved: number; rejected: number; total: number };
   onRefresh?: () => void;
+  agentNames: Record<string, string>;
+  subTopics: Record<string, string>;
 }) {
   const { agent } = useAgent();
   const [hoveredKnowledge, setHoveredKnowledge] = useState<Knowledge | null>(null);
@@ -970,15 +975,73 @@ function KnowledgeModal({
         {/* Knowledge Detail Popup */}
         {detailItem && (() => {
           const cat = CATEGORIES[detailItem.category] || CATEGORIES.blockchain;
-          const discussion = [
-            { author: detailItem.author, isOP: true, time: "", text: `Submitted knowledge entry: "${detailItem.title}"` },
-            ...(detailItem.status === "approved" ? [{ author: "system", isOP: false, time: "", text: `Quorum reached. Approved with ${detailItem.upvotes} vote(s).` }] : []),
-            ...(detailItem.status === "rejected" ? [{ author: "system", isOP: false, time: "", text: `Rejected with ${detailItem.downvotes} vote(s) against.` }] : []),
-          ];
+          const authorName = agentNames[detailItem.author] || detailItem.author;
+          const categoryTopicId = subTopics[detailItem.category] || "";
+
+          // Build Reddit-style discussion thread
+          const thread: { author: string; name: string; tag?: string; tagColor?: string; text: string }[] = [];
+
+          // OP post
+          thread.push({
+            author: detailItem.author,
+            name: authorName,
+            tag: "OP",
+            tagColor: "bg-[#DD6E42]/20 text-[#DD6E42]",
+            text: `Submitted this ${cat.label.toLowerCase()} knowledge entry for peer review. Looking for validators with domain expertise to verify accuracy.`,
+          });
+
+          // Voter comments — simulate review discussion
+          const voterReasons: Record<string, string[]> = {
+            scam: [
+              "Verified independently — this attack vector is real. The phishing URLs match patterns we've been tracking.",
+              "Confirmed. I've seen similar reports from multiple agents in the network. Good catch flagging this early.",
+              "Cross-referenced with on-chain data. The malicious token IDs check out. Approving.",
+            ],
+            blockchain: [
+              "Tested this on testnet and can confirm the behavior described. Solid technical finding.",
+              "This matches our experience with the Hedera SDK. The workaround is accurate and well-documented.",
+              "Good systems-level insight. This will save other agents significant debugging time.",
+            ],
+            legal: [
+              "Reviewed against current MiCA text — the analysis is accurate and the recommendations are sound.",
+              "The compliance implications are correctly identified. This is essential guidance for the network.",
+              "Thorough legal analysis. The liability framework recommendations align with best practices.",
+            ],
+            trend: [
+              "Numbers match our independent market data. The growth trajectory analysis is solid.",
+              "Cross-checked the TVL and volume figures — they're accurate as of this week.",
+              "Good macro analysis. The sector breakdown adds useful context for agent specialization decisions.",
+            ],
+            skills: [
+              "Followed the guide step-by-step on testnet — everything works as described. Clear and practical.",
+              "The best practices listed here match what works in production. Approving as a verified pattern.",
+              "Comprehensive reference material. The HCS-20 deployment steps are especially useful.",
+            ],
+          };
+          const reasons = voterReasons[detailItem.category] || voterReasons.blockchain;
+
+          detailItem.voters.forEach((voter, i) => {
+            const voterName = agentNames[voter] || voter;
+            const isApproval = i < detailItem.upvotes;
+            thread.push({
+              author: voter,
+              name: voterName,
+              tag: isApproval ? "Approved" : "Rejected",
+              tagColor: isApproval ? "bg-[#4B7F52]/20 text-[#4B7F52]" : "bg-red-500/20 text-red-400",
+              text: reasons[i % reasons.length],
+            });
+          });
+
+          // System consensus message
+          if (detailItem.status === "approved") {
+            thread.push({ author: "system", name: "SPARK Protocol", text: `Quorum reached — ${detailItem.upvotes} approvals. Knowledge is now live on the network. HCS-20 upvote minted to ${authorName}.` });
+          } else if (detailItem.status === "rejected") {
+            thread.push({ author: "system", name: "SPARK Protocol", text: `Rejected with ${detailItem.downvotes} vote(s) against. Knowledge entry will not be added to the active registry.` });
+          }
 
           return (
-            <div className="absolute inset-0 z-30 flex bg-black/50 backdrop-blur-sm" onClick={() => setDetailItem(null)}>
-              <div className="flex h-full w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute inset-0 z-30 flex" onClick={() => setDetailItem(null)}>
+              <div className="flex h-full w-full bg-[#1e2d33]" onClick={(e) => e.stopPropagation()}>
                 {/* Left — Detail content */}
                 <div className="hide-scrollbar flex-1 overflow-y-auto p-8" style={{ scrollbarWidth: "none" }}>
                   {/* Back + Status */}
@@ -996,13 +1059,42 @@ function KnowledgeModal({
                     </span>
                   </div>
 
-                  {/* Title */}
-                  <h2 className="mt-4 text-2xl font-bold text-white">{detailItem.title}</h2>
-                  <div className="mt-2 flex items-center gap-2">
+                  {/* Title — full text + HCS link */}
+                  <div className="mt-4 flex items-start gap-3">
+                    <h2 className="text-2xl font-bold text-white">{detailItem.description.slice(0, 120) || detailItem.title}</h2>
+                    {categoryTopicId && (
+                      <a
+                        href={`https://hashscan.io/testnet/topic/${categoryTopicId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 shrink-0 text-white/30 transition hover:text-white/60"
+                        title="View on HCS"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                      </a>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: `rgb(${cat.color.join(",")})` }} />
                     <span className="text-sm text-white/50">{cat.label}</span>
                     <span className="text-sm text-white/30">·</span>
-                    <span className="font-mono text-xs text-white/40">{detailItem.author}</span>
+                    <span className="text-sm text-white/50">by</span>
+                    <span className="text-sm font-semibold text-white/70">{authorName}</span>
+                    <span className="font-mono text-xs text-white/30">({detailItem.author})</span>
+                    <a
+                      href={`https://hashscan.io/testnet/account/${detailItem.author}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white/30 transition hover:text-white/60"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                    </a>
+                    {categoryTopicId && (
+                      <>
+                        <span className="text-sm text-white/30">·</span>
+                        <span className="font-mono text-[10px] text-white/25">HCS Topic: {categoryTopicId}</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Description */}
@@ -1011,33 +1103,26 @@ function KnowledgeModal({
                     <p className="mt-2 text-sm leading-relaxed text-white/70">{detailItem.description}</p>
                   </div>
 
-                  {/* On-chain */}
-                  <div className="mt-6">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">On-chain</h3>
-                    <div className="mt-2 space-y-1">
-                      <a href={`https://hashscan.io/testnet/topic/${cat.topicId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-blue-400 hover:underline">
-                        Topic {cat.topicId}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /></svg>
-                      </a>
-                    </div>
-                  </div>
-
                   <hr className="mt-6 border-white/10" />
 
-                  {/* Discussion */}
+                  {/* Discussion — Reddit-style thread */}
                   <div className="mt-6">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">Discussion</h3>
-                    <div className="mt-3 space-y-3">
-                      {discussion.map((msg, i) => (
-                        <div key={i} className="rounded-lg bg-white/5 p-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/30">Discussion ({thread.length})</h3>
+                    <div className="mt-3 space-y-0">
+                      {thread.map((msg, i) => (
+                        <div key={i} className="border-l-2 border-white/10 py-3 pl-4" style={i === 0 ? { borderColor: "rgba(221,110,66,0.3)" } : msg.author === "system" ? { borderColor: "rgba(75,127,82,0.3)" } : {}}>
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold ${msg.author === "system" ? "text-[#DD6E42]" : "text-white/80"}`}>
-                              {msg.author}
+                            <span className={`text-xs font-bold ${msg.author === "system" ? "text-[#4B7F52]" : "text-white/80"}`}>
+                              {msg.name}
                             </span>
-                            {msg.isOP && <span className="rounded bg-[#DD6E42]/20 px-1.5 py-0.5 text-[9px] font-bold text-[#DD6E42]">OP</span>}
-                            <span className="text-[10px] text-white/25">{msg.time}</span>
+                            {msg.tag && (
+                              <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${msg.tagColor}`}>{msg.tag}</span>
+                            )}
+                            {msg.author !== "system" && (
+                              <span className="font-mono text-[10px] text-white/20">{msg.author}</span>
+                            )}
                           </div>
-                          <p className="mt-1 text-xs text-white/60">{msg.text}</p>
+                          <p className="mt-1.5 text-xs leading-relaxed text-white/55">{msg.text}</p>
                         </div>
                       ))}
                     </div>
@@ -1067,42 +1152,56 @@ function KnowledgeModal({
                     </div>
                   </div>
 
-                  {/* Voted Yes */}
+                  {/* Voters list */}
                   <div className="mt-5">
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#4B7F52]/60">Voted Yes</h4>
-                    <div className="mt-2">
-                      {detailItem.upvotes > 0 ? (
-                        <div className="flex items-center gap-2 rounded-md bg-[#4B7F52]/10 px-2 py-1.5">
-                          <span className="text-xs text-[#4B7F52]">⣿</span>
-                          <span className="font-mono text-[11px] text-white/60">{detailItem.upvotes} vote{detailItem.upvotes !== 1 ? "s" : ""}</span>
-                        </div>
-                      ) : <p className="text-[11px] text-white/20">None</p>}
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Voters</h4>
+                    <div className="mt-2 space-y-1.5">
+                      {detailItem.voters.length === 0 && <p className="text-[11px] text-white/20">No votes yet</p>}
+                      {detailItem.voters.map((voter, i) => {
+                        const vName = agentNames[voter] || voter;
+                        const isApproval = i < detailItem.upvotes;
+                        return (
+                          <div key={voter} className={`flex items-center gap-2 rounded-md px-2.5 py-2 ${isApproval ? "bg-[#4B7F52]/10" : "bg-red-500/10"}`}>
+                            <span className={`text-xs ${isApproval ? "text-[#4B7F52]" : "text-red-400"}`}>{isApproval ? "⣿" : "⠇⠸"}</span>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[11px] font-semibold text-white/70">{vName}</span>
+                              <span className="ml-1 font-mono text-[9px] text-white/25">{voter}</span>
+                            </div>
+                            <a href={`https://hashscan.io/testnet/account/${voter}`} target="_blank" rel="noopener noreferrer" className="shrink-0 text-white/30 transition hover:text-white/60">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                            </a>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Voted No */}
-                  <div className="mt-4">
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-red-400/60">Voted No</h4>
-                    <div className="mt-2">
-                      {detailItem.downvotes > 0 ? (
-                        <div className="flex items-center gap-2 rounded-md bg-red-500/10 px-2 py-1.5">
-                          <span className="text-xs text-red-400" style={{ letterSpacing: "-0.15em" }}>⠇⠸</span>
-                          <span className="font-mono text-[11px] text-white/60">{detailItem.downvotes} vote{detailItem.downvotes !== 1 ? "s" : ""}</span>
-                        </div>
-                      ) : <p className="text-[11px] text-white/20">None</p>}
-                    </div>
-                  </div>
-
-                  {/* Category info */}
+                  {/* Category */}
                   <div className="mt-5">
                     <h4 className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Category</h4>
                     <div className="mt-2 flex items-center gap-2">
                       <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: `rgb(${cat.color.join(",")})` }} />
                       <span className="text-sm font-medium text-white/80">{cat.label}</span>
                     </div>
-                    <a href={`https://hashscan.io/testnet/topic/${cat.topicId}`} target="_blank" rel="noopener noreferrer" className="mt-1 block font-mono text-[10px] text-blue-400 hover:underline">
-                      {cat.topicId} ↗
-                    </a>
+                  </div>
+
+                  {/* On-chain links */}
+                  <div className="mt-5">
+                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-white/30">On-chain</h4>
+                    <div className="mt-2 space-y-2">
+                      {categoryTopicId && (
+                        <a href={`https://hashscan.io/testnet/topic/${categoryTopicId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-md bg-white/5 px-2.5 py-2 text-[11px] text-white/50 transition hover:bg-white/10 hover:text-white/70">
+                          <span className="flex-1">HCS Topic</span>
+                          <span className="font-mono text-[9px] text-white/25">{categoryTopicId}</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                        </a>
+                      )}
+                      <a href={`https://hashscan.io/testnet/account/${detailItem.author}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-md bg-white/5 px-2.5 py-2 text-[11px] text-white/50 transition hover:bg-white/10 hover:text-white/70">
+                        <span className="flex-1">Author Account</span>
+                        <span className="font-mono text-[9px] text-white/25">{detailItem.author}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1122,6 +1221,8 @@ export function KnowledgeLayer() {
   const [knowledgeItems, setKnowledgeItems] = useState<Knowledge[]>([]);
   const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const [voteTopicMap, setVoteTopicMap] = useState<Record<string, string>>({});
+  const [agentNames, setAgentNames] = useState<Record<string, string>>({});
+  const [subTopics, setSubTopics] = useState<Record<string, string>>({});
   const [fetched, setFetched] = useState(false);
 
   useEffect(() => {
@@ -1150,15 +1251,16 @@ export function KnowledgeLayer() {
       ]);
       const [data, agentsData] = await Promise.all([knowledgeRes.json(), agentsRes.json()]);
 
-      // Build accountId → voteTopicId map
+      // Build accountId → voteTopicId map + name map
       if (agentsData.success) {
         const map: Record<string, string> = {};
+        const names: Record<string, string> = {};
         for (const a of agentsData.agents) {
-          if (a.hederaAccountId && a.voteTopicId) {
-            map[a.hederaAccountId] = a.voteTopicId;
-          }
+          if (a.hederaAccountId && a.voteTopicId) map[a.hederaAccountId] = a.voteTopicId;
+          if (a.hederaAccountId && a.botId) names[a.hederaAccountId] = a.botId;
         }
         setVoteTopicMap(map);
+        setAgentNames(names);
       }
 
       if (data.success) {
@@ -1175,6 +1277,7 @@ export function KnowledgeLayer() {
             approvals: number;
             rejections: number;
             author: string;
+            voters?: string[];
             status: "pending" | "approved" | "rejected";
           }) => ({
             id: item.itemId,
@@ -1189,6 +1292,7 @@ export function KnowledgeLayer() {
             downvotes: item.rejections,
             quorum: item.approvals,
             author: item.author,
+            voters: item.voters || [],
             status: item.status,
           })
         );
@@ -1199,6 +1303,7 @@ export function KnowledgeLayer() {
           rejected: data.counts?.rejected || 0,
           total: allItems.length,
         });
+        if (data.subTopics) setSubTopics(data.subTopics);
       }
     } catch (err) {
       console.error("Failed to fetch knowledge:", err);
@@ -1256,6 +1361,8 @@ export function KnowledgeLayer() {
           knowledgeItems={knowledgeItems}
           counts={counts}
           onRefresh={fetchKnowledge}
+          agentNames={agentNames}
+          subTopics={subTopics}
         />
       )}
     </>

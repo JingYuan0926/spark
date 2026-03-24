@@ -168,8 +168,12 @@ function drawSpeechBubble(
 // ── Activity entry (from HEAD — ledger-based) ───────────────────
 interface ActivityEntry {
   id: string;
+  seqNo: number;
+  consensusTimestamp: string;
   type: string;
+  action: string;
   bot: string;
+  target: string;
   time: string;
   detail: string;
 }
@@ -186,28 +190,39 @@ function timeAgo(consensusTimestamp: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const ACTION_LABELS: Record<string, string> = {
-  topics_initialized: "Platform Init",
-  agent_registered: "Agent Registered",
-  hcs11_profile: "HCS-11 Profile Set",
-  service_listed: "Service Listed",
-  task_created: "Task Created",
-  task_accepted: "Task Accepted",
-  task_completed: "Task Completed",
-  task_confirmed: "Task Confirmed",
-  task_disputed: "Task Disputed",
-  task_comment: "Task Comment",
-  task_price_proposal: "Price Proposed",
-  task_price_response: "Price Response",
-  knowledge_submitted: "Knowledge Submitted",
-  vote_cast: "Knowledge Voted",
-  heartbeat: "Heartbeat Sent",
-  review: "Review",
+// Brief action verbs for the activity feed
+const ACTION_BRIEFS: Record<string, string> = {
+  topics_initialized: "initialized",
+  agent_registered: "registered",
+  hcs11_profile: "set profile",
+  service_listed: "listed",
+  task_created: "created task",
+  task_accepted: "accepted task",
+  task_completed: "submitted work",
+  task_confirmed: "confirmed",
+  task_disputed: "disputed",
+  task_comment: "commented",
+  task_price_proposal: "proposed price",
+  task_price_response: "responded",
+  knowledge_submitted: "submitted",
+  vote_cast: "voted",
+  heartbeat: "heartbeat",
+  review: "reviewed",
+  hcs10_registry: "registered",
+  hcs20_deploy: "deployed token",
 };
 
 function parseActivity(msg: Record<string, unknown>, seqNo: number): ActivityEntry {
-  const action = (msg.action as string) || (msg.type as string) || "unknown";
-  const type = ACTION_LABELS[action] || action;
+  // Resolve action: check HCS standard protocol field first
+  let action = (msg.action as string) || "";
+  if (!action) {
+    if (msg.p === "hcs-10") action = "hcs10_registry";
+    else if (msg.p === "hcs-11") action = "hcs11_profile";
+    else if (msg.p === "hcs-2" && msg.type === "review") action = "review";
+    else if (msg.p === "hcs-20") action = "hcs20_deploy";
+    else action = (msg.type as string) || "unknown";
+  }
+  const brief = ACTION_BRIEFS[action] || action.replace(/_/g, " ");
   const bot = (msg.botId as string)
     || (msg.hederaAccountId as string)
     || (msg.requester as string)
@@ -216,43 +231,57 @@ function parseActivity(msg: Record<string, unknown>, seqNo: number): ActivityEnt
     || (msg.reviewer as string)
     || "system";
   const time = msg._consensusAt ? timeAgo(msg._consensusAt as string) : "";
+
+  // Extract target (the "other party")
+  let target = "";
   let detail = "";
 
-  if (action === "agent_registered") {
-    detail = (msg.hederaAccountId as string) || "";
-  } else if (action === "hcs11_profile") {
-    detail = (msg.hederaAccountId as string) || "";
-  } else if (action === "service_listed") {
-    detail = (msg.serviceName as string) || "";
-  } else if (action === "task_created" || action === "task_accepted" || action === "task_completed" || action === "task_confirmed" || action === "task_disputed") {
+  if (action === "review") {
+    target = (msg.targetAgent as string) || "";
+  } else if (action === "task_accepted") {
+    target = (msg.requester as string) || "";
+    detail = (msg.title as string) || "";
+  } else if (action === "task_created") {
+    target = (msg.workerAccountId as string) || "";
+    detail = (msg.title as string) || "";
+  } else if (action === "task_completed" || action === "task_confirmed" || action === "task_disputed") {
     detail = (msg.title as string) || "";
   } else if (action === "task_comment" || action === "task_price_proposal") {
     detail = (msg.message as string) || "";
-    if (detail.length > 50) detail = detail.slice(0, 50) + "...";
+    if (detail.length > 40) detail = detail.slice(0, 40) + "...";
+  } else if (action === "service_listed") {
+    detail = (msg.serviceName as string) || "";
   } else if (action === "knowledge_submitted") {
     detail = (msg.category as string) || "";
   } else if (action === "vote_cast") {
-    const vote = (msg.vote as string) || "";
-    const target = (msg.targetBot as string) || "";
-    detail = `${vote} on ${target}`;
-  } else if (action === "review" || (msg.p === "hcs-2" && msg.type === "review")) {
-    detail = (msg.targetAgent as string) || "";
-  } else {
-    detail = "";
+    target = (msg.targetBot as string) || "";
+  } else if (action === "hcs20_deploy") {
+    detail = (msg.tick as string) || "";
   }
 
-  return { id: `#${seqNo}`, type, bot, time, detail };
+  const consensusTimestamp = (msg._consensusAt as string) || "";
+  return { id: `#${seqNo}`, seqNo, consensusTimestamp, type: brief, action, bot, target, time, detail };
 }
 
 const FALLBACK_ACTIVITY: ActivityEntry[] = [
-  { id: "#—", type: "info", bot: "system", time: "", detail: "Loading master topic logs..." },
+  { id: "#—", seqNo: 0, consensusTimestamp: "", type: "info", action: "info", bot: "system", target: "", time: "", detail: "Loading master topic logs..." },
 ];
 
-const TYPE_COLORS: Record<string, string> = {
+const ACTION_COLORS: Record<string, string> = {
   agent_registered: "text-[#4B7F52]",
+  hcs10_registry: "text-[#4B7F52]",
+  hcs11_profile: "text-[#4B7F52]",
   knowledge_submitted: "text-[#4F6D7A]",
   vote_cast: "text-[#DD6E42]",
-  info: "text-[#483519]/50",
+  review: "text-[#DD6E42]",
+  task_created: "text-[#4F6D7A]",
+  task_accepted: "text-[#4F6D7A]",
+  task_completed: "text-[#4B7F52]",
+  task_confirmed: "text-[#4B7F52]",
+  task_disputed: "text-[#A61C3C]",
+  service_listed: "text-[#483519]/70",
+  heartbeat: "text-[#483519]/40",
+  hcs20_deploy: "text-[#483519]/50",
 };
 
 // ── Chat message type (from incoming — LLM cycle) ───────────────
@@ -297,6 +326,7 @@ export function AgentSession() {
   // Activity log (ledger-based from HEAD)
   const [activity, setActivity] = useState<ActivityEntry[]>(FALLBACK_ACTIVITY);
   const [masterTopicId, setMasterTopicId] = useState<string | null>(null);
+  const [agentNameMap, setAgentNameMap] = useState<Record<string, string>>({});
 
   // Fetch ledger for platform activity (from HEAD)
   useEffect(() => {
@@ -537,6 +567,12 @@ export function AgentSession() {
         const data = await res.json();
         if (cancelled || !data.success) return;
         const agents: { hederaAccountId: string; botId: string }[] = data.agents || [];
+        // Build name lookup map
+        const nameMap: Record<string, string> = {};
+        for (const a of agents) {
+          if (a.hederaAccountId && a.botId) nameMap[a.hederaAccountId] = a.botId;
+        }
+        if (!cancelled) setAgentNameMap(nameMap);
         if (agents.length === 0) return;
 
         // Seed plaza agents at random positions
@@ -711,18 +747,40 @@ export function AgentSession() {
           </div>
 
           <div className="hide-scrollbar divide-y divide-[#483519]/5 overflow-y-auto" style={{ maxHeight: "calc(100% - 60px)", scrollbarWidth: "none" }}>
-            {visibleActivity.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 px-4 py-2">
-                <span className="mt-0.5 font-mono text-xs text-[#483519]/40">{a.id}</span>
-                <span className={`mt-0.5 font-mono text-xs font-semibold ${TYPE_COLORS[a.type] || "text-[#483519]/70"}`}>
-                  {a.type}
-                </span>
-                <span className="text-xs font-semibold text-[#483519]/70">
-                  {a.bot}
-                </span>
-                <span className="ml-auto shrink-0 text-xs text-[#483519]/30">{a.time}</span>
-              </div>
-            ))}
+            {visibleActivity.map((a) => {
+              const fromLabel = agentNameMap[a.bot] ? `${agentNameMap[a.bot]} (${a.bot})` : a.bot;
+              const toLabel = a.target ? (agentNameMap[a.target] ? `${agentNameMap[a.target]} (${a.target})` : a.target) : "";
+              const txUrl = a.consensusTimestamp
+                ? `https://hashscan.io/testnet/transaction/${a.consensusTimestamp}`
+                : null;
+              return (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 px-4 py-2 text-xs"
+                >
+                  <span className="shrink-0 font-mono text-[#483519]/30">{a.id}</span>
+                  <span className="shrink-0 font-semibold text-[#483519]/70">{fromLabel}</span>
+                  <span className={`shrink-0 ${ACTION_COLORS[a.action] || "text-[#483519]/50"}`}>{a.type}</span>
+                  {toLabel && (
+                    <>
+                      <span className="shrink-0 text-[#483519]/30">→</span>
+                      <span className="shrink-0 font-semibold text-[#483519]/60">{toLabel}</span>
+                    </>
+                  )}
+                  {a.detail && (
+                    <span className="min-w-0 truncate text-[#483519]/35">{a.detail}</span>
+                  )}
+                  <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[#483519]/25">
+                    {a.time}
+                    {txUrl && (
+                      <a href={txUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="ml-1 text-[#483519]/30 transition hover:text-[#483519]/60">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                      </a>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
         </div>

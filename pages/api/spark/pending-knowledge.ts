@@ -156,6 +156,7 @@ export default async function handler(
         approved: approved.length,
         rejected: rejected.length,
       },
+      subTopics: config.subTopics || {},
     });
   } catch (err: unknown) {
     return res.status(500).json({

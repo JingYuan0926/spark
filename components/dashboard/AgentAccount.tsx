@@ -679,7 +679,7 @@ export function AgentAccount() {
           </div>
 
           {/* Domain & Services */}
-          <div className="space-y-1.5 text-base">
+          <div className="space-y-1 text-xs">
             <p className="text-[#7a3a1f]/70">Domain: <span className="font-semibold text-[#7a3a1f]">{agent.domainTags || "—"}</span></p>
             <p className="text-[#7a3a1f]/70">Services: <span className="font-semibold text-[#7a3a1f]">{agent.serviceOfferings || "—"}</span></p>
           </div>

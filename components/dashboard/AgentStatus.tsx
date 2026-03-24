@@ -186,8 +186,8 @@ export function AgentStatus() {
       { action: "Reputation", time: "", content: `${agent.netReputation >= 0 ? "+" : ""}${agent.netReputation} (${agent.upvotes}\u2191 ${agent.downvotes}\u2193)`, status: "done" as const },
     ];
 
-    // Show real bot messages as activity feed (newest first)
-    const messages = [...(agent.botMessages || [])].reverse();
+    // Show real bot messages as activity feed (oldest first, newest at bottom)
+    const messages = [...(agent.botMessages || [])];
     for (const msg of messages) {
       const rawAction = (msg.action as string) || "unknown";
       const ts = (msg.timestamp as string) || "";
@@ -198,11 +198,8 @@ export function AgentStatus() {
       items.push({ action: label, time: ago, content: detail, status: "done" as const });
     }
 
-    // Pending action
-    items.push({ action: "Validating knowledge submission...", time: "", content: "", status: "active" as const });
-
-    // Bottom row: waiting for next action
-    items.push({ action: "Listening for next action...", time: "", content: "", status: "pending" as const });
+    // Waiting spinner at the bottom
+    items.push({ action: "Awaiting next command...", time: "", content: "", status: "active" as const });
 
     return items;
   }, [agent]);

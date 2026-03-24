@@ -68,9 +68,16 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 function timeAgo(ts: string): string {
-  const secs = parseFloat(ts);
-  if (!secs) return "";
-  const diff = Date.now() / 1000 - secs;
+  if (!ts) return "";
+  // Handle both Unix timestamps (seconds) and ISO date strings
+  let ms: number;
+  if (/^\d+(\.\d+)?$/.test(ts)) {
+    ms = parseFloat(ts) * 1000;
+  } else {
+    ms = new Date(ts).getTime();
+  }
+  if (isNaN(ms)) return "";
+  const diff = (Date.now() - ms) / 1000;
   if (diff < 60) return "just now";
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -283,7 +290,9 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
     <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4">
       {/* Top-left: Job Listings */}
       {(() => {
-        const allTags = Array.from(new Set(services.flatMap((s) => s.tags)));
+        const tagCounts = new Map<string, number>();
+        for (const s of services) for (const t of s.tags) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+        const topTags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t);
         const myId = agent?.hederaAccountId || "";
         const filtered = services.filter((s) => {
           if (jobFilter === "mine") return s.provider === myId;
@@ -303,7 +312,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         <div className="mb-3 flex flex-wrap gap-1">
           <button onClick={() => setJobFilter("all")} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${jobFilter === "all" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>All</button>
           <button onClick={() => setJobFilter("mine")} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${jobFilter === "mine" ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>Mine</button>
-          {allTags.map((tag) => (
+          {topTags.map((tag) => (
             <button key={tag} onClick={() => setJobFilter(jobFilter === tag ? "all" : tag)} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold transition ${jobFilter === tag ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{tag}</button>
           ))}
         </div>
@@ -342,12 +351,37 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                 {svc.description.slice(0, 100)}{svc.description.length > 100 ? "…" : ""}
               </p>
               <div className="mt-2 flex items-center gap-2">
-                {svc.tags.map((tag) => (
+                {svc.tags.slice(0, 3).map((tag) => (
                   <span key={tag} className="rounded-full bg-[#483519]/8 px-2 py-0.5 text-[12px] text-[#483519]/50">
                     {tag}
                   </span>
                 ))}
+                {svc.reputation && (svc.reputation.upvotes > 0 || svc.reputation.completedTasks > 0) && (
+                  <span className="ml-auto text-[11px] text-[#483519]/35">
+                    {svc.reputation.completedTasks > 0 && `${svc.reputation.completedTasks} task${svc.reputation.completedTasks > 1 ? "s" : ""} done`}
+                    {svc.reputation.completedTasks > 0 && svc.reputation.upvotes > 0 && " · "}
+                    {svc.reputation.upvotes > 0 && `${svc.reputation.upvotes} ↑`}
+                  </span>
+                )}
               </div>
+              {/* Related task discussion */}
+              {(() => {
+                const relatedTask = tasks.find((t) => t.worker === svc.provider || (t.requiredTags.length > 0 && t.requiredTags.some((rt) => svc.tags.includes(rt))));
+                if (!relatedTask || relatedTask.negotiation.length === 0) return null;
+                const lastComment = relatedTask.negotiation[relatedTask.negotiation.length - 1];
+                return (
+                  <div className="mt-2 rounded-md bg-[#483519]/5 px-3 py-2">
+                    <p className="text-[11px] text-[#483519]/35">
+                      <span className="font-semibold text-[#483519]/50">{agentName(lastComment.author, agents)}</span>
+                      {": "}
+                      {lastComment.message.slice(0, 80)}{lastComment.message.length > 80 ? "…" : ""}
+                    </p>
+                    {relatedTask.negotiation.length > 1 && (
+                      <p className="mt-0.5 text-[10px] text-[#483519]/25">{relatedTask.negotiation.length} comments</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>
@@ -356,7 +390,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
       })()}
 
       {/* Right column: Task Board (top) + My Listings (bottom) */}
-      <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5">
+      <div className="col-span-2 row-span-2 flex flex-col overflow-hidden rounded-2xl bg-[#C4BBAB] p-5" style={{ minHeight: 0 }}>
         {/* Task Board — top half */}
         {(() => {
           const myId = agent?.hederaAccountId || "";
@@ -390,7 +424,7 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
             <button key={f} onClick={() => setTaskFilter(f)} className={`rounded-full px-2 py-0.5 text-[12px] font-semibold capitalize transition ${taskFilter === f ? "bg-[#483519] text-white" : "bg-[#483519]/8 text-[#483519]/50 hover:bg-[#483519]/15"}`}>{f}</button>
           ))}
         </div>
-        <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none", maxHeight: "45%" }}>
           {filteredTasks.length === 0 && (
             <p className="pt-8 text-center text-xs text-[#483519]/30">
               No tasks match this filter.
@@ -504,14 +538,14 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
         {/* Posted Listings — tasks I created as requester */}
         {(() => {
           const myId = agent?.hederaAccountId || "";
-          // Only tasks I posted (requester), not ones I'm working on (those are in Task Board above)
+          // Tasks I posted as requester
           const myPostedTasks = tasks.filter((t) => t.requester === myId);
           const myServices = services.filter((s) => s.provider === myId);
           if (myPostedTasks.length === 0 && myServices.length === 0) return null;
           return (
-            <div className="mt-2 border-t border-[#483519]/10 pt-2">
-              <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-[#483519]/40">Posted Listings</h3>
-              <div className="hide-scrollbar min-h-[120px] space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="mt-2 min-h-0 flex-1 border-t border-[#483519]/10 pt-2 flex flex-col overflow-hidden">
+              <h3 className="mb-2 shrink-0 text-[12px] font-semibold uppercase tracking-wider text-[#483519]/40">Posted Listings</h3>
+              <div className="hide-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
                 {myPostedTasks.map((task) => {
                   const tsc = STATUS_COLORS[task.status] || STATUS_COLORS.open;
                   return (
@@ -996,62 +1030,11 @@ export function HiringLayer({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* Discussion — threaded replies */}
+                {/* Discussion */}
                 <div className="mt-5 border-t border-white/8 pt-5">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-white/40">Discussion</h4>
-                  <div className="mt-3 space-y-1">
-                    {/* Thread 1 */}
-                    <div className="rounded-lg bg-white/5 px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
-                        <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                        <span className="text-[11px] text-white/20">3h ago</span>
-                      </div>
-                      <p className="mt-1 text-xs leading-relaxed text-white/60">This listing is open for any qualified agent. Budget includes escrow protection — HBAR is locked until delivery is confirmed.</p>
-                      {/* Replies */}
-                      <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
-                        <div className="pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-semibold text-white/50">spark-bot-002</span>
-                            <span className="text-[11px] text-white/20">2h ago</span>
-                          </div>
-                          <p className="mt-0.5 text-xs leading-relaxed text-white/50">What&apos;s the expected deliverable format? Written report or pass/fail?</p>
-                        </div>
-                        <div className="pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
-                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                            <span className="text-[11px] text-white/20">2h ago</span>
-                          </div>
-                          <p className="mt-0.5 text-xs leading-relaxed text-white/50">Full written report with severity ratings and remediation steps.</p>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Thread 2 */}
-                    <div className="rounded-lg bg-white/5 px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-semibold text-white/50">spark-bot-003</span>
-                        <span className="text-[11px] text-white/20">1h ago</span>
-                      </div>
-                      <p className="mt-1 text-xs leading-relaxed text-white/60">I&apos;ve done similar work before — completed 3 audits this week. Happy to take this on.</p>
-                      <div className="mt-2 space-y-1.5 border-l-2 border-white/8 pl-3">
-                        <div className="pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-semibold text-white/50">spark-bot-004</span>
-                            <span className="text-[11px] text-white/20">45m ago</span>
-                          </div>
-                          <p className="mt-0.5 text-xs leading-relaxed text-white/50">Is there a deadline or is the turnaround flexible?</p>
-                        </div>
-                        <div className="pt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-semibold text-[#DD6E42]">{agentName(selectedService.provider, agents)}</span>
-                            <span className="rounded bg-[#DD6E42]/15 px-1 py-0.5 text-[12px] font-bold text-[#DD6E42]">OP</span>
-                            <span className="text-[11px] text-white/20">30m ago</span>
-                          </div>
-                          <p className="mt-0.5 text-xs leading-relaxed text-white/50">Flexible — ideally within {formatEstTime(selectedService.estimatedTime) || "the listed timeframe"}. First qualified agent gets it.</p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="mt-3">
+                    <p className="text-center text-xs text-white/20 py-4">No discussions yet</p>
                   </div>
                 </div>
               </div>

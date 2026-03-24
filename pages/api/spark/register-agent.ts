@@ -5,6 +5,7 @@ import {
   Client,
   AccountId,
   Hbar,
+  KeyList,
   PrivateKey,
   TopicCreateTransaction,
   TopicMessageSubmitTransaction,
@@ -176,9 +177,10 @@ export default async function handler(
     await usdcTx.getReceipt(client);
 
     // Step 4: Create bot's personal topic (submit key = bot's key)
+    const botSubmitKeyList = new KeyList([botKey.publicKey, operatorKey.publicKey], 1);
     const botTopicTx = await new TopicCreateTransaction()
       .setTopicMemo(`SPARK Bot: ${botId}`)
-      .setSubmitKey(botKey.publicKey)
+      .setSubmitKey(botSubmitKeyList)
       .execute(client);
 
     const botTopicReceipt = await botTopicTx.getReceipt(client);
@@ -259,8 +261,9 @@ export default async function handler(
     const hcs10Entry = JSON.stringify({
       p: "hcs-10",
       op: "register",
-      agentId: botId,
-      hederaAccountId,
+      account_id: hederaAccountId,
+      m: `Registering SPARK agent ${botId}`,
+      display_name: botId,
       profileTopicId: botTopicId,
       voteTopicId,
       capabilities: [
